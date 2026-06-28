@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DESIGN TOKENS — LEX Concursos
+   Dark-first, warm blacks, orange (#E8650A) accent
+───────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  :root {
+    /* Radius */
+    --radius: 0.375rem;
+
+    /* ── LIGHT THEME — warm parchment + orange ────────────────────────── */
+
+    --background:  36 50% 97%;     /* #FDFAF5 */
+    --surface:     0 0% 100%;
+    --card:        0 0% 100%;
+    --popover:     0 0% 100%;
+
+    --sidebar:        36 30% 96%;  /* #F9F6F0 */
+    --sidebar-border: 30 20% 88%;  /* #E5DDD3 */
+
+    --border:  30 20% 88%;
+    --divider: 30 20% 88%;
+    --input:   30 20% 88%;
+    --ring:    26 91% 47%;
+
+    --foreground:         22 45% 10%;   /* #21140A */
+    --foreground-muted:   25 20% 42%;   /* #796558 */
+    --foreground-subtle:  25 14% 60%;   /* #A8988E */
+
+    --primary:            26 91% 47%;   /* #E8650A */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover:      26 91% 41%;   /* darker on light */
+    --primary-muted:      26 91% 93%;   /* very light orange tint */
+
+    --secondary:          30 18% 93%;
+    --secondary-foreground: 22 30% 20%;
+
+    --accent:             26 91% 47%;
+    --accent-foreground:  0 0% 100%;
+
+    --muted:              36 25% 94%;
+    --muted-foreground:   25 18% 46%;
+
+    --success:            160 84% 36%;
+    --success-foreground: 0 0% 100%;
+    --success-muted:      160 55% 92%;
+
+    --warning:            42 95% 50%;
+    --warning-foreground: 22 45% 10%;
+    --warning-muted:      42 90% 92%;
+
+    --destructive:        0 80% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted:  0 80% 94%;
+
+    --info:               210 90% 50%;
+    --info-foreground:    0 0% 100%;
+    --info-muted:         210 85% 93%;
+  }
+
+  .dark {
+    /* ── DARK THEME — near-black warm + orange glow ────────────────────── */
+
+    --background:  20 28% 4%;      /* #0C0907 */
+    --surface:     22 32% 7%;      /* #130E08 */
+    --card:        22 28% 9%;      /* #181109 */
+    --popover:     22 28% 9%;
+
+    --sidebar:        20 30% 5.5%; /* #0F0B07 */
+    --sidebar-border: 25 25% 12%;  /* #22180D */
+
+    --border:  25 24% 14%;         /* #271C0F */
+    --divider: 25 24% 14%;
+    --input:   25 24% 14%;
+    --ring:    26 91% 47%;
+
+    --foreground:         36 45% 92%;   /* #F5EFE6 warm white */
+    --foreground-muted:   30 14% 54%;   /* #9A8878 */
+    --foreground-subtle:  28 10% 38%;   /* #685E55 */
+
+    --primary:            26 91% 47%;   /* #E8650A */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover:      26 91% 55%;   /* brighter on dark */
+    --primary-muted:      26 55% 15%;   /* #3D1D07 */
+
+    --secondary:          22 22% 13%;
+    --secondary-foreground: 36 30% 80%;
+
+    --accent:             26 91% 47%;
+    --accent-foreground:  0 0% 100%;
+
+    --muted:              22 22% 12%;
+    --muted-foreground:   30 12% 52%;
+
+    --success:            155 55% 38%;
+    --success-foreground: 0 0% 100%;
+    --success-muted:      155 40% 12%;
+
+    --warning:            42 88% 48%;
+    --warning-foreground: 22 45% 8%;
+    --warning-muted:      42 55% 13%;
+
+    --destructive:        0 68% 54%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted:  0 48% 13%;
+
+    --info:               210 75% 48%;
+    --info-foreground:    0 0% 100%;
+    --info-muted:         210 48% 13%;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE STYLES
+───────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Selection */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-foreground-subtle; }
+
+  /* Headings */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  /* Links */
+  a { @apply transition-colors duration-150; }
+
+  /* Code */
+  code, kbd, pre { @apply font-mono; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY LAYER
+───────────────────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Shimmer skeleton */
+  .skeleton {
+    @apply relative overflow-hidden bg-muted;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--foreground) / 0.05) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  /* Glass surface */
+  .glass {
+    @apply backdrop-blur-xl bg-background/80 border border-border/50;
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(26 91% 47%) 0%,
+      hsl(42 95% 58%) 100%
+    );
+  }
+
+  /* Grid pattern bg */
+  .bg-grid {
+    background-image: 
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Dot pattern bg */
+  .bg-dots {
+    background-image: radial-gradient(
+      circle,
+      hsl(var(--foreground) / 0.08) 1px,
+      transparent 1px
+    );
+    background-size: 20px 20px;
+  }
+
+  /* Sidebar width vars */
+  .sidebar-width { width: 240px; }
+  .sidebar-collapsed-width { width: 60px; }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Truncate multiline */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   VIDEO PLAYER
+───────────────────────────────────────────────────────────────────────────── */
+
+.player-controls {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.8) 0%,
+    rgba(0, 0, 0, 0.2) 60%,
+    transparent 100%
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   RICH TEXT EDITOR
+───────────────────────────────────────────────────────────────────────────── */
+
+.rich-text {
+  @apply prose prose-neutral dark:prose-invert max-w-none;
+}
+.rich-text h1 { @apply text-3xl font-bold tracking-tight mt-8 mb-4; }
+.rich-text h2 { @apply text-2xl font-semibold tracking-tight mt-6 mb-3; }
+.rich-text h3 { @apply text-xl font-semibold mt-5 mb-2; }
+.rich-text p  { @apply text-base leading-relaxed mb-4 text-foreground; }
+.rich-text ul, .rich-text ol { @apply mb-4 pl-6; }
+.rich-text li { @apply mb-1; }
+.rich-text blockquote {
+  @apply border-l-4 border-primary pl-4 italic text-foreground-muted my-4;
+}
+.rich-text code {
+  @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+}
+.rich-text pre {
+  @apply bg-card border border-border rounded-lg p-4 overflow-x-auto my-4;
+}
