@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { logAudit } from "@/lib/audit";
 import type { UserRole, UserStatus } from "@/lib/types";
 
 async function requireAdmin() {
@@ -16,7 +17,7 @@ async function requireAdmin() {
 }
 
 export async function createUserByAdmin(input: { name: string; email: string; role: UserRole }) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const existing = await db.user.findUnique({ where: { email: input.email } });
   if (existing) {
@@ -26,7 +27,7 @@ export async function createUserByAdmin(input: { name: string; email: string; ro
   const tempPassword = crypto.randomBytes(9).toString("base64url");
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-  await db.user.create({
+  const created = await db.user.create({
     data: {
       name: input.name,
       email: input.email,
@@ -37,6 +38,7 @@ export async function createUserByAdmin(input: { name: string; email: string; ro
     },
   });
 
+  await logAudit({ actorId: session.user.id, action: "user.created", resourceType: "user", resourceId: created.id, metadata: { email: input.email, role: input.role } });
   revalidatePath("/admin/users");
   return { success: true as const, tempPassword };
 }
@@ -47,6 +49,7 @@ export async function updateUserRole(userId: string, role: UserRole) {
     return { success: false as const, error: "Você não pode alterar o próprio papel." };
   }
   await db.user.update({ where: { id: userId }, data: { role } });
+  await logAudit({ actorId: session.user.id, action: "user.updated", resourceType: "user", resourceId: userId, metadata: { role } });
   revalidatePath("/admin/users");
   return { success: true as const };
 }
@@ -57,6 +60,7 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
     return { success: false as const, error: "Você não pode alterar o próprio status." };
   }
   await db.user.update({ where: { id: userId }, data: { status } });
+  await logAudit({ actorId: session.user.id, action: status === "banned" ? "user.banned" : "user.updated", resourceType: "user", resourceId: userId, metadata: { status } });
   revalidatePath("/admin/users");
   return { success: true as const };
 }

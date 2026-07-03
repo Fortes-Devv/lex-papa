@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import {
   Users, DollarSign, BookOpen, TrendingUp, ShoppingCart, ArrowUpRight,
 } from "lucide-react";

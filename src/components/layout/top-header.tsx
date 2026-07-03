@@ -1,12 +1,10 @@
 "use client";
 import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
-import { Badge } from "@/components/ui/badge";
-import { MOCK_NOTIFICATIONS } from "@/lib/mock/data";
 import { useCurrentUser } from "@/lib/store/hooks";
 
 interface TopHeaderProps {
@@ -17,7 +15,14 @@ interface TopHeaderProps {
 export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
   const user = useCurrentUser();
   const [dark, setDark] = useState(false);
-  const unread = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/notifications/count")
+      .then((r) => r.json())
+      .then((d) => setUnread(d.unread ?? 0))
+      .catch(() => {});
+  }, []);
 
   function toggleTheme() {
     setDark((d) => !d);

@@ -165,6 +165,15 @@ model User {
   certificates       Certificate[]
   orders             Order[]
   instructedProducts Product[]        @relation("ProductInstructors")
+  favorites          Favorite[]
+  notifications      Notification[]
+  lessonNotes        LessonNote[]
+  xp                 UserXP?
+  achievements       UserAchievement[]
+  posts              Post[]
+  postLikes          PostLike[]
+  comments           Comment[]
+  auditLogs          AuditLog[]
 
   @@map("users")
 }
@@ -246,6 +255,8 @@ model Product {
   enrollments  Enrollment[]
   orderItems   OrderItem[]
   certificates Certificate[]
+  favorites    Favorite[]
+  posts        Post[]
 
   @@map("products")
 }
@@ -316,6 +327,8 @@ model Lesson {
   materials      Material[]
   quiz           Quiz?
   lessonProgress LessonProgress[]
+  notes          LessonNote[]
+  comments       Comment[]
 
   @@index([moduleId])
   @@map("lessons")
@@ -492,4 +505,255 @@ model Coupon {
   orders Order[]
 
   @@map("coupons")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENGAGEMENT (favoritos, notas de aula, notificações)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("favorites")
+}
+
+model LessonNote {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, lessonId])
+  @@map("lesson_notes")
+}
+
+enum NotificationType {
+  info
+  success
+  warning
+  error
+  enrollment
+  payment
+  comment
+  achievement
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType @default(info)
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// GAMIFICATION
+// ─────────────────────────────────────────────────────────────────────────
+
+model UserXP {
+  userId           String    @id
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalXp          Int       @default(0)
+  streak           Int       @default(0)
+  lastActivityDate DateTime?
+  updatedAt        DateTime  @updatedAt
+
+  @@map("user_xp")
+}
+
+enum AchievementType {
+  completion
+  streak
+  rating
+  enrollment
+  custom
+}
+
+model Achievement {
+  id          String            @id @default(cuid())
+  title       String
+  description String
+  icon        String            @default("star")
+  type        AchievementType   @default(custom)
+  condition   Json?
+  xpReward    Int               @default(0)
+  badgeColor  String            @default("#5E6AD2")
+  isSecret    Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievementId String
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  unlockedAt    DateTime    @default(now())
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// COMMUNITY (posts, likes, comentários)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum PostStatus {
+  published
+  draft
+  flagged
+  removed
+}
+
+model Post {
+  id            String     @id @default(cuid())
+  authorId      String
+  author        User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content       String     @db.Text
+  image         String?
+  isPinned      Boolean    @default(false)
+  status        PostStatus @default(published)
+  courseId      String?
+  course        Product?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  commentsCount Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  likes    PostLike[]
+  comments Comment[]
+
+  @@index([status, createdAt])
+  @@map("posts")
+}
+
+model PostLike {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@map("post_likes")
+}
+
+model Comment {
+  id        String     @id @default(cuid())
+  postId    String?
+  post      Post?      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  lessonId  String?
+  lesson    Lesson?    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String     @db.Text
+  status    PostStatus @default(published)
+  createdAt DateTime   @default(now())
+
+  @@index([postId])
+  @@index([lessonId])
+  @@map("comments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PLATFORM SETTINGS (singleton) & AUDIT LOG
+// ─────────────────────────────────────────────────────────────────────────
+
+model PlatformSettings {
+  id        String   @id @default("singleton")
+  data      Json
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action       String
+  resourceType String
+  resourceId   String?
+  metadata     Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CMS (páginas estáticas + blog)
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ContentStatus {
+  draft
+  published
+  scheduled
+  archived
+}
+
+model CMSPage {
+  id          String        @id @default(cuid())
+  type        String        @default("custom") // home | landing | about | faq | legal | custom
+  title       String
+  slug        String        @unique
+  content     String        @db.Text
+  status      ContentStatus @default(draft)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("cms_pages")
+}
+
+model Article {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  excerpt     String
+  content     String        @db.Text
+  thumbnail   String?
+  authorId    String?
+  status      ContentStatus @default(draft)
+  publishedAt DateTime?
+  views       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("articles")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@map("password_reset_tokens")
 }

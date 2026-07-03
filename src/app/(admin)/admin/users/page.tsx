@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { UsersClient } from "./users-client";
 import type { User } from "@/lib/types";

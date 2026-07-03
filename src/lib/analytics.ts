@@ -174,9 +174,61 @@ export async function getOverviewStats() {
   };
 }
 
-export async function getCourseAnalyticsList(limit?: number) {
+export async function getTeacherRevenueSeries(teacherId: string, days = 30): Promise<RevenueDataPoint[]> {
+  const since = daysAgo(days - 1);
+  const orders = await db.order.findMany({
+    where: {
+      status: { in: ["paid", "refunded"] },
+      createdAt: { gte: since },
+      items: { some: { product: { instructors: { some: { id: teacherId } } } } },
+    },
+    select: { total: true, status: true, createdAt: true, paidAt: true },
+  });
+
+  const buckets = new Map<string, RevenueDataPoint>();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    buckets.set(d.toISOString().slice(0, 10), { date: fmtDate(d), revenue: 0, orders: 0, refunds: 0 });
+  }
+  for (const o of orders) {
+    const key = (o.paidAt ?? o.createdAt).toISOString().slice(0, 10);
+    const bucket = buckets.get(key);
+    if (!bucket) continue;
+    if (o.status === "paid") { bucket.revenue += Number(o.total); bucket.orders += 1; }
+    else if (o.status === "refunded") bucket.refunds += Number(o.total);
+  }
+  return Array.from(buckets.values());
+}
+
+export async function getTeacherOverview(teacherId: string) {
   const products = await db.product.findMany({
-    where: { type: "course" },
+    where: { type: "course", instructors: { some: { id: teacherId } } },
+    select: { id: true, status: true, rating: true, enrolledCount: true },
+  });
+  const productIds = products.map((p) => p.id);
+
+  const revenueAgg = await db.orderItem.aggregate({
+    _sum: { totalPrice: true },
+    where: { productId: { in: productIds }, order: { status: "paid" } },
+  });
+  const ratedCourses = products.filter((p) => p.rating > 0);
+  const avgRating = ratedCourses.length > 0 ? ratedCourses.reduce((s, p) => s + p.rating, 0) / ratedCourses.length : 0;
+
+  return {
+    totalStudents: products.reduce((s, p) => s + p.enrolledCount, 0),
+    totalRevenue: Number(revenueAgg._sum.totalPrice ?? 0),
+    publishedCourses: products.filter((p) => p.status === "published").length,
+    avgRating,
+  };
+}
+
+export async function getCourseAnalyticsList(limit?: number, teacherId?: string) {
+  const products = await db.product.findMany({
+    where: {
+      type: "course",
+      ...(teacherId ? { instructors: { some: { id: teacherId } } } : {}),
+    },
     orderBy: { enrolledCount: "desc" },
     take: limit,
     include: { course: true },

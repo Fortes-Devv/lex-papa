@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { DollarSign, TrendingUp, RefreshCcw, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

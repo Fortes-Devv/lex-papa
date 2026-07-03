@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { CreateCourseDialog } from "@/components/course/create-course-dialog";
 import { CourseCard, type CourseCardData } from "./course-card";

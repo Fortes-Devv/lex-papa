@@ -12,9 +12,33 @@ interface VideoPlayerProps {
   watermark?: string;
   onComplete?: () => void;
   className?: string;
+  src?: string;
 }
 
-export function VideoPlayer({ title, watermark, onComplete, className }: VideoPlayerProps) {
+export function VideoPlayer({ title, watermark, onComplete, className, src }: VideoPlayerProps) {
+  // Quando há uma URL de vídeo real (ex.: Cloudinary), usa o player nativo
+  // do navegador — confiável para streaming, seek, velocidade e fullscreen.
+  if (src) {
+    return (
+      <div className={cn("relative bg-black rounded-lg overflow-hidden", className)}>
+        <video
+          key={src}
+          src={src}
+          controls
+          controlsList="nodownload"
+          className="w-full aspect-video bg-black"
+          onEnded={() => onComplete?.()}
+        />
+        {watermark && (
+          <div className="absolute top-3 right-3 text-white/25 text-xs font-medium pointer-events-none">{watermark}</div>
+        )}
+      </div>
+    );
+  }
+  return <MockVideoPlayer title={title} watermark={watermark} onComplete={onComplete} className={className} />;
+}
+
+function MockVideoPlayer({ watermark, onComplete, className }: VideoPlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);

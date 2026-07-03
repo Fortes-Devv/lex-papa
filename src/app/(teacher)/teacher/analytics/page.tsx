@@ -1,14 +1,20 @@
-"use client";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { MOCK_REVENUE_DATA, MOCK_COURSE_ANALYTICS, MOCK_PRODUCTS } from "@/lib/mock/data";
-import { useCurrentUser } from "@/lib/store/hooks";
-import { formatCurrency } from "@/lib/utils/cn";
+import { Badge } from "@/components/ui/badge";
+import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
+import { auth } from "@/lib/auth";
+import { getTeacherRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
+import { formatCurrency, formatNumber } from "@/lib/utils/cn";
 
-export default function TeacherAnalyticsPage() {
-  const user = useCurrentUser();
-  const myProductIds = MOCK_PRODUCTS.filter((p) => p.instructorIds.includes(user.id)).map((p) => p.id);
-  const analytics = MOCK_COURSE_ANALYTICS.filter((a) => myProductIds.includes(a.productId));
+export default async function TeacherAnalyticsPage() {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  const teacherId = session.user.id;
+
+  const [revenueSeries, courses] = await Promise.all([
+    getTeacherRevenueSeries(teacherId, 30),
+    getCourseAnalyticsList(undefined, teacherId),
+  ]);
 
   return (
     <div className="space-y-5">
@@ -22,23 +28,34 @@ export default function TeacherAnalyticsPage() {
           <h2 className="text-sm font-semibold text-foreground">Receita — últimos 30 dias</h2>
         </div>
         <div className="p-4">
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={MOCK_REVENUE_DATA} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(160 60% 42%)" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="hsl(160 60% 42%)" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--foreground-muted))" }} tickLine={false} axisLine={false} interval={4} />
-              <YAxis tick={{ fontSize: 10, fill: "hsl(var(--foreground-muted))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-              <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }} formatter={(v: number) => [formatCurrency(v), "Receita"]} />
-              <Area type="monotone" dataKey="revenue" stroke="hsl(160 60% 42%)" strokeWidth={2} fill="url(#grad)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+          <RevenueAreaChart data={revenueSeries} />
         </div>
       </Card>
+
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground">Seus cursos</h2>
+        {courses.length === 0 && (
+          <div className="py-12 text-center text-sm text-foreground-muted border border-dashed border-border rounded-lg">Nenhum curso ainda.</div>
+        )}
+        {courses.map((c, i) => (
+          <Card key={c.productId} className="flex items-center gap-4">
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{i + 1}</div>
+            <img src={c.thumbnail} className="h-12 w-20 rounded object-cover shrink-0" alt={c.title} />
+            <div className="flex-1 min-w-0 space-y-1">
+              <p className="font-medium text-sm text-foreground truncate">{c.title}</p>
+              <div className="flex items-center gap-4 text-xs text-foreground-muted flex-wrap">
+                <span>{formatNumber(c.enrollments)} matrículas</span>
+                <span>{c.completionRate.toFixed(1)}% conclusão</span>
+                <span>{c.watchTimeHours.toLocaleString()}h assistidas</span>
+              </div>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-base font-bold text-foreground">{formatCurrency(c.revenue)}</p>
+              {c.avgRating > 0 && <Badge variant="success">★ {c.avgRating.toFixed(1)}</Badge>}
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }

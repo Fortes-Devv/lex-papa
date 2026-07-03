@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getMpRefundClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { logAudit } from "@/lib/audit";
 
 async function requireAdmin() {
   const session = await auth();
@@ -14,7 +15,7 @@ async function requireAdmin() {
 }
 
 export async function refundOrder(orderId: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
 
   const order = await db.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (!order) return { success: false as const, error: "Pedido não encontrado." };
@@ -29,6 +30,7 @@ export async function refundOrder(orderId: string) {
   }
 
   await db.order.update({ where: { id: orderId }, data: { status: "refunded" } });
+  await logAudit({ actorId: session.user.id, action: "order.refunded", resourceType: "order", resourceId: orderId, metadata: { total: Number(order.total) } });
 
   for (const item of order.items) {
     await db.enrollment.updateMany({

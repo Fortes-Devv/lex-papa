@@ -5,9 +5,10 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import { requestPasswordReset } from "@/lib/actions/password-reset";
 
 export default function ForgotPasswordPage() {
-  const { success } = useToast();
+  const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
@@ -15,10 +16,14 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setSent(true);
-    success("Link de recuperação enviado!");
+    const result = await requestPasswordReset(email);
     setLoading(false);
+    if (!result.success) {
+      error(result.error);
+      return;
+    }
+    setSent(true);
+    success("Se o email existir, enviamos um link de recuperação.");
   }
 
   if (sent) {
