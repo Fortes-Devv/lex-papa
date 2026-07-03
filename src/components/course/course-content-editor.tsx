@@ -159,7 +159,12 @@ export function CourseContentEditor({ courseId, modules }: { courseId: string; m
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-foreground-muted">{modules.length} módulos</p>
-        <Button size="sm" variant="outline" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+        <div className="flex items-center gap-2">
+          <a href={`/preview/${courseId}`} target="_blank" rel="noopener noreferrer">
+            <Button size="sm" variant="ghost" leftIcon={<Eye className="h-3.5 w-3.5" />}>Assistir (preview)</Button>
+          </a>
+          <Button size="sm" variant="outline" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+        </div>
       </div>
 
       {modules.map((mod, mi) => (
