@@ -1,0 +1,495 @@
+// Prisma schema — LMS Platform
+// Modelagem derivada de src/lib/types/index.ts, escopada para o essencial
+// de produção: usuários/auth, catálogo de cursos, matrículas/progresso,
+// pedidos e cupons. Funcionalidades hoje só de UI (gamificação, CMS visual,
+// blog, analytics, community) ficam para uma fase seguinte.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  admin
+  teacher
+  student
+  moderator
+}
+
+enum UserStatus {
+  active
+  inactive
+  banned
+  pending
+}
+
+enum ProductType {
+  course
+  bundle
+  subscription
+  free
+  hidden
+  presale
+  digital_download
+  workshop
+  online_event
+  mentoring
+}
+
+enum ProductStatus {
+  draft
+  published
+  archived
+  scheduled
+  hidden
+}
+
+enum AccessType {
+  lifetime
+  subscription
+  timed
+  free
+  manual
+}
+
+enum ProductLevel {
+  beginner
+  intermediate
+  advanced
+  all
+}
+
+enum LessonType {
+  video
+  text
+  pdf
+  download
+  audio
+  quiz
+  exercise
+  live
+}
+
+enum LessonStatus {
+  draft
+  published
+  scheduled
+}
+
+enum VideoProvider {
+  youtube
+  vimeo
+  bunny
+  cloudflare
+  cloudinary
+  upload
+}
+
+enum CompletionCriteria {
+  watch_80
+  watch_100
+  complete_quiz
+  manual
+}
+
+enum MaterialType {
+  pdf
+  file
+  link
+  image
+  zip
+  audio
+}
+
+enum EnrollmentStatus {
+  active
+  expired
+  cancelled
+  completed
+}
+
+enum OrderStatus {
+  pending
+  processing
+  paid
+  failed
+  refunded
+  chargeback
+  cancelled
+}
+
+enum PaymentMethod {
+  credit_card
+  debit_card
+  pix
+  boleto
+  paypal
+}
+
+enum CouponType {
+  percentage
+  fixed
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// USERS & AUTH
+// ─────────────────────────────────────────────────────────────────────────
+
+model User {
+  id               String     @id @default(cuid())
+  name             String
+  email            String     @unique
+  passwordHash     String
+  avatar           String?
+  role             UserRole   @default(student)
+  status           UserStatus @default(active)
+  bio              String?
+  phone            String?
+  location         String?
+  website          String?
+  twoFactorEnabled Boolean    @default(false)
+  emailVerified    Boolean    @default(false)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastLoginAt      DateTime?
+
+  enrollments        Enrollment[]
+  lessonProgress     LessonProgress[]
+  certificates       Certificate[]
+  orders             Order[]
+  instructedProducts Product[]        @relation("ProductInstructors")
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CATEGORIES & TAGS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  icon        String?
+  image       String?
+  color       String?
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("CategoryTree")
+  order       Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Tag {
+  id    String  @id @default(cuid())
+  name  String
+  slug  String  @unique
+  color String?
+
+  products Product[] @relation("ProductTags")
+
+  @@map("tags")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// PRODUCTS (item vendável — hoje só "course", mas mantém o desenho para
+// bundle/subscription futuros)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id                 String        @id @default(cuid())
+  type               ProductType   @default(course)
+  status             ProductStatus @default(draft)
+  title              String
+  slug               String        @unique
+  shortDescription   String
+  description        String
+  thumbnail          String
+  previewVideo       String?
+  price              Decimal       @db.Decimal(10, 2)
+  comparePrice       Decimal?      @db.Decimal(10, 2)
+  currency           String        @default("BRL")
+  accessType         AccessType    @default(lifetime)
+  accessDuration     Int?
+  level              ProductLevel  @default(all)
+  language           String        @default("pt-BR")
+  categoryId         String?
+  category           Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags               Tag[]         @relation("ProductTags")
+  instructors        User[]        @relation("ProductInstructors")
+  isFeatured         Boolean       @default(false)
+  isPublic           Boolean       @default(true)
+  requiresEnrollment Boolean       @default(true)
+  maxStudents        Int?
+  enrolledCount      Int           @default(0)
+  rating             Float         @default(0)
+  reviewCount        Int           @default(0)
+  publishedAt        DateTime?
+  scheduledAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  course       Course?
+  enrollments  Enrollment[]
+  orderItems   OrderItem[]
+  certificates Certificate[]
+
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// COURSES
+// ─────────────────────────────────────────────────────────────────────────
+
+model Course {
+  id                    String   @id @default(cuid())
+  productId             String   @unique
+  product               Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  totalLessons          Int      @default(0)
+  totalDuration         Int      @default(0) // segundos
+  completionCertificate Boolean  @default(false)
+  certificateTemplate   String?
+  requirements          String[] @default([])
+  whatYouLearn          String[] @default([])
+  targetAudience        String[] @default([])
+  updatedAt             DateTime @updatedAt
+
+  modules Module[]
+
+  @@map("courses")
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  lessons Lesson[]
+
+  @@index([courseId])
+  @@map("modules")
+}
+
+model Lesson {
+  id                 String             @id @default(cuid())
+  moduleId           String
+  module             Module             @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  type               LessonType         @default(video)
+  status             LessonStatus       @default(draft)
+  order              Int                @default(0)
+  duration           Int? // segundos
+  videoUrl           String?
+  videoProvider      VideoProvider?
+  videoPublicId      String? // id do asset no Cloudinary, p/ deletar/gerenciar
+  content            String?            @db.Text
+  pdfUrl             String?
+  audioUrl           String?
+  downloadUrl        String?
+  isFree             Boolean            @default(false)
+  isPreview          Boolean            @default(false)
+  hasWatermark       Boolean            @default(false)
+  dripDays           Int?
+  completionCriteria CompletionCriteria @default(watch_100)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  materials      Material[]
+  quiz           Quiz?
+  lessonProgress LessonProgress[]
+
+  @@index([moduleId])
+  @@map("lessons")
+}
+
+model Material {
+  id        String       @id @default(cuid())
+  lessonId  String
+  lesson    Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title     String
+  type      MaterialType
+  url       String
+  size      Int?
+  createdAt DateTime     @default(now())
+
+  @@index([lessonId])
+  @@map("materials")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// QUIZ
+// ─────────────────────────────────────────────────────────────────────────
+
+model Quiz {
+  id                 String  @id @default(cuid())
+  lessonId           String  @unique
+  lesson             Lesson  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  title              String
+  description        String?
+  passingScore       Int     @default(70)
+  maxAttempts        Int     @default(1)
+  timeLimit          Int?
+  showAnswers        Boolean @default(true)
+  randomizeQuestions Boolean @default(false)
+  randomizeOptions   Boolean @default(false)
+
+  questions QuizQuestion[]
+
+  @@map("quizzes")
+}
+
+model QuizQuestion {
+  id            String  @id @default(cuid())
+  quizId        String
+  quiz          Quiz    @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  question      String
+  type          String // single_choice | multiple_choice | true_false | text | ordering
+  options       Json? // [{ id, text, isCorrect }]
+  correctAnswer String?
+  explanation   String?
+  points        Int     @default(1)
+  order         Int     @default(0)
+
+  @@index([quizId])
+  @@map("quiz_questions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ENROLLMENT & PROGRESS
+// ─────────────────────────────────────────────────────────────────────────
+
+model Enrollment {
+  id             String           @id @default(cuid())
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId      String
+  product        Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status         EnrollmentStatus @default(active)
+  accessType     AccessType       @default(lifetime)
+  expiresAt      DateTime?
+  enrolledAt     DateTime         @default(now())
+  completedAt    DateTime?
+  progress       Int              @default(0) // 0-100
+  lastAccessedAt DateTime?
+  orderId        String?
+  order          Order?           @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId       String
+  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  isCompleted    Boolean   @default(false)
+  watchedSeconds Int       @default(0)
+  totalSeconds   Int       @default(0)
+  completedAt    DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+model Certificate {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  code        String    @unique
+  issueDate   DateTime  @default(now())
+  expiryDate  DateTime?
+  downloadUrl String
+  isValid     Boolean   @default(true)
+
+  @@index([userId])
+  @@map("certificates")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// ORDERS & PAYMENTS (Mercado Pago)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Order {
+  id             String         @id @default(cuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtotal       Decimal        @db.Decimal(10, 2)
+  discount       Decimal        @default(0) @db.Decimal(10, 2)
+  total          Decimal        @db.Decimal(10, 2)
+  currency       String         @default("BRL")
+  status         OrderStatus    @default(pending)
+  paymentMethod  PaymentMethod?
+  mpPaymentId    String?        @unique // id do pagamento no Mercado Pago
+  mpPreferenceId String?
+  mpStatusDetail String?
+  couponCode     String?
+  coupon         Coupon?        @relation(fields: [couponCode], references: [code], onDelete: SetNull)
+  notes          String?
+  refundReason   String?
+  paidAt         DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  items       OrderItem[]
+  enrollments Enrollment[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String  @id @default(cuid())
+  orderId    String
+  order      Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  quantity   Int     @default(1)
+  unitPrice  Decimal @db.Decimal(10, 2)
+  totalPrice Decimal @db.Decimal(10, 2)
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model Coupon {
+  id            String     @id @default(cuid())
+  code          String     @unique
+  type          CouponType
+  value         Decimal    @db.Decimal(10, 2)
+  maxUses       Int?
+  usedCount     Int        @default(0)
+  minOrderValue Decimal?   @db.Decimal(10, 2)
+  expiresAt     DateTime?
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+
+  orders Order[]
+
+  @@map("coupons")
+}

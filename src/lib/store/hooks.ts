@@ -1,8 +1,34 @@
-import { useAuthStore } from "./auth";
-import { MOCK_USERS } from "@/lib/mock/data";
+"use client";
 
-export function useCurrentUser() {
-  const user = useAuthStore((s) => s.user);
-  // fallback to admin for SSR / before login
-  return user ?? MOCK_USERS[0];
+import { useSession } from "next-auth/react";
+import type { User } from "@/lib/types";
+
+// Placeholder até o usuário logar (ou durante o carregamento da sessão).
+// Campos de perfil completos (bio, phone, etc.) são preenchidos a partir do
+// banco de dados real quando a tela consumidora busca o usuário por id.
+const EMPTY_USER: User = {
+  id: "",
+  name: "",
+  email: "",
+  role: "student",
+  status: "active",
+  twoFactorEnabled: false,
+  emailVerified: false,
+  oauthProviders: [],
+  createdAt: "",
+  updatedAt: "",
+};
+
+export function useCurrentUser(): User {
+  const { data: session } = useSession();
+  if (!session?.user) return EMPTY_USER;
+
+  return {
+    ...EMPTY_USER,
+    id: session.user.id,
+    name: session.user.name ?? "",
+    email: session.user.email ?? "",
+    avatar: session.user.image ?? undefined,
+    role: session.user.role,
+  };
 }

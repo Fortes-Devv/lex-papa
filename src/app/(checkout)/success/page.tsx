@@ -1,47 +1,76 @@
-"use client";
 import Link from "next/link";
-import { CheckCircle2, BookOpen, ArrowRight, Share2 } from "lucide-react";
+import { redirect } from "next/navigation";
+import { CheckCircle2, Clock, XCircle, BookOpen, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MOCK_PRODUCTS } from "@/lib/mock/data";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils/cn";
+import { SuccessPoller } from "@/components/checkout/success-poller";
 
-export default function CheckoutSuccessPage() {
-  const product = MOCK_PRODUCTS[0];
+export default async function CheckoutSuccessPage({ searchParams }: { searchParams: { order_id?: string } }) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+  if (!searchParams.order_id) redirect("/");
+
+  const order = await db.order.findUnique({
+    where: { id: searchParams.order_id },
+    include: { items: { include: { product: true } } },
+  });
+
+  if (!order || order.userId !== session.user.id) redirect("/");
+
+  const mainItem = order.items[0];
+  const isPaid = order.status === "paid";
+  const isFailed = order.status === "failed" || order.status === "cancelled";
+  const isPending = !isPaid && !isFailed;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {isPending && <SuccessPoller orderId={order.id} />}
       <div className="w-full max-w-md text-center space-y-6">
-        <div className="mx-auto h-20 w-20 rounded-full bg-success/10 flex items-center justify-center">
-          <CheckCircle2 className="h-10 w-10 text-success" />
+        <div className={`mx-auto h-20 w-20 rounded-full flex items-center justify-center ${isPaid ? "bg-success/10" : isFailed ? "bg-destructive/10" : "bg-warning/10"}`}>
+          {isPaid ? <CheckCircle2 className="h-10 w-10 text-success" /> : isFailed ? <XCircle className="h-10 w-10 text-destructive" /> : <Clock className="h-10 w-10 text-warning" />}
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-foreground">Pagamento confirmado!</h1>
-          <p className="text-foreground-muted text-sm">Sua compra de <strong>{product.title}</strong> foi processada com sucesso.</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isPaid ? "Pagamento confirmado!" : isFailed ? "Pagamento não aprovado" : "Pagamento em processamento"}
+          </h1>
+          <p className="text-foreground-muted text-sm">
+            {isPaid && <>Sua compra de <strong>{mainItem?.product.title}</strong> foi processada com sucesso.</>}
+            {isFailed && "Não conseguimos confirmar o pagamento. Tente novamente ou use outro método."}
+            {isPending && "Assim que o pagamento for confirmado (PIX/boleto podem levar alguns minutos), esta página atualiza automaticamente."}
+          </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-card p-4 text-left space-y-3">
-          <div className="flex items-center gap-3">
-            <img src={product.thumbnail} className="h-12 w-20 rounded object-cover" alt={product.title} />
-            <div>
-              <p className="text-sm font-semibold text-foreground">{product.title}</p>
-              <p className="text-xs text-foreground-muted">{formatCurrency(product.price)} · Acesso vitalício</p>
+        {mainItem && (
+          <div className="rounded-lg border border-border bg-card p-4 text-left space-y-3">
+            <div className="flex items-center gap-3">
+              <img src={mainItem.product.thumbnail} className="h-12 w-20 rounded object-cover" alt={mainItem.product.title} />
+              <div>
+                <p className="text-sm font-semibold text-foreground">{mainItem.product.title}</p>
+                <p className="text-xs text-foreground-muted">{formatCurrency(Number(order.total))} · Acesso vitalício</p>
+              </div>
             </div>
+            <p className="text-xs text-foreground-muted">
+              Número do pedido: <strong className="font-mono text-foreground">{order.id}</strong>
+            </p>
           </div>
-          <p className="text-xs text-foreground-muted">Um email de confirmação foi enviado para você. Guarde o número do pedido: <strong className="font-mono text-foreground">ORD-2026-00042</strong></p>
-        </div>
+        )}
 
-        <div className="flex flex-col gap-3">
+        {isPaid && (
           <Link href="/student/dashboard">
             <Button className="w-full" size="lg" rightIcon={<ArrowRight className="h-4 w-4" />}>
               <BookOpen className="h-4 w-4" />
               Começar a aprender
             </Button>
           </Link>
-          <Button variant="outline" className="w-full" leftIcon={<Share2 className="h-4 w-4" />}>
-            Compartilhar conquista
-          </Button>
-        </div>
+        )}
+        {isFailed && (
+          <Link href={`/checkout?productId=${mainItem?.productId}`}>
+            <Button className="w-full" size="lg">Tentar novamente</Button>
+          </Link>
+        )}
 
         <p className="text-xs text-foreground-muted">
           Dúvidas?{" "}

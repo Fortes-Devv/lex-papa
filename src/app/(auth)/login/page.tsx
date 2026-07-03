@@ -1,16 +1,21 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { signIn, getSession } from "next-auth/react";
 import { Eye, EyeOff, Chrome, Github } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { api } from "@/lib/mock/data";
-import { useAuthStore } from "@/lib/store/auth";
+
+const ROLE_HOME: Record<string, string> = {
+  admin: "/admin/dashboard",
+  moderator: "/admin/dashboard",
+  teacher: "/teacher/dashboard",
+  student: "/student/dashboard",
+};
 
 export default function LoginPage() {
   const { success, error } = useToast();
-  const setUser = useAuthStore((s) => s.setUser);
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [form, setForm] = useState({ email: "carlos@lexconcursos.com.br", password: "123456" });
@@ -25,17 +30,21 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { user } = await api.login(form.email, form.password);
-      setUser(user);
-      success(`Bem-vindo de volta, ${user.name.split(" ")[0]}!`);
-      // In real app: set session cookie, redirect based on role
-      setTimeout(() => {
-        if (user.role === "admin") window.location.href = "/admin/dashboard";
-        else if (user.role === "teacher") window.location.href = "/teacher/dashboard";
-        else window.location.href = "/student/dashboard";
-      }, 800);
-    } catch (err: any) {
-      error(err.message ?? "Erro ao fazer login");
+      const result = await signIn("credentials", {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+      if (result?.error) {
+        error("Email ou senha inválidos.");
+        return;
+      }
+      const session = await getSession();
+      const role = session?.user?.role ?? "student";
+      success(`Bem-vindo de volta, ${session?.user?.name?.split(" ")[0] ?? ""}!`);
+      window.location.href = ROLE_HOME[role] ?? "/student/dashboard";
+    } catch {
+      error("Erro ao fazer login. Tente novamente.");
     } finally {
       setLoading(false);
     }

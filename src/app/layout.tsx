@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ToastProvider } from "@/components/ui/toast";
+import { SessionProvider } from "@/components/providers/session-provider";
 import "@fontsource-variable/inter";
 import "@/styles/globals.css";
 
@@ -29,9 +30,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <body className="font-sans antialiased">
-        <ToastProvider>
-          {children}
-        </ToastProvider>
+        <SessionProvider>
+          <ToastProvider>
+            {children}
+          </ToastProvider>
+        </SessionProvider>
       </body>
     </html>
   );

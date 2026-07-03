@@ -1,151 +1,100 @@
-"use client";
-import { useEffect, useState } from "react";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
-} from "recharts";
-import {
-  Users, DollarSign, BookOpen, ShoppingCart, TrendingUp, ArrowUpRight, Eye, Clock
+  Users, DollarSign, BookOpen, TrendingUp, ShoppingCart, ArrowUpRight,
 } from "lucide-react";
 import { StatCard } from "@/components/ui/stat-card";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
-import { SkeletonTable, Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
+import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { formatCurrency, formatRelativeDate } from "@/lib/utils/cn";
-import {
-  MOCK_ANALYTICS_METRICS, MOCK_REVENUE_DATA, MOCK_ORDERS,
-  MOCK_PRODUCTS, MOCK_COURSE_ANALYTICS, MOCK_USERS
-} from "@/lib/mock/data";
-import type { AnalyticsMetric } from "@/lib/types";
+import { db } from "@/lib/db";
+import { getDashboardMetrics, getRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
 
 const metricIcons = [
-  <DollarSign className="h-4 w-4" />,
-  <Users className="h-4 w-4" />,
-  <BookOpen className="h-4 w-4" />,
-  <TrendingUp className="h-4 w-4" />,
-  <ShoppingCart className="h-4 w-4" />,
-  <ArrowUpRight className="h-4 w-4" />,
+  <DollarSign key="revenue" className="h-4 w-4" />,
+  <Users key="students" className="h-4 w-4" />,
+  <BookOpen key="enrollments" className="h-4 w-4" />,
+  <TrendingUp key="completion" className="h-4 w-4" />,
+  <ShoppingCart key="ticket" className="h-4 w-4" />,
+  <ArrowUpRight key="refunds" className="h-4 w-4" />,
 ];
-
 const metricFormats: ("currency" | "number" | "percent")[] = [
-  "currency", "number", "number", "percent", "currency", "percent"
+  "currency", "number", "number", "percent", "currency", "percent",
 ];
 
 const statusColors: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
-  paid: "success", pending: "warning", refunded: "destructive", failed: "destructive", cancelled: "secondary"
+  paid: "success", pending: "warning", processing: "warning", refunded: "destructive", failed: "destructive", cancelled: "secondary", chargeback: "destructive",
 };
 const statusLabels: Record<string, string> = {
-  paid: "Pago", pending: "Pendente", refunded: "Reembolsado", failed: "Falhou", cancelled: "Cancelado"
+  paid: "Pago", pending: "Pendente", processing: "Processando", refunded: "Reembolsado", failed: "Falhou", cancelled: "Cancelado", chargeback: "Chargeback",
 };
 
-export default function AdminDashboardPage() {
-  const [loading, setLoading] = useState(true);
+export default async function AdminDashboardPage() {
+  const [metrics, revenueSeries, topCourses, recentOrders, recentUsers] = await Promise.all([
+    getDashboardMetrics(),
+    getRevenueSeries(30),
+    getCourseAnalyticsList(3),
+    db.order.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { user: true, items: { include: { product: true }, take: 1 } },
+    }),
+    db.user.findMany({ where: { role: "student" }, orderBy: { createdAt: "desc" }, take: 4 }),
+  ]);
 
-  useEffect(() => { setTimeout(() => setLoading(false), 600); }, []);
-
-  const recentOrders = MOCK_ORDERS.slice(0, 5);
-  const topProducts = MOCK_COURSE_ANALYTICS.slice(0, 3);
+  const revenueTotal = revenueSeries.reduce((s, d) => s + d.revenue, 0);
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-foreground-muted mt-0.5">Visão geral da plataforma — hoje</p>
+        <p className="text-sm text-foreground-muted mt-0.5">Visão geral da plataforma — últimos 30 dias</p>
       </div>
 
-      {/* Metrics */}
-      {loading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border bg-card p-5 space-y-3">
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-7 w-20" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-          {MOCK_ANALYTICS_METRICS.map((metric, i) => (
-            <StatCard
-              key={metric.label}
-              metric={metric}
-              format={metricFormats[i]}
-              icon={metricIcons[i]}
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {metrics.map((metric, i) => (
+          <StatCard key={metric.label} metric={metric} format={metricFormats[i]} icon={metricIcons[i]} />
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Revenue chart */}
         <Card padding="none" className="xl:col-span-2">
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-foreground">Receita — últimos 30 dias</h2>
-              <p className="text-xs text-foreground-muted mt-0.5">
-                Total: {formatCurrency(MOCK_REVENUE_DATA.reduce((s, d) => s + d.revenue, 0))}
-              </p>
+              <p className="text-xs text-foreground-muted mt-0.5">Total: {formatCurrency(revenueTotal)}</p>
             </div>
-            <Badge variant="success" dot>Ao vivo</Badge>
           </div>
           <div className="p-5">
-            {loading ? (
-              <Skeleton className="h-48 w-full" />
-            ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={MOCK_REVENUE_DATA} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-                  <defs>
-                    <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(237 85% 65%)" stopOpacity={0.15} />
-                      <stop offset="95%" stopColor="hsl(237 85% 65%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--foreground-muted))" }} tickLine={false} axisLine={false} interval={4} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--foreground-muted))" }} tickLine={false} axisLine={false} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: 12 }}
-                    formatter={(value: number) => [formatCurrency(value), "Receita"]}
-                  />
-                  <Area type="monotone" dataKey="revenue" stroke="hsl(237 85% 65%)" strokeWidth={2} fill="url(#revenueGrad)" dot={false} activeDot={{ r: 4, fill: "hsl(237 85% 65%)" }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
+            <RevenueAreaChart data={revenueSeries} />
           </div>
         </Card>
 
-        {/* Top courses */}
         <Card padding="none">
           <div className="p-5 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Cursos em destaque</h2>
-            <p className="text-xs text-foreground-muted mt-0.5">Por receita gerada</p>
+            <p className="text-xs text-foreground-muted mt-0.5">Por matrículas</p>
           </div>
           <div className="p-5 space-y-4">
-            {MOCK_PRODUCTS.filter((p) => p.type === "course").slice(0, 3).map((product, i) => {
-              const analytics = topProducts[i];
-              return (
-                <div key={product.id} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <img src={product.thumbnail} className="h-8 w-8 rounded object-cover shrink-0" alt={product.title} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">{product.title}</p>
-                      <p className="text-2xs text-foreground-muted">{analytics?.enrollments ?? 0} alunos</p>
-                    </div>
+            {topCourses.map((course) => (
+              <div key={course.productId} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <img src={course.thumbnail} className="h-8 w-8 rounded object-cover shrink-0" alt={course.title} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{course.title}</p>
+                    <p className="text-2xs text-foreground-muted">{course.enrollments} alunos</p>
                   </div>
-                  <Progress value={analytics?.completionRate ?? 0} size="xs" showLabel label={`${analytics?.completionRate?.toFixed(0) ?? 0}% conclusão`} />
                 </div>
-              );
-            })}
+                <Progress value={course.completionRate} size="xs" showLabel label={`${course.completionRate.toFixed(0)}% conclusão`} />
+              </div>
+            ))}
+            {topCourses.length === 0 && <p className="text-xs text-foreground-muted text-center py-4">Nenhum curso ainda.</p>}
           </div>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Recent orders */}
         <Card padding="none" className="xl:col-span-2">
           <div className="p-5 border-b border-border flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">Pedidos recentes</h2>
@@ -154,31 +103,31 @@ export default function AdminDashboardPage() {
           <div className="divide-y divide-border">
             {recentOrders.map((order) => (
               <div key={order.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                <Avatar src={order.user?.avatar} name={order.user?.name} size="sm" />
+                <Avatar src={order.user.avatar ?? undefined} name={order.user.name} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{order.user?.name}</p>
-                  <p className="text-xs text-foreground-muted truncate">{order.items[0]?.product?.title}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{order.user.name}</p>
+                  <p className="text-xs text-foreground-muted truncate">{order.items[0]?.product.title}</p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-foreground">{formatCurrency(order.total)}</p>
-                  <p className="text-xs text-foreground-muted">{formatRelativeDate(order.createdAt)}</p>
+                  <p className="text-sm font-semibold text-foreground">{formatCurrency(Number(order.total))}</p>
+                  <p className="text-xs text-foreground-muted">{formatRelativeDate(order.createdAt.toISOString())}</p>
                 </div>
                 <Badge variant={statusColors[order.status] ?? "secondary"}>{statusLabels[order.status] ?? order.status}</Badge>
               </div>
             ))}
+            {recentOrders.length === 0 && <p className="text-xs text-foreground-muted text-center py-8">Nenhum pedido ainda.</p>}
           </div>
         </Card>
 
-        {/* Recent users */}
         <Card padding="none">
           <div className="p-5 border-b border-border flex items-center justify-between">
             <h2 className="text-sm font-semibold text-foreground">Novos usuários</h2>
             <a href="/admin/users" className="text-xs text-primary hover:underline">Ver todos</a>
           </div>
           <div className="divide-y divide-border">
-            {MOCK_USERS.filter((u) => u.role === "student").slice(0, 4).map((user) => (
+            {recentUsers.map((user) => (
               <div key={user.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                <Avatar src={user.avatar} name={user.name} size="sm" status="online" />
+                <Avatar src={user.avatar ?? undefined} name={user.name} size="sm" status="online" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
                   <p className="text-xs text-foreground-muted truncate">{user.email}</p>
@@ -188,6 +137,7 @@ export default function AdminDashboardPage() {
                 </Badge>
               </div>
             ))}
+            {recentUsers.length === 0 && <p className="text-xs text-foreground-muted text-center py-8">Nenhum aluno ainda.</p>}
           </div>
         </Card>
       </div>

@@ -1,13 +1,13 @@
 "use client";
 import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
 import { useState } from "react";
+import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
 import { Badge } from "@/components/ui/badge";
 import { MOCK_NOTIFICATIONS } from "@/lib/mock/data";
 import { useCurrentUser } from "@/lib/store/hooks";
-import { useAuthStore } from "@/lib/store/auth";
 
 interface TopHeaderProps {
   onMenuToggle?: () => void;
@@ -16,7 +16,6 @@ interface TopHeaderProps {
 
 export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
   const user = useCurrentUser();
-  const logout = useAuthStore((s) => s.logout);
   const [dark, setDark] = useState(false);
   const unread = MOCK_NOTIFICATIONS.filter((n) => !n.isRead).length;
 
@@ -75,7 +74,7 @@ export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
             { label: "Configurações", onClick: () => {} },
             { label: "Atalhos", onClick: () => {} },
             { separator: true },
-            { label: "Sair", onClick: () => { logout(); window.location.href = "/login"; }, variant: "destructive" },
+            { label: "Sair", onClick: () => signOut({ callbackUrl: "/login" }), variant: "destructive" },
           ]}
         />
       </div>

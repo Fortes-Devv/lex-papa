@@ -158,7 +158,7 @@ export interface Lesson {
   order: number;
   duration?: number; // seconds
   videoUrl?: string;
-  videoProvider?: "youtube" | "vimeo" | "bunny" | "cloudflare" | "upload";
+  videoProvider?: "youtube" | "vimeo" | "bunny" | "cloudflare" | "cloudinary" | "upload";
   content?: string; // rich text
   pdfUrl?: string;
   audioUrl?: string;

@@ -1,10 +1,12 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { Chrome, Github, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import { registerUser } from "@/lib/actions/auth";
 
 export default function RegisterPage() {
   const { success, error } = useToast();
@@ -28,9 +30,20 @@ export default function RegisterPage() {
     e.preventDefault();
     if (strength < 2) { error("Use uma senha mais forte."); return; }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    success("Conta criada! Verifique seu email para ativar.");
-    setLoading(false);
+    try {
+      const result = await registerUser(form);
+      if (!result.success) {
+        error(result.error);
+        return;
+      }
+      await signIn("credentials", { email: form.email, password: form.password, redirect: false });
+      success("Conta criada com sucesso!");
+      window.location.href = "/student/dashboard";
+    } catch {
+      error("Erro ao criar conta. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
