@@ -46,6 +46,10 @@ export async function createCourse(input: {
 }) {
   const session = await requireStaff();
 
+  if (!Number.isFinite(input.price) || input.price <= 0) {
+    return { success: false as const, error: "Informe um preço válido maior que zero (ex: 297,00)." };
+  }
+
   const category = await findOrCreateCategory(input.categoryName);
   const slug = await uniqueSlug(input.title);
 
@@ -71,6 +75,77 @@ export async function createCourse(input: {
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/courses");
   return { success: true as const, productId: product.id, courseId: product.course!.id };
+}
+
+export async function updateCourseDetails(productId: string, input: {
+  title: string;
+  shortDescription: string;
+  description: string;
+  price: number;
+  comparePrice?: number;
+  categoryName: string;
+  level: ProductLevel;
+  thumbnail: string;
+}) {
+  await requireStaff();
+  if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
+  if (!Number.isFinite(input.price) || input.price <= 0) {
+    return { success: false as const, error: "Informe um preço válido maior que zero (ex: 297,00)." };
+  }
+
+  const category = await findOrCreateCategory(input.categoryName);
+  await db.product.update({
+    where: { id: productId },
+    data: {
+      title: input.title,
+      shortDescription: input.shortDescription,
+      description: input.description || input.shortDescription,
+      price: input.price,
+      comparePrice: input.comparePrice ?? null,
+      level: input.level,
+      categoryId: category.id,
+      ...(input.thumbnail ? { thumbnail: input.thumbnail } : {}),
+    },
+  });
+
+  revalidatePath("/admin/courses");
+  revalidatePath("/teacher/courses");
+  revalidatePath("/admin/products");
+  return { success: true as const };
+}
+
+export async function deleteCourse(productId: string) {
+  const session = await requireStaff();
+
+  const product = await db.product.findUnique({
+    where: { id: productId },
+    include: { _count: { select: { orderItems: true, enrollments: true } } },
+  });
+  if (!product) return { success: false as const, error: "Curso não encontrado." };
+
+  // Professor só pode excluir os próprios cursos.
+  if (session.user.role === "teacher") {
+    const owns = await db.product.findFirst({ where: { id: productId, instructors: { some: { id: session.user.id } } } });
+    if (!owns) return { success: false as const, error: "Você só pode excluir os próprios cursos." };
+  }
+
+  // Proteção: não excluir curso com vendas ou matrículas (preserva histórico e acesso).
+  if (product._count.orderItems > 0 || product._count.enrollments > 0) {
+    return {
+      success: false as const,
+      error: "Este curso já tem pedidos ou alunos matriculados. Em vez de excluir, despublique-o.",
+    };
+  }
+
+  // Cascade remove course → modules → lessons (e favoritos/certificados vazios).
+  await db.product.delete({ where: { id: productId } });
+  const { logAudit } = await import("@/lib/audit");
+  await logAudit({ actorId: session.user.id, action: "product.deleted", resourceType: "product", resourceId: productId, metadata: { title: product.title } });
+
+  revalidatePath("/admin/courses");
+  revalidatePath("/teacher/courses");
+  revalidatePath("/admin/products");
+  return { success: true as const };
 }
 
 export async function updateCourseThumbnail(productId: string, thumbnail: string) {

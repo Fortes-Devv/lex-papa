@@ -458,6 +458,7 @@ model Order {
   status         OrderStatus    @default(pending)
   paymentMethod  PaymentMethod?
   mpPaymentId    String?        @unique // id do pagamento no Mercado Pago
+  mpOrderId      String?        @unique // id da Order no Mercado Pago (API de Orders)
   mpPreferenceId String?
   mpStatusDetail String?
   couponCode     String?

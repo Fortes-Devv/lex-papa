@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getMpRefundClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
 
 async function requireAdmin() {
@@ -21,9 +21,10 @@ export async function refundOrder(orderId: string) {
   if (!order) return { success: false as const, error: "Pedido não encontrado." };
   if (order.status !== "paid") return { success: false as const, error: "Só é possível reembolsar pedidos pagos." };
 
-  if (order.mpPaymentId && isMercadoPagoConfigured()) {
+  if (order.mpOrderId && isMercadoPagoConfigured()) {
     try {
-      await getMpRefundClient().create({ payment_id: order.mpPaymentId });
+      // Reembolso total da Order no Mercado Pago (sem body = total).
+      await getMpOrderClient().refund({ id: order.mpOrderId });
     } catch (err) {
       return { success: false as const, error: err instanceof Error ? err.message : "Erro ao reembolsar no Mercado Pago." };
     }

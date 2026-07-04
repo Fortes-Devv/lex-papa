@@ -8,6 +8,7 @@ export default async function AdminCoursesPage() {
     where: { type: "course" },
     orderBy: { createdAt: "desc" },
     include: {
+      category: true,
       course: {
         include: {
           modules: {
@@ -28,6 +29,11 @@ export default async function AdminCoursesPage() {
       thumbnail: p.thumbnail,
       status: p.status,
       price: Number(p.price),
+      comparePrice: p.comparePrice ? Number(p.comparePrice) : undefined,
+      shortDescription: p.shortDescription,
+      description: p.description,
+      categoryName: p.category?.name ?? "",
+      level: p.level,
       enrolledCount: p.enrolledCount,
       totalLessons: p.course!.totalLessons,
       totalDuration: p.course!.totalDuration,

@@ -5,19 +5,33 @@ import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils/cn";
+import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { SuccessPoller } from "@/components/checkout/success-poller";
+
+export const dynamic = "force-dynamic";
 
 export default async function CheckoutSuccessPage({ searchParams }: { searchParams: { order_id?: string } }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!searchParams.order_id) redirect("/");
 
-  const order = await db.order.findUnique({
+  let order = await db.order.findUnique({
     where: { id: searchParams.order_id },
     include: { items: { include: { product: true } } },
   });
 
   if (!order || order.userId !== session.user.id) redirect("/");
+
+  // Se ainda não confirmou, consulta o Mercado Pago ao vivo e concilia.
+  if (order.status !== "paid" && order.mpOrderId && isMercadoPagoConfigured()) {
+    try {
+      const mpOrder = await getMpOrderClient().get({ id: order.mpOrderId });
+      await fulfillFromMpOrder(order.id, mpOrder);
+      order = await db.order.findUnique({ where: { id: searchParams.order_id }, include: { items: { include: { product: true } } } });
+    } catch { /* mantém status atual */ }
+  }
+  if (!order) redirect("/");
 
   const mainItem = order.items[0];
   const isPaid = order.status === "paid";

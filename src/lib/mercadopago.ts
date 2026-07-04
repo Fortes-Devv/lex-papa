@@ -1,4 +1,4 @@
-import { MercadoPagoConfig, Payment, PaymentRefund } from "mercadopago";
+import { MercadoPagoConfig, Order } from "mercadopago";
 
 export function isMercadoPagoConfigured() {
   return Boolean(process.env.MERCADOPAGO_ACCESS_TOKEN);
@@ -11,10 +11,7 @@ export function getMpConfig() {
   return new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
 }
 
-export function getMpPaymentClient() {
-  return new Payment(getMpConfig());
-}
-
-export function getMpRefundClient() {
-  return new PaymentRefund(getMpConfig());
+// API de Orders (Checkout Transparente).
+export function getMpOrderClient() {
+  return new Order(getMpConfig());
 }

@@ -9,6 +9,7 @@ import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { MediaUploader } from "@/components/upload/media-uploader";
 import { createCourse } from "@/lib/actions/courses";
+import { parseBRL } from "@/lib/utils/cn";
 import type { ProductLevel } from "@/lib/types";
 
 const LEVEL_OPTIONS: { value: ProductLevel; label: string }[] = [
@@ -52,12 +53,16 @@ export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: strin
         title: form.title,
         shortDescription: form.shortDescription,
         description: form.description || form.shortDescription,
-        price: Number(form.price),
-        comparePrice: form.comparePrice ? Number(form.comparePrice) : undefined,
+        price: parseBRL(form.price),
+        comparePrice: form.comparePrice ? parseBRL(form.comparePrice) : undefined,
         categoryName: form.categoryName,
         level: form.level,
         thumbnail: form.thumbnail,
       });
+      if (!result.success) {
+        error(result.error);
+        return;
+      }
       success("Curso criado como rascunho.");
       close();
       router.refresh();
@@ -78,8 +83,8 @@ export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: strin
           <Input label="Descrição curta" placeholder="Resumo de uma linha para os cards" value={form.shortDescription} onChange={(e) => setForm((f) => ({ ...f, shortDescription: e.target.value }))} />
           <Textarea label="Descrição completa" placeholder="Detalhes do curso (opcional, usa a curta se vazio)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Preço (R$)" type="number" min="0" step="0.01" placeholder="297.00" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
-            <Input label="De (opcional)" type="number" min="0" step="0.01" placeholder="397.00" value={form.comparePrice} onChange={(e) => setForm((f) => ({ ...f, comparePrice: e.target.value }))} />
+            <Input label="Preço (R$)" inputMode="decimal" placeholder="297,00" value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))} />
+            <Input label="De (opcional)" inputMode="decimal" placeholder="397,00" value={form.comparePrice} onChange={(e) => setForm((f) => ({ ...f, comparePrice: e.target.value }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="Categoria" placeholder="Ex: Concursos Municipais" value={form.categoryName} onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))} />

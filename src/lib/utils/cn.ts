@@ -46,6 +46,15 @@ export function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+// Converte um preço digitado por humano (aceita vírgula BR e ponto de milhar)
+// para número. Ex: "1.297,00" → 1297, "297,50" → 297.5, "297.50" → 297.5.
+export function parseBRL(value: string): number {
+  const s = value.trim();
+  if (!s) return NaN;
+  if (s.includes(",")) return Number(s.replace(/\./g, "").replace(",", "."));
+  return Number(s);
+}
+
 export function slugify(text: string): string {
   return text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
