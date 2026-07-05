@@ -4,6 +4,7 @@ import Script from "next/script";
 import Image from "next/image";
 import { Lock, Tag, AlertTriangle, CreditCard, QrCode, FileText, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
@@ -207,7 +208,10 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
 
       <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
         <div className="lg:col-span-3 space-y-6">
-          <h1 className="text-xl font-semibold text-foreground">Finalizar compra</h1>
+          <div className="space-y-3">
+            <BackButton fallbackHref={`/course?productId=${product.id}`} label="Voltar para o curso" />
+            <h1 className="text-xl font-semibold text-foreground">Finalizar compra</h1>
+          </div>
 
           {!mpPublicKey ? (
             <div className="flex items-start gap-3 rounded-md border border-warning/40 bg-warning-muted/30 p-4 text-sm">

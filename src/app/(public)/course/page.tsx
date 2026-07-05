@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { db } from "@/lib/db";
 import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { CourseCurriculum } from "@/components/course/course-curriculum";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function PublicCoursePage({ searchParams }: { searchParams: { slug?: string; productId?: string } }) {
   const product = await db.product.findFirst({
@@ -44,6 +45,7 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
       <div className="bg-sidebar border-b border-border">
         <div className="max-w-6xl mx-auto px-4 py-12 grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 space-y-4">
+            <BackButton fallbackHref="/" label="Voltar" />
             <div className="flex items-center gap-2">
               {product.category && <Badge variant="default">{product.category.name}</Badge>}
               {product.isFeatured && <Badge variant="warning">Destaque</Badge>}

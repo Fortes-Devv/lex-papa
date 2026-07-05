@@ -30,32 +30,33 @@ export default async function StudentDashboardPage() {
   const inProgress = enrollments.filter((e) => e.progress > 0 && e.progress < 100);
 
   return (
-    <div className="space-y-6 max-w-5xl">
-      <div className="flex items-center gap-4">
-        <Avatar src={session.user.image ?? undefined} name={session.user.name ?? ""} size="lg" status="online" />
+    <div className="space-y-8 max-w-4xl mx-auto">
+      {/* Cabeçalho centralizado: foto no topo, nome abaixo */}
+      <div className="flex flex-col items-center text-center gap-3 pt-2">
+        <Avatar src={session.user.image ?? undefined} name={session.user.name ?? ""} size="2xl" status="online" />
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Olá, {(session.user.name ?? "").split(" ")[0]}! 👋</h1>
+          <h1 className="text-2xl font-semibold text-foreground">Olá, {(session.user.name ?? "").split(" ")[0]}! 👋</h1>
           <p className="text-sm text-foreground-muted">Continue de onde parou.</p>
         </div>
       </div>
 
+      {/* Informações do aluno em linha */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: "Nível", value: xp.level, icon: <Zap className="h-4 w-4" />, color: "text-primary" },
-          { label: "XP Total", value: xp.totalXp, icon: <Award className="h-4 w-4" />, color: "text-warning" },
-          { label: "Sequência", value: `${xp.streak} dias`, icon: <Flame className="h-4 w-4" />, color: "text-destructive" },
-          { label: "Cursos", value: enrollments.length, icon: <BookOpen className="h-4 w-4" />, color: "text-success" },
+          { label: "Nível", value: xp.level, icon: <Zap className="h-5 w-5" />, color: "text-primary" },
+          { label: "XP Total", value: xp.totalXp, icon: <Award className="h-5 w-5" />, color: "text-warning" },
+          { label: "Sequência", value: `${xp.streak} dias`, icon: <Flame className="h-5 w-5" />, color: "text-destructive" },
+          { label: "Cursos", value: enrollments.length, icon: <BookOpen className="h-5 w-5" />, color: "text-success" },
         ].map((item) => (
-          <Card key={item.label} className="flex items-center gap-3">
-            <div className={`${item.color} shrink-0`}>{item.icon}</div>
-            <div>
-              <p className="text-lg font-bold text-foreground">{item.value}</p>
-              <p className="text-xs text-foreground-muted">{item.label}</p>
-            </div>
+          <Card key={item.label} className="flex flex-col items-center text-center gap-1.5 py-5">
+            <div className={`${item.color}`}>{item.icon}</div>
+            <p className="text-xl font-bold text-foreground">{item.value}</p>
+            <p className="text-xs text-foreground-muted">{item.label}</p>
           </Card>
         ))}
       </div>
 
+      {/* Progresso de nível */}
       <Card>
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium text-foreground">Progresso de nível</p>
@@ -64,42 +65,44 @@ export default async function StudentDashboardPage() {
         <Progress value={xp.currentLevelXp} max={xp.nextLevelXp} size="md" showLabel label={`${xp.currentLevelXp} / ${xp.nextLevelXp} XP`} />
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Continuar aprendendo</h2>
-            <Link href="/student/library" className="text-xs text-primary hover:underline">Ver todos</Link>
-          </div>
-          {inProgress.length === 0 && (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-foreground-muted">
-              Você ainda não começou nenhum curso. <Link href="/student/explore" className="text-primary hover:underline">Explorar catálogo</Link>
-            </div>
-          )}
-          {inProgress.map((enrollment) => (
-            <div key={enrollment.id} className="group rounded-lg border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden">
-              <div className="flex items-center gap-4 p-4">
-                <div className="relative shrink-0">
-                  <img src={enrollment.product.thumbnail} className="h-14 w-24 rounded object-cover" alt={enrollment.product.title} />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Play className="h-5 w-5 text-white fill-white" />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0 space-y-2">
-                  <p className="text-sm font-medium text-foreground truncate">{enrollment.product.title}</p>
-                  <Progress value={enrollment.progress} size="sm" variant={enrollment.progress >= 80 ? "success" : "default"} showLabel label={`${enrollment.progress}% concluído`} />
-                  <p className="text-xs text-foreground-muted flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Último acesso {enrollment.lastAccessedAt ? formatRelativeDate(enrollment.lastAccessedAt.toISOString()) : "—"}
-                  </p>
-                </div>
-                <Link href={enrollment.product.course ? `/student/player?courseId=${enrollment.product.course.id}` : "/student/library"}>
-                  <Button size="sm" variant="outline">Continuar</Button>
-                </Link>
-              </div>
-            </div>
-          ))}
+      {/* Continuar aprendendo */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-foreground">Continuar aprendendo</h2>
+          <Link href="/student/library" className="text-xs text-primary hover:underline">Ver todos</Link>
         </div>
+        {inProgress.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-foreground-muted">
+            Você ainda não começou nenhum curso. <Link href="/student/explore" className="text-primary hover:underline">Explorar catálogo</Link>
+          </div>
+        )}
+        {inProgress.map((enrollment) => (
+          <div key={enrollment.id} className="group rounded-lg border border-border bg-card hover:border-primary/30 transition-all duration-200 overflow-hidden">
+            <div className="flex items-center gap-4 p-4">
+              <div className="relative shrink-0">
+                <img src={enrollment.product.thumbnail} className="h-14 w-24 rounded object-cover" alt={enrollment.product.title} />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Play className="h-5 w-5 text-white fill-white" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <p className="text-sm font-medium text-foreground truncate">{enrollment.product.title}</p>
+                <Progress value={enrollment.progress} size="sm" variant={enrollment.progress >= 80 ? "success" : "default"} showLabel label={`${enrollment.progress}% concluído`} />
+                <p className="text-xs text-foreground-muted flex items-center gap-1">
+                  <Clock className="h-3 w-3" /> Último acesso {enrollment.lastAccessedAt ? formatRelativeDate(enrollment.lastAccessedAt.toISOString()) : "—"}
+                </p>
+              </div>
+              <Link href={enrollment.product.course ? `/student/player?courseId=${enrollment.product.course.id}` : "/student/library"}>
+                <Button size="sm" variant="outline">Continuar</Button>
+              </Link>
+            </div>
+          </div>
+        ))}
+      </div>
 
-        <div className="space-y-4">
+      {/* Atividade recente e conquistas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-3">
           <h2 className="text-sm font-semibold text-foreground">Atividade recente</h2>
           <div className="space-y-2">
             {notifications.length === 0 && <p className="text-xs text-foreground-muted">Sem novidades por enquanto.</p>}
@@ -111,21 +114,21 @@ export default async function StudentDashboardPage() {
               </div>
             ))}
           </div>
-
-          {achievements.length > 0 && (
-            <>
-              <h2 className="text-sm font-semibold text-foreground pt-2">Conquistas</h2>
-              <div className="grid grid-cols-3 gap-2">
-                {achievements.map((ua) => (
-                  <div key={ua.id} title={ua.achievement.title} className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border bg-card">
-                    <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm" style={{ background: ua.achievement.badgeColor + "20", color: ua.achievement.badgeColor }}>★</div>
-                    <p className="text-2xs text-foreground-muted text-center leading-tight">{ua.achievement.title}</p>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
         </div>
+
+        {achievements.length > 0 && (
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-foreground">Conquistas</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {achievements.map((ua) => (
+                <div key={ua.id} title={ua.achievement.title} className="flex flex-col items-center gap-1 p-2 rounded-lg border border-border bg-card">
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center text-sm" style={{ background: ua.achievement.badgeColor + "20", color: ua.achievement.badgeColor }}>★</div>
+                  <p className="text-2xs text-foreground-muted text-center leading-tight">{ua.achievement.title}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

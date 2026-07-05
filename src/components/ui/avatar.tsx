@@ -4,7 +4,7 @@ import { cn, getInitials } from "@/lib/utils/cn";
 interface AvatarProps {
   src?: string;
   name?: string;
-  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   className?: string;
   status?: "online" | "offline" | "away";
 }
@@ -15,6 +15,7 @@ const sizeMap = {
   md: "h-8 w-8 text-sm",
   lg: "h-10 w-10 text-base",
   xl: "h-14 w-14 text-lg",
+  "2xl": "h-32 w-32 text-4xl",
 };
 
 const statusColors = { online: "bg-success", offline: "bg-foreground-subtle", away: "bg-warning" };
@@ -42,7 +43,7 @@ export function Avatar({ src, name, size = "md", className, status }: AvatarProp
         <span
           className={cn(
             "absolute bottom-0 right-0 rounded-full border-2 border-background",
-            size === "xs" || size === "sm" ? "h-1.5 w-1.5" : "h-2 w-2",
+            size === "xs" || size === "sm" ? "h-1.5 w-1.5" : size === "2xl" ? "h-5 w-5" : size === "xl" ? "h-3 w-3" : "h-2 w-2",
             statusColors[status]
           )}
         />
