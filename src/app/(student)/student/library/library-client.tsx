@@ -54,11 +54,6 @@ export function LibraryClient({ enrollments }: { enrollments: LibraryEnrollment[
             <Link href={playerHref} className="flex-1">
               <Button size="sm" className="w-full">{isComplete ? "Revisar" : "Continuar"}</Button>
             </Link>
-            {isComplete && (
-              <Link href="/student/certificates">
-                <Button size="sm" variant="outline">Certificado</Button>
-              </Link>
-            )}
           </div>
         </div>
       </div>

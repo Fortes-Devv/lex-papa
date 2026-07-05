@@ -24,7 +24,7 @@ const navSections = [
       { label: "Usuários", href: "/admin/users", icon: <Users className="h-4 w-4" /> },
       { label: "Produtos", href: "/admin/products", icon: <Package className="h-4 w-4" /> },
       { label: "Cursos", href: "/admin/courses", icon: <BookOpen className="h-4 w-4" /> },
-      { label: "Pedidos", href: "/admin/orders", icon: <ShoppingCart className="h-4 w-4" />, badge: 3 },
+      { label: "Pedidos", href: "/admin/orders", icon: <ShoppingCart className="h-4 w-4" /> },
       { label: "Financeiro", href: "/admin/financial", icon: <DollarSign className="h-4 w-4" /> },
       { label: "Analytics", href: "/admin/analytics", icon: <BarChart2 className="h-4 w-4" /> },
     ],

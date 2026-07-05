@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
-import { LayoutDashboard, BookOpen, Library, Award, User, MessageSquare, Heart, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, BookOpen, Library, User, MessageSquare, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { TopHeader } from "@/components/layout/top-header";
 import { cn } from "@/lib/utils/cn";
@@ -23,7 +23,6 @@ const navSections = [
   {
     title: "Conquistas",
     items: [
-      { label: "Certificados", href: "/student/certificates", icon: <Award className="h-4 w-4" /> },
       { label: "Comunidade", href: "/student/community", icon: <MessageSquare className="h-4 w-4" /> },
     ],
   },

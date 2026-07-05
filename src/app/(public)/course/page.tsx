@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Play, Clock, Award, Check, ShoppingCart, Star } from "lucide-react";
+import { Play, Clock, Check, ShoppingCart, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
@@ -71,7 +71,6 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
             <div className="flex items-center gap-4 text-xs text-foreground-muted">
               <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{formatDuration(course.totalDuration)}</span>
               <span className="flex items-center gap-1"><Play className="h-3.5 w-3.5" />{course.totalLessons} aulas</span>
-              {course.completionCertificate && <span className="flex items-center gap-1"><Award className="h-3.5 w-3.5" />Certificado</span>}
             </div>
           </div>
 
@@ -100,7 +99,7 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
                 </Link>
                 <p className="text-center text-xs text-foreground-muted">Garantia de 7 dias ou dinheiro de volta</p>
                 <div className="space-y-1.5 text-xs text-foreground-muted">
-                  {["Acesso vitalício", ...(course.completionCertificate ? ["Certificado de conclusão"] : []), "Suporte da comunidade"].map((f) => (
+                  {["Acesso vitalício", "Suporte da comunidade"].map((f) => (
                     <div key={f} className="flex items-center gap-2"><Check className="h-3.5 w-3.5 text-success" />{f}</div>
                   ))}
                 </div>

@@ -1,9 +1,9 @@
 import Image from "next/image";
-import { PlayCircle, Award, Infinity, Clock } from "lucide-react";
+import { PlayCircle, MessageSquare, Infinity, Clock } from "lucide-react";
 
 const FEATURES = [
   { icon: PlayCircle, text: "Videoaulas com professores especialistas em concursos" },
-  { icon: Award, text: "Certificado de conclusão em cada curso" },
+  { icon: MessageSquare, text: "Suporte e comunidade de estudos ativa" },
   { icon: Infinity, text: "Acesso vitalício ao conteúdo que você comprar" },
   { icon: Clock, text: "Estude no seu ritmo, de onde e quando quiser" },
 ];
