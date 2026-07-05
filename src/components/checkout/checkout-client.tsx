@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
+import Image from "next/image";
 import { Lock, Tag, AlertTriangle, CreditCard, QrCode, FileText, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -198,10 +199,7 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
       <Script src="https://sdk.mercadopago.com/js/v2" onReady={() => setSdkReady(true)} />
 
       <div className="border-b border-border bg-card px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded bg-primary flex items-center justify-center"><span className="text-white font-bold text-xs">L</span></div>
-          <span className="font-semibold text-sm text-foreground">LEX Concursos</span>
-        </div>
+        <Image src="/logo.png" alt="LEX Concursos" width={38} height={32} className="object-contain" />
         <div className="flex items-center gap-1.5 text-xs text-foreground-muted">
           <Lock className="h-3 w-3 text-success" /><span>Compra 100% segura</span>
         </div>

@@ -10,6 +10,7 @@ export const metadata: Metadata = {
   keywords: ["concursos públicos", "preparatório", "GMF", "PPCE", "TJCE", "GCM", "direito", "segurança pública"],
   authors: [{ name: "LEX Concursos" }],
   robots: "index, follow",
+  icons: { icon: "/logo.png", apple: "/logo.png" },
   openGraph: {
     type: "website",
     locale: "pt_BR",
@@ -28,7 +29,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark" suppressHydrationWarning>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className="font-sans antialiased">
         <SessionProvider>
           <ToastProvider>

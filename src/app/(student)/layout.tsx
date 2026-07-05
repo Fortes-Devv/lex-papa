@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 import { LayoutDashboard, BookOpen, Library, Award, User, MessageSquare, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { TopHeader } from "@/components/layout/top-header";
@@ -47,16 +48,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         collapsed ? "w-[60px]" : "w-[240px]",
         mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
       )}>
-        <div className={cn("flex h-14 items-center border-b border-sidebar-border shrink-0", collapsed ? "justify-center px-3" : "gap-2.5 px-4")}>
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-xs">E</span>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">LEX Concursos</p>
-              <p className="text-2xs text-foreground-muted">Área do Aluno</p>
-            </div>
-          )}
+        <div className={cn("flex h-14 items-center border-b border-sidebar-border shrink-0", collapsed ? "justify-center px-3" : "gap-2 px-4")}>
+          <Image src="/logo.png" alt="LEX Concursos" width={47} height={40} className="object-contain shrink-0" priority />
+          {!collapsed && <span className="text-2xs font-medium text-foreground-muted uppercase tracking-wide">Área do Aluno</span>}
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 no-scrollbar">

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   LayoutDashboard, Users, Package, BookOpen, ShoppingCart,
   DollarSign, Settings, ScrollText, Shield, BarChart2,
@@ -71,16 +72,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         )}
       >
         {/* Logo */}
-        <div className={cn("flex h-14 items-center border-b border-sidebar-border px-3 shrink-0", collapsed ? "justify-center" : "gap-2.5 px-4")}>
-          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span className="text-white font-bold text-xs">E</span>
-          </div>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">LEX Concursos</p>
-              <p className="text-2xs text-foreground-muted">Admin</p>
-            </div>
-          )}
+        <div className={cn("flex h-14 items-center border-b border-sidebar-border shrink-0", collapsed ? "justify-center px-3" : "gap-2 px-4")}>
+          <Image src="/logo.png" alt="LEX Concursos" width={47} height={40} className="object-contain shrink-0" priority />
+          {!collapsed && <span className="text-2xs font-medium text-foreground-muted uppercase tracking-wide">Admin</span>}
         </div>
 
         {/* Nav */}

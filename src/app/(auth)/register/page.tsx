@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
-import { Chrome, Github, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -48,21 +49,13 @@ export default function RegisterPage() {
 
   return (
     <div className="space-y-6">
+      <div className="lg:hidden flex justify-center mb-2">
+        <Image src="/logo.png" alt="LEX Concursos" width={82} height={70} className="object-contain" priority />
+      </div>
+
       <div className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Criar sua conta</h1>
-        <p className="text-sm text-foreground-muted">Comece sua jornada de aprendizado hoje.</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" leftIcon={<Chrome className="h-4 w-4" />} type="button">Google</Button>
-        <Button variant="outline" leftIcon={<Github className="h-4 w-4" />} type="button">GitHub</Button>
-      </div>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-3 text-foreground-muted">ou cadastre com email</span>
-        </div>
+        <p className="text-sm text-foreground-muted">Comece agora sua preparação para o concurso.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">

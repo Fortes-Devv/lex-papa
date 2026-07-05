@@ -3,6 +3,7 @@ import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
@@ -23,19 +24,21 @@ interface TopHeaderProps {
 export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
   const user = useCurrentUser();
   const router = useRouter();
-  const [dark, setDark] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
   const [unread, setUnread] = useState(0);
 
   useEffect(() => {
+    setMounted(true);
     fetch("/api/notifications/count")
       .then((r) => r.json())
       .then((d) => setUnread(d.unread ?? 0))
       .catch(() => {});
   }, []);
 
+  const dark = mounted && theme === "dark";
   function toggleTheme() {
-    setDark((d) => !d);
-    document.documentElement.classList.toggle("dark");
+    setTheme(dark ? "light" : "dark");
   }
 
   return (

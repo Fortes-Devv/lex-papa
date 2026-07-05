@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { signIn, getSession } from "next-auth/react";
-import { Eye, EyeOff, Chrome, Github } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -18,13 +19,7 @@ export default function LoginPage() {
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
-  const [form, setForm] = useState({ email: "carlos@lexconcursos.com.br", password: "123456" });
-
-  const DEMO_PROFILES = [
-    { label: "Admin", email: "carlos@lexconcursos.com.br", color: "text-primary" },
-    { label: "Professor", email: "ricardo@lexconcursos.com.br", color: "text-success" },
-    { label: "Aluno", email: "mariana@email.com", color: "text-warning" },
-  ];
+  const [form, setForm] = useState({ email: "", password: "" });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,26 +47,14 @@ export default function LoginPage() {
 
   return (
     <div className="space-y-6">
+      {/* Logo (mobile) */}
+      <div className="lg:hidden flex justify-center mb-2">
+        <Image src="/logo.png" alt="LEX Concursos" width={82} height={70} className="object-contain" priority />
+      </div>
+
       <div className="space-y-1.5">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Entrar na plataforma</h1>
-        <p className="text-sm text-foreground-muted">Use sua conta ou faça login com um provedor social.</p>
-      </div>
-
-      {/* Social */}
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="outline" size="default" leftIcon={<Chrome className="h-4 w-4" />} type="button">
-          Google
-        </Button>
-        <Button variant="outline" size="default" leftIcon={<Github className="h-4 w-4" />} type="button">
-          GitHub
-        </Button>
-      </div>
-
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center text-xs">
-          <span className="bg-background px-3 text-foreground-muted">ou continue com email</span>
-        </div>
+        <p className="text-sm text-foreground-muted">Acesse sua conta para continuar seus estudos.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -83,6 +66,7 @@ export default function LoginPage() {
           onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
           required
           autoComplete="email"
+          leftIcon={<Mail className="h-4 w-4" />}
         />
         <Input
           label="Senha"
@@ -92,6 +76,7 @@ export default function LoginPage() {
           onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
           required
           autoComplete="current-password"
+          leftIcon={<Lock className="h-4 w-4" />}
           rightIcon={
             <button type="button" onClick={() => setShowPwd((v) => !v)} className="hover:text-foreground transition-colors">
               {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -120,24 +105,6 @@ export default function LoginPage() {
           Criar conta grátis
         </Link>
       </p>
-
-      {/* Demo quick-access */}
-      <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2">
-        <p className="text-xs font-medium text-foreground">Acesso rápido — Demo:</p>
-        <div className="grid grid-cols-3 gap-2">
-          {DEMO_PROFILES.map((p) => (
-            <button
-              key={p.email}
-              type="button"
-              onClick={() => setForm({ email: p.email, password: "123456" })}
-              className={`rounded-md border border-border bg-background px-2 py-1.5 text-xs font-medium transition-colors hover:border-primary/50 hover:bg-primary/5 ${p.color}`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <p className="text-2xs text-foreground-subtle">Clique para preencher · Senha: 123456</p>
-      </div>
     </div>
   );
 }

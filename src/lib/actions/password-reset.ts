@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
+import { passwordResetEmailHtml } from "@/lib/email-templates";
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -30,7 +31,7 @@ export async function requestPasswordReset(email: string) {
     await sendEmail({
       to: email,
       subject: "Redefinição de senha — LEX Concursos",
-      html: `<p>Olá,</p><p>Clique no link abaixo para redefinir sua senha (válido por 1 hora):</p><p><a href="${link}">${link}</a></p><p>Se você não solicitou, ignore este e-mail.</p>`,
+      html: passwordResetEmailHtml(link),
     });
   }
 
