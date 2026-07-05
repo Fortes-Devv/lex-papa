@@ -4,6 +4,7 @@ import Image from "next/image";
 import { LayoutDashboard, BookOpen, Library, User, MessageSquare, Heart, ChevronLeft, ChevronRight } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { TopHeader } from "@/components/layout/top-header";
+import { AosProvider } from "@/components/providers/aos-provider";
 import { cn } from "@/lib/utils/cn";
 
 const navSections = [
@@ -40,6 +41,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <AosProvider />
       {mobileOpen && <div className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />}
 
       <aside className={cn(

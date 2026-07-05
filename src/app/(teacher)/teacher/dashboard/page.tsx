@@ -29,7 +29,7 @@ export default async function TeacherDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div data-aos="fade-up" className="flex items-center gap-4">
         <Avatar src={session.user.image ?? undefined} name={session.user.name ?? ""} size="lg" />
         <div>
           <h1 className="text-xl font-semibold text-foreground">Olá, {(session.user.name ?? "").split(" ")[0]}!</h1>
@@ -37,7 +37,7 @@ export default async function TeacherDashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-aos="fade-up" data-aos-delay="80" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((item) => (
           <Card key={item.label} className="flex items-center gap-3">
             <div className={`${item.color} shrink-0`}>{item.icon}</div>
@@ -49,7 +49,7 @@ export default async function TeacherDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div data-aos="fade-up" data-aos-delay="160" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card padding="none">
           <div className="p-4 border-b border-border">
             <h2 className="text-sm font-semibold text-foreground">Receita — últimas 2 semanas</h2>

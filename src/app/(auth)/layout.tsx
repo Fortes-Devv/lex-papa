@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { Check } from "lucide-react";
+import { AosProvider } from "@/components/providers/aos-provider";
 
 const FEATURES = [
   "Videoaulas com professores especialistas em concursos",
@@ -11,6 +12,7 @@ const FEATURES = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
+      <AosProvider />
       {/* Left — branding (painel escuro, gradiente animado da marca) */}
       <div className="brand-gradient relative hidden lg:flex lg:w-1/2 xl:w-[45%] flex-col justify-between overflow-hidden p-10 xl:p-12 text-white">
         <div aria-hidden className="absolute inset-0 bg-grid opacity-[0.05]" />

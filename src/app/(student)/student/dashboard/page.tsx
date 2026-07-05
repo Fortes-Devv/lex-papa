@@ -77,14 +77,14 @@ export default async function StudentDashboardPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Cabeçalho */}
-      <div>
+      <div data-aos="fade-up">
         <p className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">{dateLabel}</p>
         <h1 className="mt-1 font-sans text-3xl font-bold text-foreground">{greeting}, {firstName}.</h1>
       </div>
 
       {/* Curso em destaque */}
       {heroProduct && (
-        <div className="relative overflow-hidden rounded-2xl bg-neutral-950 text-white shadow-lg">
+        <div data-aos="fade-up" className="relative overflow-hidden rounded-2xl bg-neutral-950 text-white shadow-lg">
           <img src={heroProduct.thumbnail} alt={heroProduct.title} className="absolute inset-0 h-full w-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/30" />
 
@@ -138,7 +138,7 @@ export default async function StudentDashboardPage() {
       {/* Cards de gamificação */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* Nível / patente */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div data-aos="fade-up" className="rounded-xl border border-border bg-card p-5">
           <div className="mb-3 flex items-center justify-between">
             <p className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
               <Zap className="h-3.5 w-3.5 text-primary" /> Nível
@@ -160,7 +160,7 @@ export default async function StudentDashboardPage() {
         </div>
 
         {/* Sequência */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div data-aos="fade-up" data-aos-delay="100" className="rounded-xl border border-border bg-card p-5">
           <p className="mb-3 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
             <span className="flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-destructive" /> Sequência</span>
           </p>
@@ -185,7 +185,7 @@ export default async function StudentDashboardPage() {
         </div>
 
         {/* Missões de hoje */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div data-aos="fade-up" data-aos-delay="200" className="rounded-xl border border-border bg-card p-5">
           <p className="mb-3 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
             <span>Missões de hoje</span>
             <span className="text-foreground-muted">{missionsDone}/{missions.length}</span>
@@ -203,7 +203,7 @@ export default async function StudentDashboardPage() {
       </div>
 
       {/* Continuar aprendendo + Atividade recente */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <div data-aos="fade-up" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-sans text-lg font-bold text-foreground">Continuar aprendendo</h2>
