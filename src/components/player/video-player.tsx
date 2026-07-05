@@ -93,6 +93,34 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
     } catch { /* PiP não suportado */ }
   }
 
+  // Fonte do vídeo: HLS (Bunny/.m3u8) via hls.js, ou arquivo direto (mp4).
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const isHls = src.includes(".m3u8");
+
+    if (isHls && !video.canPlayType("application/vnd.apple.mpegurl")) {
+      // Chrome/Firefox: precisa do hls.js
+      let destroyed = false;
+      let hlsInstance: { destroy: () => void } | null = null;
+      import("hls.js").then(({ default: Hls }) => {
+        if (destroyed) return;
+        if (Hls.isSupported()) {
+          const hls = new Hls({ enableWorker: true });
+          hls.loadSource(src);
+          hls.attachMedia(video);
+          hlsInstance = hls;
+        } else {
+          video.src = src; // fallback
+        }
+      });
+      return () => { destroyed = true; hlsInstance?.destroy(); };
+    } else {
+      // Safari (HLS nativo) ou arquivo direto
+      video.src = src;
+    }
+  }, [src]);
+
   // Fullscreen state sync
   useEffect(() => {
     const handler = () => setFullscreen(Boolean(document.fullscreenElement));
@@ -136,7 +164,6 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
     >
       <video
         ref={videoRef}
-        src={src}
         className="w-full aspect-video bg-black"
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}

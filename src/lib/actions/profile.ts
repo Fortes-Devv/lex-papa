@@ -5,6 +5,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deleteCloudinaryImageByUrl } from "@/lib/cloudinary";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -37,8 +38,17 @@ export async function updateProfile(input: { name: string; bio?: string; phone?:
 export async function updateAvatar(avatarUrl: string) {
   const session = await auth();
   if (!session?.user) return { success: false as const, error: "Faça login." };
-  await db.user.update({ where: { id: session.user.id }, data: { avatar: avatarUrl } });
+
+  // Remove o avatar anterior do Cloudinary, se houver e for diferente.
+  const current = await db.user.findUnique({ where: { id: session.user.id }, select: { avatar: true } });
+  if (current?.avatar && current.avatar !== avatarUrl) {
+    await deleteCloudinaryImageByUrl(current.avatar);
+  }
+
+  await db.user.update({ where: { id: session.user.id }, data: { avatar: avatarUrl || null } });
   revalidatePath("/student/profile");
+  revalidatePath("/teacher/profile");
+  revalidatePath("/admin/profile");
   return { success: true as const };
 }
 

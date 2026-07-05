@@ -2,10 +2,18 @@
 import { Bell, Search, Moon, Sun, Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
 import { useCurrentUser } from "@/lib/store/hooks";
+
+const PROFILE_PATH: Record<string, string> = {
+  admin: "/admin/profile",
+  moderator: "/admin/profile",
+  teacher: "/teacher/profile",
+  student: "/student/profile",
+};
 
 interface TopHeaderProps {
   onMenuToggle?: () => void;
@@ -14,6 +22,7 @@ interface TopHeaderProps {
 
 export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
   const user = useCurrentUser();
+  const router = useRouter();
   const [dark, setDark] = useState(false);
   const [unread, setUnread] = useState(0);
 
@@ -75,9 +84,7 @@ export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
             </button>
           }
           items={[
-            { label: "Meu perfil", onClick: () => {} },
-            { label: "Configurações", onClick: () => {} },
-            { label: "Atalhos", onClick: () => {} },
+            { label: "Meu perfil", onClick: () => router.push(PROFILE_PATH[user.role] ?? "/student/profile") },
             { separator: true },
             { label: "Sair", onClick: () => signOut({ callbackUrl: "/login" }), variant: "destructive" },
           ]}

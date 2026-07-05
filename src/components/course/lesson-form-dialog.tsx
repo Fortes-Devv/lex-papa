@@ -6,7 +6,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
-import { MediaUploader } from "@/components/upload/media-uploader";
+import { BunnyVideoUploader } from "@/components/upload/bunny-video-uploader";
 import { createLesson, updateLesson } from "@/lib/actions/courses";
 import type { LessonType, Lesson } from "@/lib/types";
 
@@ -76,7 +76,7 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         type: form.type,
         description: form.description || undefined,
         videoUrl: form.videoUrl || undefined,
-        videoProvider: (form.videoUrl ? "cloudinary" : undefined) as "cloudinary" | undefined,
+        videoProvider: (form.videoPublicId ? "bunny" : undefined) as "bunny" | undefined,
         videoPublicId: form.videoPublicId || undefined,
         duration: form.duration ? Number(form.duration) : undefined,
         isFree: form.isFree,
@@ -114,11 +114,9 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         {form.type === "video" && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Vídeo</label>
-            <MediaUploader
-              resourceType="video"
-              folder="lms/lessons"
-              value={form.videoUrl}
-              onUploaded={(r) => setForm((f) => ({ ...f, videoUrl: r.url, videoPublicId: r.publicId, duration: r.duration ? String(r.duration) : f.duration }))}
+            <BunnyVideoUploader
+              value={form.videoPublicId}
+              onUploaded={(r) => setForm((f) => ({ ...f, videoUrl: r.playbackUrl, videoPublicId: r.videoId }))}
               onRemove={() => setForm((f) => ({ ...f, videoUrl: "", videoPublicId: "" }))}
             />
           </div>

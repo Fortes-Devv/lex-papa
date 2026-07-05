@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/utils/cn";
+import { deleteBunnyVideo } from "@/lib/bunny";
+import { deleteCloudinaryImageByUrl } from "@/lib/cloudinary";
 import type { LessonType, ProductLevel, Lesson } from "@/lib/types";
 
 type CompletionCriteria = Lesson["completionCriteria"];
@@ -94,6 +96,15 @@ export async function updateCourseDetails(productId: string, input: {
   }
 
   const category = await findOrCreateCategory(input.categoryName);
+
+  // Se a capa foi trocada, remove a antiga do Cloudinary.
+  if (input.thumbnail) {
+    const current = await db.product.findUnique({ where: { id: productId }, select: { thumbnail: true } });
+    if (current?.thumbnail && current.thumbnail !== input.thumbnail) {
+      await deleteCloudinaryImageByUrl(current.thumbnail);
+    }
+  }
+
   await db.product.update({
     where: { id: productId },
     data: {
@@ -137,8 +148,19 @@ export async function deleteCourse(productId: string) {
     };
   }
 
+  // Coleta os vídeos Bunny de todas as aulas do curso antes de excluir (cascade).
+  const lessons = await db.lesson.findMany({
+    where: { module: { course: { productId } }, videoProvider: "bunny", videoPublicId: { not: null } },
+    select: { videoPublicId: true },
+  });
+
   // Cascade remove course → modules → lessons (e favoritos/certificados vazios).
   await db.product.delete({ where: { id: productId } });
+
+  // Limpeza externa: vídeos no Bunny + capa no Cloudinary.
+  for (const l of lessons) if (l.videoPublicId) await deleteBunnyVideo(l.videoPublicId);
+  await deleteCloudinaryImageByUrl(product.thumbnail);
+
   const { logAudit } = await import("@/lib/audit");
   await logAudit({ actorId: session.user.id, action: "product.deleted", resourceType: "product", resourceId: productId, metadata: { title: product.title } });
 
@@ -196,7 +218,13 @@ export async function toggleModulePublished(moduleId: string, isPublished: boole
 
 export async function deleteModule(moduleId: string) {
   await requireStaff();
+  // Coleta os vídeos Bunny das aulas antes de excluir o módulo (cascade).
+  const lessons = await db.lesson.findMany({
+    where: { moduleId, videoProvider: "bunny", videoPublicId: { not: null } },
+    select: { videoPublicId: true },
+  });
   await db.module.delete({ where: { id: moduleId } });
+  for (const l of lessons) if (l.videoPublicId) await deleteBunnyVideo(l.videoPublicId);
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
   return { success: true as const };
@@ -268,6 +296,13 @@ export async function updateLesson(lessonId: string, input: {
   completionCriteria: CompletionCriteria;
 }) {
   await requireStaff();
+
+  // Se o vídeo foi trocado, remove o antigo do Bunny.
+  const old = await db.lesson.findUnique({ where: { id: lessonId }, select: { videoProvider: true, videoPublicId: true } });
+  if (old?.videoProvider === "bunny" && old.videoPublicId && old.videoPublicId !== input.videoPublicId) {
+    await deleteBunnyVideo(old.videoPublicId);
+  }
+
   const lesson = await db.lesson.update({
     where: { id: lessonId },
     data: {
@@ -300,6 +335,9 @@ export async function updateLessonStatus(lessonId: string, status: "draft" | "pu
 export async function deleteLesson(lessonId: string) {
   await requireStaff();
   const lesson = await db.lesson.delete({ where: { id: lessonId } });
+  if (lesson.videoProvider === "bunny" && lesson.videoPublicId) {
+    await deleteBunnyVideo(lesson.videoPublicId);
+  }
   await recalcCourseTotals(lesson.moduleId);
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
