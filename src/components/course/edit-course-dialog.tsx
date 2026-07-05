@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { MediaUploader } from "@/components/upload/media-uploader";
+import { HeroThemePicker } from "@/components/course/hero-theme-picker";
 import { updateCourseDetails } from "@/lib/actions/courses";
 import { parseBRL } from "@/lib/utils/cn";
 import type { ProductLevel } from "@/lib/types";
@@ -29,6 +30,7 @@ export interface EditCourseInitial {
   categoryName: string;
   level: ProductLevel;
   thumbnail: string;
+  heroColor?: string;
 }
 
 const fmtNum = (n?: number) => (n && n > 0 ? String(n).replace(".", ",") : "");
@@ -47,6 +49,7 @@ export function EditCourseDialog({ initial }: { initial: EditCourseInitial }) {
     categoryName: initial.categoryName,
     level: initial.level,
     thumbnail: initial.thumbnail,
+    heroColor: initial.heroColor ?? "navy",
   });
 
   async function handleSubmit() {
@@ -65,6 +68,7 @@ export function EditCourseDialog({ initial }: { initial: EditCourseInitial }) {
         categoryName: form.categoryName,
         level: form.level,
         thumbnail: form.thumbnail,
+        heroColor: form.heroColor,
       });
       if (!result.success) { error(result.error); return; }
       success("Curso atualizado.");
@@ -97,6 +101,7 @@ export function EditCourseDialog({ initial }: { initial: EditCourseInitial }) {
             <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do curso</label>
             <MediaUploader resourceType="image" folder="lms/thumbnails" value={form.thumbnail} onUploaded={(r) => setForm((f) => ({ ...f, thumbnail: r.url }))} onRemove={() => setForm((f) => ({ ...f, thumbnail: "" }))} />
           </div>
+          <HeroThemePicker value={form.heroColor} onChange={(key) => setForm((f) => ({ ...f, heroColor: key }))} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>

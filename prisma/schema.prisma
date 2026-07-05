@@ -273,6 +273,7 @@ model Course {
   totalDuration         Int      @default(0) // segundos
   completionCertificate Boolean  @default(false)
   certificateTemplate   String?
+  heroColor             String?  @default("navy")
   requirements          String[] @default([])
   whatYouLearn          String[] @default([])
   targetAudience        String[] @default([])

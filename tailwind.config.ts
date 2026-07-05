@@ -114,9 +114,10 @@ const config: Config = {
 
       // ─── TYPOGRAPHY ────────────────────────────────────────────────────────
       fontFamily: {
-        sans: ["Inter Variable", "Inter", "system-ui", "sans-serif"],
+        sans: ["Archivo Variable", "system-ui", "sans-serif"],
+        serif: ["Source Serif 4 Variable", "Georgia", "serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
-        display: ["Inter Variable", "Inter", "system-ui", "sans-serif"],
+        display: ["Archivo Variable", "system-ui", "sans-serif"],
       },
       fontSize: {
         "2xs":    ["0.625rem", { lineHeight: "1rem",    letterSpacing: "0.05em"  }],

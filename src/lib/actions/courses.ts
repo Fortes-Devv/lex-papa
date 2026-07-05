@@ -45,6 +45,7 @@ export async function createCourse(input: {
   categoryName: string;
   level: ProductLevel;
   thumbnail: string;
+  heroColor?: string;
 }) {
   const session = await requireStaff();
 
@@ -69,7 +70,7 @@ export async function createCourse(input: {
       level: input.level,
       categoryId: category.id,
       instructors: { connect: [{ id: session.user.id }] },
-      course: { create: {} },
+      course: { create: { heroColor: input.heroColor ?? "navy" } },
     },
     include: { course: true },
   });
@@ -88,6 +89,7 @@ export async function updateCourseDetails(productId: string, input: {
   categoryName: string;
   level: ProductLevel;
   thumbnail: string;
+  heroColor?: string;
 }) {
   await requireStaff();
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
@@ -116,6 +118,7 @@ export async function updateCourseDetails(productId: string, input: {
       level: input.level,
       categoryId: category.id,
       ...(input.thumbnail ? { thumbnail: input.thumbnail } : {}),
+      ...(input.heroColor ? { course: { update: { heroColor: input.heroColor } } } : {}),
     },
   });
 

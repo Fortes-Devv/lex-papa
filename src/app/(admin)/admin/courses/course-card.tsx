@@ -28,6 +28,7 @@ export interface CourseCardData {
   enrolledCount: number;
   totalLessons: number;
   totalDuration: number;
+  heroColor?: string;
   modules: EditorModule[];
 }
 
@@ -93,6 +94,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
             categoryName: course.categoryName,
             level: course.level,
             thumbnail: course.thumbnail,
+            heroColor: course.heroColor,
           }}
         />
         <Button size="sm" variant="outline" onClick={togglePublish} loading={loading} className="shrink-0">

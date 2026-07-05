@@ -1,6 +1,7 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
 // Botão "Voltar" que usa o histórico do navegador; se não houver histórico
 // (ex: link direto), cai para uma rota de fallback.
@@ -19,7 +20,7 @@ export function BackButton({ fallbackHref = "/", label = "Voltar", className = "
     <button
       type="button"
       onClick={handleBack}
-      className={`inline-flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors ${className}`}
+      className={cn("inline-flex items-center gap-1.5 text-sm text-foreground-muted hover:text-foreground transition-colors", className)}
     >
       <ArrowLeft className="h-4 w-4" /> {label}
     </button>

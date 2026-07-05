@@ -8,6 +8,7 @@ import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { MediaUploader } from "@/components/upload/media-uploader";
+import { HeroThemePicker } from "@/components/course/hero-theme-picker";
 import { createCourse } from "@/lib/actions/courses";
 import { parseBRL } from "@/lib/utils/cn";
 import type { ProductLevel } from "@/lib/types";
@@ -28,6 +29,7 @@ const EMPTY_FORM = {
   categoryName: "",
   level: "beginner" as ProductLevel,
   thumbnail: "",
+  heroColor: "navy",
 };
 
 export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: string) => void }) {
@@ -58,6 +60,7 @@ export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: strin
         categoryName: form.categoryName,
         level: form.level,
         thumbnail: form.thumbnail,
+        heroColor: form.heroColor,
       });
       if (!result.success) {
         error(result.error);
@@ -105,6 +108,7 @@ export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: strin
               onRemove={() => setForm((f) => ({ ...f, thumbnail: "" }))}
             />
           </div>
+          <HeroThemePicker value={form.heroColor} onChange={(key) => setForm((f) => ({ ...f, heroColor: key }))} />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={close}>Cancelar</Button>

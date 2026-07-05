@@ -37,6 +37,7 @@ export default async function AdminCoursesPage() {
       enrolledCount: p.enrolledCount,
       totalLessons: p.course!.totalLessons,
       totalDuration: p.course!.totalDuration,
+      heroColor: p.course!.heroColor ?? "navy",
       modules: p.course!.modules.map((m) => ({
         id: m.id,
         title: m.title,
