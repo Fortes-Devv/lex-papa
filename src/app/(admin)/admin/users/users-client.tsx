@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, MoreHorizontal, Shield, Ban, CheckCircle2, UserCog, Copy } from "lucide-react";
+import { Search, Plus, MoreHorizontal, Shield, Ban, CheckCircle2, UserCog, Copy, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,7 @@ import { Dropdown } from "@/components/ui/dropdown";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { formatRelativeDate } from "@/lib/utils/cn";
-import { createUserByAdmin, updateUserRole, updateUserStatus } from "@/lib/actions/users";
+import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail } from "@/lib/actions/users";
 import type { User, UserRole, UserStatus } from "@/lib/types";
 
 const roleLabels: Record<UserRole, string> = { admin: "Admin", teacher: "Professor", student: "Aluno", moderator: "Moderador" };
@@ -36,6 +36,9 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<{ name: string; email: string; role: UserRole }>({ name: "", email: "", role: "student" });
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+
+  const [emailUser, setEmailUser] = useState<User | null>(null);
+  const [newEmail, setNewEmail] = useState("");
 
   const users = useMemo(() => {
     return initialUsers.filter((u) => {
@@ -78,6 +81,20 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
     const result = await updateUserStatus(user.id, status);
     if (!result.success) { error(result.error); return; }
     success(`${user.name} agora está ${statusLabels[status].toLowerCase()}.`);
+    startTransition(() => router.refresh());
+  }
+
+  function openEmailDialog(user: User) {
+    setEmailUser(user);
+    setNewEmail(user.email);
+  }
+
+  async function handleUpdateEmail() {
+    if (!emailUser) return;
+    const result = await updateUserEmail(emailUser.id, newEmail);
+    if (!result.success) { error(result.error); return; }
+    success(`Email de ${emailUser.name} atualizado.`);
+    setEmailUser(null);
     startTransition(() => router.refresh());
   }
 
@@ -176,6 +193,8 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
                       { label: "Tornar professor", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "teacher") },
                       { label: "Tornar aluno", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "student") },
                       { separator: true },
+                      { label: "Alterar email", icon: <Mail className="h-3.5 w-3.5" />, onClick: () => openEmailDialog(user) },
+                      { separator: true },
                       user.status === "banned"
                         ? { label: "Reativar usuário", icon: <CheckCircle2 className="h-3.5 w-3.5" />, onClick: () => handleStatusChange(user, "active") }
                         : { label: "Banir usuário", icon: <Ban className="h-3.5 w-3.5" />, onClick: () => handleStatusChange(user, "banned"), variant: "destructive" as const },
@@ -236,6 +255,20 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
           ) : (
             <Button onClick={closeCreateDialog}>Concluir</Button>
           )}
+        </DialogFooter>
+      </Dialog>
+
+      {/* Alterar email */}
+      <Dialog
+        open={!!emailUser}
+        onClose={() => setEmailUser(null)}
+        title="Alterar email"
+        description={emailUser ? `Define o email de login de ${emailUser.name}. Use um email real para permitir recuperação de senha.` : ""}
+      >
+        <Input label="Email" type="email" placeholder="usuario@email.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEmailUser(null)}>Cancelar</Button>
+          <Button onClick={handleUpdateEmail}>Salvar</Button>
         </DialogFooter>
       </Dialog>
     </div>
