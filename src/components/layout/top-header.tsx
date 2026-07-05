@@ -80,8 +80,8 @@ export function TopHeader({ onMenuToggle, title }: TopHeaderProps) {
           align="right"
           trigger={
             <button className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted transition-colors duration-100">
-              <Avatar src={user.avatar} name={user.name} size="sm" status="online" />
-              <span className="hidden md:block text-sm font-medium text-foreground truncate max-w-[120px]">
+              <Avatar src={user.avatar} name={user.name} size="md" status="online" />
+              <span className="hidden md:block text-base font-semibold text-foreground truncate max-w-[160px]">
                 {user.name.split(" ")[0]}
               </span>
             </button>

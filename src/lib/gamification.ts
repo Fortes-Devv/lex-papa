@@ -18,6 +18,20 @@ export function levelFromXp(totalXp: number) {
   };
 }
 
+// Patentes (tema concurso/segurança) derivadas do nível.
+const PATENTES = [
+  "Recruta", "Soldado", "Cabo", "Sargento", "Subtenente",
+  "Tenente", "Capitão", "Major", "Tenente-Coronel", "Coronel",
+];
+
+export function patenteForLevel(level: number) {
+  const idx = Math.min(Math.max(level - 1, 0), PATENTES.length - 1);
+  return {
+    current: PATENTES[idx],
+    next: idx < PATENTES.length - 1 ? PATENTES[idx + 1] : null,
+  };
+}
+
 export async function getUserXp(userId: string) {
   const row = await db.userXP.findUnique({ where: { userId } });
   const totalXp = row?.totalXp ?? 0;

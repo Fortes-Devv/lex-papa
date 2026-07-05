@@ -159,12 +159,14 @@ model User {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
   lastLoginAt      DateTime?
+  lastViewedProductId String?
 
   enrollments        Enrollment[]
   lessonProgress     LessonProgress[]
   certificates       Certificate[]
   orders             Order[]
   instructedProducts Product[]        @relation("ProductInstructors")
+  instructedModules  Module[]         @relation("ModuleInstructor")
   favorites          Favorite[]
   notifications      Notification[]
   lessonNotes        LessonNote[]
@@ -285,18 +287,21 @@ model Course {
 }
 
 model Module {
-  id          String   @id @default(cuid())
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  order       Int      @default(0)
-  isPublished Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id           String   @id @default(cuid())
+  courseId     String
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  order        Int      @default(0)
+  isPublished  Boolean  @default(false)
+  instructorId String?
+  instructor   User?    @relation("ModuleInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
 
   lessons Lesson[]
 
   @@index([courseId])
+  @@index([instructorId])
   @@map("modules")
 }
 

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -49,16 +50,24 @@ export interface EditorModule {
   title: string;
   order: number;
   isPublished: boolean;
+  instructorId: string | null;
+  instructorName: string | null;
   lessons: EditorLesson[];
 }
 
-export function CourseContentEditor({ courseId, modules }: { courseId: string; modules: EditorModule[] }) {
+export interface TeacherOption {
+  id: string;
+  name: string;
+}
+
+export function CourseContentEditor({ courseId, modules, teachers = [], restricted = false }: { courseId: string; modules: EditorModule[]; teachers?: TeacherOption[]; restricted?: boolean }) {
   const { success, error } = useToast();
   const router = useRouter();
   const [expanded, setExpanded] = useState<Set<string>>(new Set(modules[0] ? [modules[0].id] : []));
 
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState("");
+  const [newModuleInstructor, setNewModuleInstructor] = useState("");
   const [editingModule, setEditingModule] = useState<EditorModule | null>(null);
 
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
@@ -76,22 +85,25 @@ export function CourseContentEditor({ courseId, modules }: { courseId: string; m
   function openCreateModule() {
     setEditingModule(null);
     setNewModuleTitle("");
+    setNewModuleInstructor("");
     setModuleDialogOpen(true);
   }
 
   function openRenameModule(mod: EditorModule) {
     setEditingModule(mod);
     setNewModuleTitle(mod.title);
+    setNewModuleInstructor(mod.instructorId ?? "");
     setModuleDialogOpen(true);
   }
 
   async function handleSaveModule() {
     if (!newModuleTitle) { error("Dê um título para o módulo."); return; }
+    const instructorId = newModuleInstructor || null;
     if (editingModule) {
-      await renameModule(editingModule.id, newModuleTitle);
-      success("Módulo renomeado.");
+      await renameModule(editingModule.id, newModuleTitle, instructorId);
+      success("Módulo atualizado.");
     } else {
-      await createModule(courseId, newModuleTitle);
+      await createModule(courseId, newModuleTitle, instructorId);
       success("Módulo criado.");
     }
     setModuleDialogOpen(false);
@@ -158,12 +170,16 @@ export function CourseContentEditor({ courseId, modules }: { courseId: string; m
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-foreground-muted">{modules.length} módulos</p>
+        <p className="text-sm text-foreground-muted">
+          {restricted ? `${modules.length} módulo${modules.length !== 1 ? "s" : ""} seu${modules.length !== 1 ? "s" : ""}` : `${modules.length} módulos`}
+        </p>
         <div className="flex items-center gap-2">
           <a href={`/preview/${courseId}`} target="_blank" rel="noopener noreferrer">
             <Button size="sm" variant="ghost" leftIcon={<Eye className="h-3.5 w-3.5" />}>Assistir (preview)</Button>
           </a>
-          <Button size="sm" variant="outline" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+          {!restricted && (
+            <Button size="sm" variant="outline" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+          )}
         </div>
       </div>
 
@@ -174,16 +190,27 @@ export function CourseContentEditor({ courseId, modules }: { courseId: string; m
               {expanded.has(mod.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
             <span className="flex-1 text-sm font-medium text-foreground truncate">{mod.title}</span>
+            {mod.instructorName && (
+              <Badge variant="default" className="shrink-0">Prof. {mod.instructorName.split(" ")[0]}</Badge>
+            )}
             <Badge variant={mod.isPublished ? "success" : "secondary"} className="shrink-0">
               {mod.isPublished ? "Publicado" : "Rascunho"}
             </Badge>
             <span className="text-xs text-foreground-muted shrink-0">{mod.lessons.length} aulas</span>
             <div className="flex items-center gap-0.5 shrink-0">
-              <Button variant="ghost" size="icon-sm" disabled={mi === 0} onClick={() => handleMoveModule(mod, "up")}><ArrowUp className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon-sm" disabled={mi === modules.length - 1} onClick={() => handleMoveModule(mod, "down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
+              {!restricted && (
+                <>
+                  <Button variant="ghost" size="icon-sm" disabled={mi === 0} onClick={() => handleMoveModule(mod, "up")}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" disabled={mi === modules.length - 1} onClick={() => handleMoveModule(mod, "down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                </>
+              )}
               <Button variant="ghost" size="icon-sm" onClick={() => handleToggleModule(mod)}>{mod.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
-              <Button variant="ghost" size="icon-sm" onClick={() => openRenameModule(mod)}><Pencil className="h-3.5 w-3.5" /></Button>
-              <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteModule(mod)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+              {!restricted && (
+                <>
+                  <Button variant="ghost" size="icon-sm" onClick={() => openRenameModule(mod)}><Pencil className="h-3.5 w-3.5" /></Button>
+                  <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteModule(mod)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -221,8 +248,20 @@ export function CourseContentEditor({ courseId, modules }: { courseId: string; m
         </div>
       )}
 
-      <Dialog open={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} title={editingModule ? "Renomear módulo" : "Novo módulo"}>
-        <Input label="Título do módulo" placeholder="Ex: Direito Constitucional" value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} />
+      <Dialog open={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} title={editingModule ? "Editar módulo" : "Novo módulo"}>
+        <div className="space-y-4">
+          <Input label="Título do módulo" placeholder="Ex: Direito Constitucional" value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} />
+          <Select
+            label="Professor responsável"
+            hint="O professor escolhido verá este módulo na área dele."
+            value={newModuleInstructor}
+            onChange={(e) => setNewModuleInstructor(e.target.value)}
+            options={[
+              { value: "", label: "Sem professor específico" },
+              ...teachers.map((t) => ({ value: t.id, label: t.name })),
+            ]}
+          />
+        </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setModuleDialogOpen(false)}>Cancelar</Button>
           <Button onClick={handleSaveModule}>{editingModule ? "Salvar" : "Criar módulo"}</Button>

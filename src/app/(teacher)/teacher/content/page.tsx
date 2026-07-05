@@ -8,28 +8,48 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
   const session = await auth();
   if (!session?.user) return null;
 
+  const userId = session.user.id;
+
+  // Cursos acessíveis: onde é dono (instrutor do produto) OU dono de algum módulo.
   const products = await db.product.findMany({
-    where: { type: "course", instructors: { some: { id: session.user.id } } },
+    where: {
+      type: "course",
+      OR: [
+        { instructors: { some: { id: userId } } },
+        { course: { modules: { some: { instructorId: userId } } } },
+      ],
+    },
     orderBy: { createdAt: "desc" },
-    include: { course: true },
+    include: { course: true, instructors: { select: { id: true } } },
   });
 
   const activeCourseId = searchParams.courseId ?? products.find((p) => p.course)?.course?.id;
   const activeProduct = products.find((p) => p.course?.id === activeCourseId);
 
+  // Dono do curso vê todos os módulos; professor de módulo vê só os dele.
+  const isOwner = Boolean(activeProduct?.instructors.some((i) => i.id === userId));
+
   const modules = activeCourseId
     ? await db.module.findMany({
-        where: { courseId: activeCourseId },
+        where: { courseId: activeCourseId, ...(isOwner ? {} : { instructorId: userId }) },
         orderBy: { order: "asc" },
-        include: { lessons: { orderBy: { order: "asc" } } },
+        include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true } } },
       })
     : [];
+
+  const teachers = await db.user.findMany({
+    where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 
   const editorModules: EditorModule[] = modules.map((m) => ({
     id: m.id,
     title: m.title,
     order: m.order,
     isPublished: m.isPublished,
+    instructorId: m.instructorId,
+    instructorName: m.instructor?.name ?? null,
     lessons: m.lessons.map((l) => ({
       id: l.id,
       title: l.title,
@@ -52,6 +72,7 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
         <h1 className="text-xl font-semibold text-foreground">Editor de Conteúdo</h1>
         <p className="text-sm text-foreground-muted mt-0.5">
           {activeProduct ? activeProduct.title : "Selecione um curso para editar"}
+          {activeProduct && !isOwner && " · você gerencia apenas o seu módulo neste curso"}
         </p>
       </div>
 
@@ -74,7 +95,7 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
       )}
 
       {activeCourseId ? (
-        <CourseContentEditor courseId={activeCourseId} modules={editorModules} />
+        <CourseContentEditor courseId={activeCourseId} modules={editorModules} teachers={teachers} restricted={!isOwner} />
       ) : (
         <div className="py-16 text-center text-sm text-foreground-muted border border-dashed border-border rounded-lg flex flex-col items-center gap-2">
           <BookOpen className="h-8 w-8 text-foreground-subtle" />

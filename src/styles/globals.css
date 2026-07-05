@@ -203,10 +203,38 @@
 
   /* Grid pattern bg */
   .bg-grid {
-    background-image: 
+    background-image:
       linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
     background-size: 32px 32px;
+  }
+
+  /* Gradiente diagonal animado da marca — transita entre preto, verde,
+     azul e laranja (tons escuros, para manter o texto branco legível). */
+  .brand-gradient {
+    background-color: #0a0d0b;
+    background-image: linear-gradient(
+      120deg,
+      #08110c 0%,
+      #063a24 20%,
+      #0a2c4d 42%,
+      #7a3110 64%,
+      #0a1a12 84%,
+      #08110c 100%
+    );
+    background-size: 300% 300%;
+    animation: brand-gradient-pan 20s ease-in-out infinite;
+  }
+
+  @keyframes brand-gradient-pan {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Respeita quem prefere menos movimento */
+  @media (prefers-reduced-motion: reduce) {
+    .brand-gradient { animation: none; }
   }
 
   /* Dot pattern bg */

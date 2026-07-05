@@ -192,23 +192,39 @@ export async function updateCourseStatus(productId: string, status: "draft" | "p
   return { success: true as const };
 }
 
-export async function createModule(courseId: string, title: string) {
+export async function createModule(courseId: string, title: string, instructorId?: string | null) {
   await requireStaff();
   const last = await db.module.findFirst({ where: { courseId }, orderBy: { order: "desc" } });
   const mod = await db.module.create({
-    data: { courseId, title, order: (last?.order ?? 0) + 1 },
+    data: { courseId, title, order: (last?.order ?? 0) + 1, instructorId: instructorId || null },
   });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
+  revalidatePath("/teacher/dashboard");
   return { success: true as const, moduleId: mod.id };
 }
 
-export async function renameModule(moduleId: string, title: string) {
+export async function renameModule(moduleId: string, title: string, instructorId?: string | null) {
   await requireStaff();
-  await db.module.update({ where: { id: moduleId }, data: { title } });
+  await db.module.update({
+    where: { id: moduleId },
+    // instructorId undefined = não mexe; null/string = define/remove o professor
+    data: { title, ...(instructorId === undefined ? {} : { instructorId: instructorId || null }) },
+  });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
+  revalidatePath("/teacher/dashboard");
   return { success: true as const };
+}
+
+// Lista os professores/staff disponíveis para associar a um módulo.
+export async function listTeachers() {
+  await requireStaff();
+  return db.user.findMany({
+    where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
 }
 
 export async function toggleModulePublished(moduleId: string, isPublished: boolean) {

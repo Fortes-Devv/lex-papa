@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { CourseCurriculum } from "@/components/course/course-curriculum";
@@ -56,6 +57,15 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
   });
 
   if (!product || !product.course) notFound();
+
+  // Registra este como o "último curso aberto" pelo aluno logado (alimenta o
+  // destaque do dashboard). Não bloqueia a renderização em caso de erro.
+  const session = await auth();
+  if (session?.user?.id) {
+    await db.user
+      .update({ where: { id: session.user.id }, data: { lastViewedProductId: product.id } })
+      .catch(() => {});
+  }
 
   const course = product.course;
   const instructor = product.instructors[0];

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
-import { LayoutDashboard, BookOpen, FileVideo, Users, BarChart2, Star, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileVideo, Layers, Users, BarChart2, Star, ChevronLeft, ChevronRight } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { TopHeader } from "@/components/layout/top-header";
 import { cn } from "@/lib/utils/cn";
@@ -16,6 +16,7 @@ const navSections = [
     title: "Conteúdo",
     items: [
       { label: "Meus Cursos", href: "/teacher/courses", icon: <BookOpen className="h-4 w-4" /> },
+      { label: "Meus Módulos", href: "/teacher/modules", icon: <Layers className="h-4 w-4" /> },
       { label: "Editor de Aulas", href: "/teacher/content", icon: <FileVideo className="h-4 w-4" /> },
     ],
   },

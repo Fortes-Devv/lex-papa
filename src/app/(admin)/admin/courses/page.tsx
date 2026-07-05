@@ -13,11 +13,17 @@ export default async function AdminCoursesPage() {
         include: {
           modules: {
             orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } } },
+            include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true } } },
           },
         },
       },
     },
+  });
+
+  const teachers = await db.user.findMany({
+    where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
 
   const courses: CourseCardData[] = products
@@ -43,6 +49,8 @@ export default async function AdminCoursesPage() {
         title: m.title,
         order: m.order,
         isPublished: m.isPublished,
+        instructorId: m.instructorId,
+        instructorName: m.instructor?.name ?? null,
         lessons: m.lessons.map((l) => ({
           id: l.id,
           title: l.title,
@@ -72,7 +80,7 @@ export default async function AdminCoursesPage() {
 
       <div className="space-y-3">
         {courses.map((course) => (
-          <CourseCard key={course.productId} course={course} />
+          <CourseCard key={course.productId} course={course} teachers={teachers} />
         ))}
         {courses.length === 0 && (
           <div className="py-16 text-center text-sm text-foreground-muted border border-dashed border-border rounded-lg">

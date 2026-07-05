@@ -9,7 +9,7 @@ import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { updateCourseStatus, deleteCourse } from "@/lib/actions/courses";
-import { CourseContentEditor, type EditorModule } from "@/components/course/course-content-editor";
+import { CourseContentEditor, type EditorModule, type TeacherOption } from "@/components/course/course-content-editor";
 import { EditCourseDialog } from "@/components/course/edit-course-dialog";
 import type { ProductLevel } from "@/lib/types";
 
@@ -32,7 +32,7 @@ export interface CourseCardData {
   modules: EditorModule[];
 }
 
-export function CourseCard({ course }: { course: CourseCardData }) {
+export function CourseCard({ course, teachers = [] }: { course: CourseCardData; teachers?: TeacherOption[] }) {
   const { success, error } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -107,7 +107,7 @@ export function CourseCard({ course }: { course: CourseCardData }) {
 
       {open && (
         <div className="border-t border-border p-3">
-          <CourseContentEditor courseId={course.courseId} modules={course.modules} />
+          <CourseContentEditor courseId={course.courseId} modules={course.modules} teachers={teachers} />
         </div>
       )}
 
