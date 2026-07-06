@@ -56,7 +56,7 @@ export function FavoritesClient({ favorites: initial }: { favorites: FavoritePro
             <div key={product.id} className="group rounded-lg border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200 flex flex-col">
               <div className="relative aspect-video overflow-hidden bg-muted">
                 <img src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                <button onClick={() => removeFavorite(product.id)} className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive" title="Remover dos favoritos">
+                <button onClick={() => removeFavorite(product.id)} className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/50 flex items-center justify-center opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity hover:bg-destructive" title="Remover dos favoritos">
                   <Heart className="h-3.5 w-3.5 text-white fill-white" />
                 </button>
               </div>

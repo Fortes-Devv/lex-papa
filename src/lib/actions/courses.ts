@@ -246,6 +246,16 @@ export async function toggleModulePublished(moduleId: string, isPublished: boole
   return { success: true as const };
 }
 
+// Publica (ou despublica) o módulo E todas as suas aulas de uma vez.
+export async function setModulePublished(moduleId: string, publish: boolean) {
+  await requireStaff();
+  await db.module.update({ where: { id: moduleId }, data: { isPublished: publish } });
+  await db.lesson.updateMany({ where: { moduleId }, data: { status: publish ? "published" : "draft" } });
+  revalidatePath("/admin/courses");
+  revalidatePath("/teacher/content");
+  return { success: true as const };
+}
+
 export async function deleteModule(moduleId: string) {
   await requireStaff();
   // Coleta os vídeos Bunny das aulas e a capa antes de excluir o módulo (cascade).

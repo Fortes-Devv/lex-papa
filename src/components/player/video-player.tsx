@@ -12,18 +12,19 @@ interface VideoPlayerProps {
   onComplete?: () => void;
   className?: string;
   src?: string;
+  autoPlay?: boolean;
 }
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-export function VideoPlayer({ title, watermark, onComplete, className, src }: VideoPlayerProps) {
+export function VideoPlayer({ title, watermark, onComplete, className, src, autoPlay }: VideoPlayerProps) {
   if (src) {
-    return <RealVideoPlayer key={src} src={src} title={title} watermark={watermark} onComplete={onComplete} className={className} />;
+    return <RealVideoPlayer key={src} src={src} title={title} watermark={watermark} onComplete={onComplete} className={className} autoPlay={autoPlay} />;
   }
   return <MockVideoPlayer watermark={watermark} onComplete={onComplete} className={className} />;
 }
 
-function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerProps & { src: string }) {
+function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: VideoPlayerProps & { src: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -176,6 +177,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
       <video
         ref={videoRef}
         className={cn("bg-black object-contain", fullscreen ? "max-h-full max-w-full" : "aspect-video w-full")}
+        autoPlay={autoPlay}
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}

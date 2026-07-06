@@ -41,7 +41,7 @@ export function Dialog({ open, onClose, title, description, children, className,
       />
       <div
         className={cn(
-          "relative z-10 w-full bg-card border border-border rounded-xl shadow-xl animate-scale-in",
+          "relative z-10 flex max-h-[90vh] w-full flex-col rounded-xl border border-border bg-card shadow-xl animate-scale-in",
           sizeMap[size],
           className
         )}
@@ -50,17 +50,17 @@ export function Dialog({ open, onClose, title, description, children, className,
         aria-labelledby={title ? "dialog-title" : undefined}
       >
         {(title || description) && (
-          <div className="flex items-start justify-between p-6 border-b border-border">
+          <div className="flex shrink-0 items-start justify-between border-b border-border p-4 sm:p-6">
             <div>
               {title && <h2 id="dialog-title" className="text-base font-semibold text-foreground">{title}</h2>}
               {description && <p className="mt-1 text-sm text-foreground-muted">{description}</p>}
             </div>
-            <Button variant="ghost" size="icon-sm" onClick={onClose} className="-mt-1 -mr-2 shrink-0">
+            <Button variant="ghost" size="icon-sm" onClick={onClose} className="-mr-2 -mt-1 shrink-0">
               <X className="h-4 w-4" />
             </Button>
           </div>
         )}
-        <div className="p-6">{children}</div>
+        <div className="overflow-y-auto p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

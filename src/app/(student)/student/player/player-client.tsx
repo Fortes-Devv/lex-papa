@@ -1,10 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
-  CheckCircle2, Circle, Lock, ChevronRight, ArrowLeft,
+  CheckCircle2, Circle, Lock, ChevronRight, ArrowLeft, Play, Loader2,
   Video, FileText, HelpCircle, Download, Music, Dumbbell,
 } from "lucide-react";
 import { VideoPlayer } from "@/components/player/video-player";
@@ -72,6 +72,8 @@ export function PlayerClient({
   const [expandedMods, setExpandedMods] = useState<string[]>(modules[0] ? [modules[0].id] : []);
   const [note, setNote] = useState(initial?.note ?? "");
   const [savingNote, setSavingNote] = useState(false);
+  const [nextCountdown, setNextCountdown] = useState<number | null>(null); // segundos p/ ir à próxima aula
+  const [autoPlayNext, setAutoPlayNext] = useState(false);
 
   const current = allLessons.find((l) => l.id === currentId) ?? initial;
   const totalLessons = allLessons.length;
@@ -79,12 +81,45 @@ export function PlayerClient({
   const progress = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
   const currentModule = modules.find((m) => m.lessons.some((l) => l.id === current?.id));
   const currentIndex = current ? allLessons.findIndex((l) => l.id === current.id) + 1 : 0;
+  const currentIdx = current ? allLessons.findIndex((l) => l.id === current.id) : -1;
+  const nextLesson = currentIdx >= 0 ? allLessons.slice(currentIdx + 1).find((l) => !l.locked) ?? null : null;
 
   function selectLesson(lesson: PlayerLesson) {
     if (lesson.locked) return;
+    setNextCountdown(null);
+    setAutoPlayNext(false);
     setCurrentId(lesson.id);
     setNote(lesson.note);
   }
+
+  // Avança já tocando (fim automático ou "Assistir agora").
+  function advanceToNext(lesson: PlayerLesson) {
+    setNextCountdown(null);
+    setAutoPlayNext(true);
+    setCurrentId(lesson.id);
+    setNote(lesson.note);
+  }
+
+  // Quando o vídeo termina: marca concluída (se matriculado) e inicia contagem
+  // de 4s para a próxima aula (se houver).
+  function handleVideoEnded() {
+    if (isEnrolled) handleComplete();
+    if (nextLesson) setNextCountdown(4);
+  }
+
+  // Contagem regressiva para avançar automaticamente.
+  useEffect(() => {
+    if (nextCountdown === null) return;
+    if (nextCountdown <= 0) {
+      const target = nextLesson;
+      setNextCountdown(null);
+      if (target) advanceToNext(target);
+      return;
+    }
+    const t = setTimeout(() => setNextCountdown((n) => (n === null ? null : n - 1)), 1000);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextCountdown]);
 
   async function handleComplete() {
     if (!current || completed.has(current.id)) return;
@@ -111,17 +146,20 @@ export function PlayerClient({
 
   // Lista de conteúdo (usada no painel direito e na versão mobile).
   function lessonList() {
-    return modules.map((mod) => {
+    return modules.map((mod, mi) => {
       const isExpanded = expandedMods.includes(mod.id);
       const modCompleted = mod.lessons.filter((l) => completed.has(l.id)).length;
       const modDuration = mod.lessons.reduce((s, l) => s + (l.duration ?? 0), 0);
       return (
         <div key={mod.id} className="border-b border-border">
           <button
-            className="flex w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/30"
+            className="flex w-full items-center gap-2.5 px-4 py-3 text-left transition-colors hover:bg-muted/30"
             onClick={() => setExpandedMods((prev) => (isExpanded ? prev.filter((id) => id !== mod.id) : [...prev, mod.id]))}
           >
             <ChevronRight className={cn("h-4 w-4 shrink-0 text-foreground-muted transition-transform", isExpanded && "rotate-90")} />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#16233b] text-2xs font-bold text-white">
+              {String(mi + 1).padStart(2, "0")}
+            </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground">{mod.title}</p>
               <p className="text-2xs text-foreground-muted">
@@ -212,12 +250,33 @@ export function PlayerClient({
       <div className="flex min-h-0 flex-1">
         {/* Conteúdo principal */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-          <div className="bg-black">
+          <div className="relative bg-black">
             {current.videoUrl ? (
-              <VideoPlayer key={current.id} title={current.title} watermark="LEX Concursos" src={current.videoUrl} onComplete={handleComplete} className="w-full" />
+              <VideoPlayer key={current.id} title={current.title} watermark="LEX Concursos" src={current.videoUrl} onComplete={handleVideoEnded} autoPlay={autoPlayNext} className="w-full" />
             ) : (
               <div className="flex aspect-video w-full items-center justify-center text-sm text-white/50">
                 {current.type === "video" ? "Vídeo ainda não enviado para esta aula." : "Esta aula não tem vídeo."}
+              </div>
+            )}
+
+            {/* Auto-avançar para a próxima aula */}
+            {nextCountdown !== null && nextLesson && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center">
+                <button
+                  onClick={() => advanceToNext(nextLesson)}
+                  title="Assistir agora"
+                  className="relative flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white shadow-xl transition-transform hover:scale-105"
+                >
+                  <Loader2 className="absolute h-full w-full animate-spin text-white/30" />
+                  <Play className="h-8 w-8 fill-white" />
+                </button>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-white/50">Próxima aula em {nextCountdown}s</p>
+                  <p className="mt-1 line-clamp-2 max-w-xs font-semibold text-white">{nextLesson.title}</p>
+                </div>
+                <button onClick={() => setNextCountdown(null)} className="text-sm text-white/60 transition-colors hover:text-white">
+                  Cancelar
+                </button>
               </div>
             )}
           </div>

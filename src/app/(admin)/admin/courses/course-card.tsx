@@ -61,52 +61,56 @@ export function CourseCard({ course, teachers = [] }: { course: CourseCardData; 
 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="flex items-center gap-3 p-3">
-        <button onClick={() => setOpen((v) => !v)} className="text-foreground-muted shrink-0">
-          {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </button>
-        <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
-          {course.thumbnail && <Image src={course.thumbnail} alt={course.title} fill className="object-cover" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-medium text-foreground text-sm truncate">{course.title}</p>
-          <div className="flex items-center gap-3 mt-1 text-xs text-foreground-muted">
-            <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />{course.totalLessons} aulas</span>
-            <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatDuration(course.totalDuration)}</span>
-            <span className="flex items-center gap-1"><Users className="h-3 w-3" />{course.enrolledCount} alunos</span>
-            <span>{formatCurrency(course.price)}</span>
+      <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button onClick={() => setOpen((v) => !v)} className="shrink-0 text-foreground-muted">
+            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </button>
+          <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
+            {course.thumbnail && <Image src={course.thumbnail} alt={course.title} fill className="object-cover" />}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{course.title}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground-muted">
+              <span className="flex items-center gap-1"><BookOpen className="h-3 w-3" />{course.totalLessons} aulas</span>
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatDuration(course.totalDuration)}</span>
+              <span className="flex items-center gap-1"><Users className="h-3 w-3" />{course.enrolledCount} alunos</span>
+              <span>{formatCurrency(course.price)}</span>
+            </div>
           </div>
         </div>
-        {course.price <= 0 && (
-          <Badge variant="destructive" className="shrink-0">Sem preço</Badge>
-        )}
-        <Badge variant={course.status === "published" ? "success" : "secondary"} className="shrink-0">
-          {course.status === "published" ? "Publicado" : "Rascunho"}
-        </Badge>
-        <EditCourseDialog
-          initial={{
-            productId: course.productId,
-            title: course.title,
-            shortDescription: course.shortDescription,
-            description: course.description,
-            price: course.price,
-            comparePrice: course.comparePrice,
-            categoryName: course.categoryName,
-            level: course.level,
-            thumbnail: course.thumbnail,
-            heroColor: course.heroColor,
-          }}
-        />
-        <Button size="sm" variant="outline" onClick={togglePublish} loading={loading} className="shrink-0">
-          {course.status === "published" ? "Despublicar" : "Publicar"}
-        </Button>
-        <Button size="sm" variant="ghost" onClick={() => setConfirmOpen(true)} className="shrink-0" title="Excluir curso">
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 pl-9 sm:shrink-0 sm:pl-0">
+          {course.price <= 0 && (
+            <Badge variant="destructive" className="shrink-0">Sem preço</Badge>
+          )}
+          <Badge variant={course.status === "published" ? "success" : "secondary"} className="shrink-0">
+            {course.status === "published" ? "Publicado" : "Rascunho"}
+          </Badge>
+          <EditCourseDialog
+            initial={{
+              productId: course.productId,
+              title: course.title,
+              shortDescription: course.shortDescription,
+              description: course.description,
+              price: course.price,
+              comparePrice: course.comparePrice,
+              categoryName: course.categoryName,
+              level: course.level,
+              thumbnail: course.thumbnail,
+              heroColor: course.heroColor,
+            }}
+          />
+          <Button size="sm" variant="outline" onClick={togglePublish} loading={loading} className="shrink-0">
+            {course.status === "published" ? "Despublicar" : "Publicar"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmOpen(true)} className="shrink-0" title="Excluir curso">
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
       </div>
 
       {open && (
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border bg-muted/30 p-3 sm:p-4">
           <CourseContentEditor courseId={course.courseId} modules={course.modules} teachers={teachers} />
         </div>
       )}

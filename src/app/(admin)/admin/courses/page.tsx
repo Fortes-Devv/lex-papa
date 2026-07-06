@@ -13,7 +13,7 @@ export default async function AdminCoursesPage() {
         include: {
           modules: {
             orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true } } },
+            include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true, avatar: true } } },
           },
         },
       },
@@ -51,6 +51,7 @@ export default async function AdminCoursesPage() {
         isPublished: m.isPublished,
         instructorId: m.instructorId,
         instructorName: m.instructor?.name ?? null,
+        instructorAvatar: m.instructor?.avatar ?? null,
         coverImage: m.coverImage,
         lessons: m.lessons.map((l) => ({
           id: l.id,

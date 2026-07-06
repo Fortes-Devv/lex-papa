@@ -58,7 +58,7 @@ export default async function TeacherCoursesPage() {
                   <h3 className="font-semibold text-foreground text-sm leading-snug">{product.title}</h3>
                   <Badge variant={product.status === "published" ? "success" : "secondary"}>{product.status === "published" ? "Publicado" : "Rascunho"}</Badge>
                 </div>
-                <div className="grid grid-cols-4 gap-3 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 sm:gap-3">
                   <div className="flex items-center gap-1 text-foreground-muted"><Users className="h-3 w-3" />{product.enrolledCount} alunos</div>
                   <div className="flex items-center gap-1 text-foreground-muted"><DollarSign className="h-3 w-3" />{formatCurrency(stats[i].revenue)}</div>
                   <div className="flex items-center gap-1 text-foreground-muted"><BarChart2 className="h-3 w-3" />{stats[i].completionRate.toFixed(0)}% conclusão</div>
@@ -67,7 +67,7 @@ export default async function TeacherCoursesPage() {
                 <Progress value={stats[i].completionRate} size="xs" />
               </div>
               {product.course && (
-                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <div className="flex shrink-0 gap-2 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
                   <Link href={`/teacher/content?courseId=${product.course.id}`}>
                     <Button size="xs">Conteúdo</Button>
                   </Link>
