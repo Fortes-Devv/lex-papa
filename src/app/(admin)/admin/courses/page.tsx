@@ -51,6 +51,7 @@ export default async function AdminCoursesPage() {
         isPublished: m.isPublished,
         instructorId: m.instructorId,
         instructorName: m.instructor?.name ?? null,
+        coverImage: m.coverImage,
         lessons: m.lessons.map((l) => ({
           id: l.id,
           title: l.title,

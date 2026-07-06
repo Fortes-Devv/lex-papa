@@ -192,11 +192,11 @@ export async function updateCourseStatus(productId: string, status: "draft" | "p
   return { success: true as const };
 }
 
-export async function createModule(courseId: string, title: string, instructorId?: string | null) {
+export async function createModule(courseId: string, title: string, instructorId?: string | null, coverImage?: string | null) {
   await requireStaff();
   const last = await db.module.findFirst({ where: { courseId }, orderBy: { order: "desc" } });
   const mod = await db.module.create({
-    data: { courseId, title, order: (last?.order ?? 0) + 1, instructorId: instructorId || null },
+    data: { courseId, title, order: (last?.order ?? 0) + 1, instructorId: instructorId || null, coverImage: coverImage || null },
   });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
@@ -204,12 +204,23 @@ export async function createModule(courseId: string, title: string, instructorId
   return { success: true as const, moduleId: mod.id };
 }
 
-export async function renameModule(moduleId: string, title: string, instructorId?: string | null) {
+export async function renameModule(moduleId: string, title: string, instructorId?: string | null, coverImage?: string | null) {
   await requireStaff();
+  // Se a capa foi trocada, remove a antiga do Cloudinary.
+  if (coverImage !== undefined) {
+    const current = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
+    if (current?.coverImage && current.coverImage !== coverImage) {
+      await deleteCloudinaryImageByUrl(current.coverImage);
+    }
+  }
   await db.module.update({
     where: { id: moduleId },
-    // instructorId undefined = não mexe; null/string = define/remove o professor
-    data: { title, ...(instructorId === undefined ? {} : { instructorId: instructorId || null }) },
+    // undefined = não mexe; null/string = define/remove
+    data: {
+      title,
+      ...(instructorId === undefined ? {} : { instructorId: instructorId || null }),
+      ...(coverImage === undefined ? {} : { coverImage: coverImage || null }),
+    },
   });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
@@ -237,13 +248,15 @@ export async function toggleModulePublished(moduleId: string, isPublished: boole
 
 export async function deleteModule(moduleId: string) {
   await requireStaff();
-  // Coleta os vídeos Bunny das aulas antes de excluir o módulo (cascade).
+  // Coleta os vídeos Bunny das aulas e a capa antes de excluir o módulo (cascade).
   const lessons = await db.lesson.findMany({
     where: { moduleId, videoProvider: "bunny", videoPublicId: { not: null } },
     select: { videoPublicId: true },
   });
+  const mod = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
   await db.module.delete({ where: { id: moduleId } });
   for (const l of lessons) if (l.videoPublicId) await deleteBunnyVideo(l.videoPublicId);
+  if (mod?.coverImage) await deleteCloudinaryImageByUrl(mod.coverImage);
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
   return { success: true as const };

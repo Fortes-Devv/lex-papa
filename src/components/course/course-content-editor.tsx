@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
+import { MediaUploader } from "@/components/upload/media-uploader";
 import { useToast } from "@/components/ui/toast";
 import { formatDuration } from "@/lib/utils/cn";
 import {
@@ -52,6 +53,7 @@ export interface EditorModule {
   isPublished: boolean;
   instructorId: string | null;
   instructorName: string | null;
+  coverImage: string | null;
   lessons: EditorLesson[];
 }
 
@@ -68,6 +70,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
   const [moduleDialogOpen, setModuleDialogOpen] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleInstructor, setNewModuleInstructor] = useState("");
+  const [newModuleCover, setNewModuleCover] = useState("");
   const [editingModule, setEditingModule] = useState<EditorModule | null>(null);
 
   const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
@@ -86,6 +89,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
     setEditingModule(null);
     setNewModuleTitle("");
     setNewModuleInstructor("");
+    setNewModuleCover("");
     setModuleDialogOpen(true);
   }
 
@@ -93,17 +97,19 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
     setEditingModule(mod);
     setNewModuleTitle(mod.title);
     setNewModuleInstructor(mod.instructorId ?? "");
+    setNewModuleCover(mod.coverImage ?? "");
     setModuleDialogOpen(true);
   }
 
   async function handleSaveModule() {
     if (!newModuleTitle) { error("Dê um título para o módulo."); return; }
     const instructorId = newModuleInstructor || null;
+    const cover = newModuleCover || null;
     if (editingModule) {
-      await renameModule(editingModule.id, newModuleTitle, instructorId);
+      await renameModule(editingModule.id, newModuleTitle, instructorId, cover);
       success("Módulo atualizado.");
     } else {
-      await createModule(courseId, newModuleTitle, instructorId);
+      await createModule(courseId, newModuleTitle, instructorId, cover);
       success("Módulo criado.");
     }
     setModuleDialogOpen(false);
@@ -189,6 +195,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
             <button onClick={() => toggle(mod.id)} className="text-foreground-muted shrink-0">
               {expanded.has(mod.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
+            {mod.coverImage && <img src={mod.coverImage} alt="" className="h-8 w-12 shrink-0 rounded object-cover" />}
             <span className="flex-1 text-sm font-medium text-foreground truncate">{mod.title}</span>
             {mod.instructorName && (
               <Badge variant="default" className="shrink-0">Prof. {mod.instructorName.split(" ")[0]}</Badge>
@@ -261,6 +268,16 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
               ...teachers.map((t) => ({ value: t.id, label: t.name })),
             ]}
           />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do módulo</label>
+            <MediaUploader
+              resourceType="image"
+              folder="lms/module-covers"
+              value={newModuleCover}
+              onUploaded={(r) => setNewModuleCover(r.url)}
+              onRemove={() => setNewModuleCover("")}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setModuleDialogOpen(false)}>Cancelar</Button>

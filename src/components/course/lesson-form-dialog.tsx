@@ -116,14 +116,20 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
             <label className="mb-1.5 block text-sm font-medium text-foreground">Vídeo</label>
             <BunnyVideoUploader
               value={form.videoPublicId}
-              onUploaded={(r) => setForm((f) => ({ ...f, videoUrl: r.playbackUrl, videoPublicId: r.videoId }))}
+              onUploaded={(r) => setForm((f) => ({
+                ...f,
+                videoUrl: r.playbackUrl,
+                videoPublicId: r.videoId,
+                // preenche a duração automaticamente (mantém o valor atual se não detectou)
+                duration: r.duration != null ? String(r.duration) : f.duration,
+              }))}
               onRemove={() => setForm((f) => ({ ...f, videoUrl: "", videoPublicId: "" }))}
             />
           </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Duração (segundos)" type="number" min="0" placeholder="ex: 600" value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} />
+          <Input label="Duração (segundos)" type="number" min="0" placeholder="preenchido ao enviar o vídeo" value={form.duration} onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))} />
           <Select
             label="Critério de conclusão"
             options={COMPLETION_OPTIONS}

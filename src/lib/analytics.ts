@@ -146,16 +146,15 @@ export async function getOverviewStats() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
-  const [totalStudents, newStudentsThisMonth, publishedCourses, newCoursesThisMonth, revenueThisMonth, revenuePrevMonth, completionAgg, completionPrevAgg] = await Promise.all([
-    db.user.count({ where: { role: "student" } }),
-    db.user.count({ where: { role: "student", createdAt: { gte: monthStart } } }),
-    db.product.count({ where: { type: "course", status: "published" } }),
-    db.product.count({ where: { type: "course", status: "published", publishedAt: { gte: monthStart } } }),
-    db.order.aggregate({ _sum: { total: true }, where: { status: "paid", paidAt: { gte: monthStart } } }),
-    db.order.aggregate({ _sum: { total: true }, where: { status: "paid", paidAt: { gte: prevMonthStart, lt: monthStart } } }),
-    db.enrollment.aggregate({ _avg: { progress: true } }),
-    db.enrollment.aggregate({ _avg: { progress: true }, where: { enrolledAt: { lt: monthStart } } }),
-  ]);
+  // Sequencial: o driver Neon rejeita muitas queries em paralelo.
+  const totalStudents = await db.user.count({ where: { role: "student" } });
+  const newStudentsThisMonth = await db.user.count({ where: { role: "student", createdAt: { gte: monthStart } } });
+  const publishedCourses = await db.product.count({ where: { type: "course", status: "published" } });
+  const newCoursesThisMonth = await db.product.count({ where: { type: "course", status: "published", publishedAt: { gte: monthStart } } });
+  const revenueThisMonth = await db.order.aggregate({ _sum: { total: true }, where: { status: "paid", paidAt: { gte: monthStart } } });
+  const revenuePrevMonth = await db.order.aggregate({ _sum: { total: true }, where: { status: "paid", paidAt: { gte: prevMonthStart, lt: monthStart } } });
+  const completionAgg = await db.enrollment.aggregate({ _avg: { progress: true } });
+  const completionPrevAgg = await db.enrollment.aggregate({ _avg: { progress: true }, where: { enrolledAt: { lt: monthStart } } });
 
   const revenue = Number(revenueThisMonth._sum.total ?? 0);
   const prevRevenue = Number(revenuePrevMonth._sum.total ?? 0);
@@ -234,27 +233,27 @@ export async function getCourseAnalyticsList(limit?: number, teacherId?: string)
     include: { course: true },
   });
 
-  return Promise.all(
-    products.map(async (p) => {
-      const [enrollmentAgg, revenueAgg, watchAgg, completions] = await Promise.all([
-        db.enrollment.aggregate({ _avg: { progress: true }, _count: { _all: true }, where: { productId: p.id } }),
-        db.orderItem.aggregate({ _sum: { totalPrice: true }, where: { productId: p.id, order: { status: "paid" } } }),
-        p.course
-          ? db.lessonProgress.aggregate({ _sum: { watchedSeconds: true }, where: { lesson: { module: { courseId: p.course.id } } } })
-          : Promise.resolve({ _sum: { watchedSeconds: 0 } }),
-        db.enrollment.count({ where: { productId: p.id, status: "completed" } }),
-      ]);
-      return {
-        productId: p.id,
-        title: p.title,
-        thumbnail: p.thumbnail,
-        enrollments: enrollmentAgg._count._all,
-        completions,
-        completionRate: enrollmentAgg._avg.progress ?? 0,
-        avgRating: p.rating,
-        revenue: Number(revenueAgg._sum.totalPrice ?? 0),
-        watchTimeHours: Math.round((watchAgg._sum.watchedSeconds ?? 0) / 3600),
-      };
-    })
-  );
+  // Sequencial (sem Promise.all aninhado): o driver Neon rejeita muitas
+  // queries em paralelo e derruba a conexão (ErrorEvent).
+  const results = [];
+  for (const p of products) {
+    const enrollmentAgg = await db.enrollment.aggregate({ _avg: { progress: true }, _count: { _all: true }, where: { productId: p.id } });
+    const revenueAgg = await db.orderItem.aggregate({ _sum: { totalPrice: true }, where: { productId: p.id, order: { status: "paid" } } });
+    const watchAgg = p.course
+      ? await db.lessonProgress.aggregate({ _sum: { watchedSeconds: true }, where: { lesson: { module: { courseId: p.course.id } } } })
+      : { _sum: { watchedSeconds: 0 } };
+    const completions = await db.enrollment.count({ where: { productId: p.id, status: "completed" } });
+    results.push({
+      productId: p.id,
+      title: p.title,
+      thumbnail: p.thumbnail,
+      enrollments: enrollmentAgg._count._all,
+      completions,
+      completionRate: enrollmentAgg._avg.progress ?? 0,
+      avgRating: p.rating,
+      revenue: Number(revenueAgg._sum.totalPrice ?? 0),
+      watchTimeHours: Math.round((watchAgg._sum.watchedSeconds ?? 0) / 3600),
+    });
+  }
+  return results;
 }

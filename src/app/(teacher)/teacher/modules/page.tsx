@@ -75,9 +75,13 @@ export default async function TeacherModulesPage() {
                 const publishedLessons = m.lessons.filter((l) => l.status === "published").length;
                 return (
                   <div key={m.id} className="flex items-center gap-3 p-4">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted">
-                      <Layers className="h-4 w-4 text-primary" />
-                    </div>
+                    {m.coverImage ? (
+                      <img src={m.coverImage} alt="" className="h-10 w-16 shrink-0 rounded object-cover" />
+                    ) : (
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted">
+                        <Layers className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">{m.title}</p>
                       <p className="text-xs text-foreground-muted">

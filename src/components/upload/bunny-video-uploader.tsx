@@ -7,6 +7,26 @@ import { cn } from "@/lib/utils/cn";
 export interface BunnyUploadResult {
   videoId: string;
   playbackUrl: string;
+  duration?: number; // segundos, lido dos metadados do arquivo
+}
+
+// Lê a duração (em segundos) do vídeo direto do arquivo, sem precisar do encode.
+function getVideoDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    try {
+      const url = URL.createObjectURL(file);
+      const v = document.createElement("video");
+      v.preload = "metadata";
+      v.onloadedmetadata = () => {
+        URL.revokeObjectURL(url);
+        resolve(Number.isFinite(v.duration) && v.duration > 0 ? Math.round(v.duration) : null);
+      };
+      v.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      v.src = url;
+    } catch {
+      resolve(null);
+    }
+  });
 }
 
 interface BunnyVideoUploaderProps {
@@ -24,6 +44,8 @@ export function BunnyVideoUploader({ value, onUploaded, onRemove, className }: B
   async function handleFile(file: File) {
     setError(null);
     setProgress(0);
+    // Mede a duração em paralelo ao upload (metadados locais, instantâneo).
+    const durationPromise = getVideoDuration(file);
     try {
       // 1) pede ao backend a criação do vídeo + assinatura de upload
       const res = await fetch("/api/bunny/create-upload", {
@@ -57,7 +79,8 @@ export function BunnyVideoUploader({ value, onUploaded, onRemove, className }: B
       });
 
       const playbackUrl = `https://${creds.cdnHostname}/${creds.videoId}/playlist.m3u8`;
-      onUploaded({ videoId: creds.videoId, playbackUrl });
+      const duration = await durationPromise;
+      onUploaded({ videoId: creds.videoId, playbackUrl, duration: duration ?? undefined });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao enviar vídeo.");
     } finally {

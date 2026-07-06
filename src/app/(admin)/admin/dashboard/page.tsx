@@ -32,17 +32,17 @@ const statusLabels: Record<string, string> = {
 };
 
 export default async function AdminDashboardPage() {
-  const [metrics, revenueSeries, topCourses, recentOrders, recentUsers] = await Promise.all([
-    getDashboardMetrics(),
-    getRevenueSeries(30),
-    getCourseAnalyticsList(3),
-    db.order.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      include: { user: true, items: { include: { product: true }, take: 1 } },
-    }),
-    db.user.findMany({ where: { role: "student" }, orderBy: { createdAt: "desc" }, take: 4 }),
-  ]);
+  // Sequencial de propósito: o driver WebSocket do Neon estoura o pool com
+  // muitas queries em paralelo (cada função abaixo já dispara várias internas).
+  const metrics = await getDashboardMetrics();
+  const revenueSeries = await getRevenueSeries(30);
+  const topCourses = await getCourseAnalyticsList(3);
+  const recentOrders = await db.order.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 5,
+    include: { user: true, items: { include: { product: true }, take: 1 } },
+  });
+  const recentUsers = await db.user.findMany({ where: { role: "student" }, orderBy: { createdAt: "desc" }, take: 4 });
 
   const revenueTotal = revenueSeries.reduce((s, d) => s + d.revenue, 0);
 

@@ -40,6 +40,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [error, setError] = useState(false);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedPct = duration > 0 ? (buffered / duration) * 100 : 0;
@@ -97,6 +98,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    setError(false);
     const isHls = src.includes(".m3u8");
 
     if (isHls && !video.canPlayType("application/vnd.apple.mpegurl")) {
@@ -107,6 +109,10 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
         if (destroyed) return;
         if (Hls.isSupported()) {
           const hls = new Hls({ enableWorker: true });
+          hls.on(Hls.Events.ERROR, (_e, data) => {
+            // Erro fatal (ex: manifesto ainda não existe = vídeo em encode) → mostra aviso.
+            if (data.fatal) { setError(true); setWaiting(false); }
+          });
           hls.loadSource(src);
           hls.attachMedia(video);
           hlsInstance = hls;
@@ -179,18 +185,36 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
         onPlaying={() => setWaiting(false)}
         onCanPlay={() => setWaiting(false)}
         onEnded={() => { setPlaying(false); setEnded(true); setShowControls(true); onComplete?.(); }}
+        onError={() => setError(true)}
         playsInline
       />
 
+      {/* Vídeo em processamento / indisponível */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/70 px-6 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-white/80" />
+          <div>
+            <p className="text-sm font-semibold text-white">Vídeo em processamento</p>
+            <p className="mt-1 text-xs text-white/60">O envio foi concluído, mas o vídeo ainda está sendo convertido. Aguarde alguns minutos e recarregue a página.</p>
+          </div>
+          <button
+            onClick={() => { setError(false); setWaiting(true); videoRef.current?.load(); }}
+            className="mt-1 rounded-md border border-white/20 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       {/* Loading spinner */}
-      {waiting && !ended && (
+      {waiting && !ended && !error && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Loader2 className="h-10 w-10 text-white/80 animate-spin" />
         </div>
       )}
 
       {/* Center play / replay button */}
-      {!playing && !waiting && (
+      {!playing && !waiting && !error && (
         <button
           onClick={togglePlay}
           className="absolute inset-0 flex items-center justify-center group/center"
