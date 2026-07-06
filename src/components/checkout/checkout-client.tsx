@@ -34,6 +34,14 @@ type PixResult = { qrCode: string; qrCodeBase64?: string };
 type BoletoResult = { url: string; digitableLine?: string };
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
+// Formata o número do cartão em grupos de 4 (máx 16 dígitos): 0000 0000 0000 0000
+const formatCardNumber = (s: string) => onlyDigits(s).slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
+// Mês 01–12
+const clampMonth = (s: string) => {
+  const d = onlyDigits(s).slice(0, 2);
+  if (d.length === 2 && Number(d) > 12) return "12";
+  return d;
+};
 
 export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: CheckoutClientProps) {
   const { error: toastError, success } = useToast();
@@ -136,7 +144,7 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
       const token = await mpRef.current.createCardToken({
         cardNumber: onlyDigits(card.number),
         cardholderName: card.name,
-        cardExpirationMonth: card.month,
+        cardExpirationMonth: card.month.padStart(2, "0"),
         cardExpirationYear: card.year.length === 2 ? `20${card.year}` : card.year,
         securityCode: card.cvv,
         identificationType: "CPF",
@@ -251,14 +259,14 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
 
               {method === "card" && (
                 <div className="space-y-3 pt-2">
-                  <Input label="Número do cartão" placeholder="0000 0000 0000 0000" inputMode="numeric" value={card.number}
-                    onChange={(e) => setCard((c) => ({ ...c, number: e.target.value }))}
+                  <Input label="Número do cartão" placeholder="0000 0000 0000 0000" inputMode="numeric" maxLength={19} value={card.number}
+                    onChange={(e) => setCard((c) => ({ ...c, number: formatCardNumber(e.target.value) }))}
                     onBlur={() => handleBinLookup(onlyDigits(card.number))} />
                   <Input label="Nome no cartão" placeholder="Como impresso no cartão" value={card.name} onChange={(e) => setCard((c) => ({ ...c, name: e.target.value }))} />
                   <div className="grid grid-cols-3 gap-3">
-                    <Input label="Mês" placeholder="MM" inputMode="numeric" maxLength={2} value={card.month} onChange={(e) => setCard((c) => ({ ...c, month: onlyDigits(e.target.value) }))} />
-                    <Input label="Ano" placeholder="AA" inputMode="numeric" maxLength={4} value={card.year} onChange={(e) => setCard((c) => ({ ...c, year: onlyDigits(e.target.value) }))} />
-                    <Input label="CVV" placeholder="123" inputMode="numeric" maxLength={4} value={card.cvv} onChange={(e) => setCard((c) => ({ ...c, cvv: onlyDigits(e.target.value) }))} />
+                    <Input label="Mês" placeholder="MM" inputMode="numeric" maxLength={2} value={card.month} onChange={(e) => setCard((c) => ({ ...c, month: clampMonth(e.target.value) }))} />
+                    <Input label="Ano" placeholder="AA" inputMode="numeric" maxLength={2} value={card.year} onChange={(e) => setCard((c) => ({ ...c, year: onlyDigits(e.target.value).slice(0, 2) }))} />
+                    <Input label="CVV" placeholder="123" inputMode="numeric" maxLength={4} value={card.cvv} onChange={(e) => setCard((c) => ({ ...c, cvv: onlyDigits(e.target.value).slice(0, 4) }))} />
                   </div>
                   <Input label="CPF do titular" placeholder="000.000.000-00" inputMode="numeric" value={card.cpf} onChange={(e) => setCard((c) => ({ ...c, cpf: e.target.value }))} />
                   {installmentOptions.length > 0 && (
