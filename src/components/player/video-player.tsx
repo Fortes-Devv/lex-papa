@@ -271,7 +271,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: Vi
               type="range" min={0} max={1} step={0.05}
               value={muted ? 0 : volume}
               onChange={(e) => changeVolume(Number(e.target.value))}
-              className="w-0 group-hover/vol:w-16 transition-all duration-200 h-1 accent-primary cursor-pointer"
+              className="ml-0 h-1 w-0 cursor-pointer opacity-0 accent-primary transition-all duration-200 group-hover/vol:ml-1 group-hover/vol:w-16 group-hover/vol:opacity-100"
               aria-label="Ajustar volume"
             />
           </div>
