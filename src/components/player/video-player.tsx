@@ -83,8 +83,16 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: Vi
     setMuted(v.muted);
   }
   function toggleFullscreen() {
-    if (!document.fullscreenElement) containerRef.current?.requestFullscreen();
-    else document.exitFullscreen();
+    if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    const container = containerRef.current;
+    const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+    if (container?.requestFullscreen) {
+      // Alguns navegadores mobile (iOS) recusam fullscreen em <div>; cai para o
+      // fullscreen nativo do próprio <video>.
+      container.requestFullscreen().catch(() => video?.webkitEnterFullscreen?.());
+    } else {
+      video?.webkitEnterFullscreen?.();
+    }
   }
   async function togglePiP() {
     const v = videoRef.current;
@@ -255,10 +263,10 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: Vi
           <button onClick={togglePlay} className="p-1.5 text-white hover:text-primary transition-colors" aria-label="Play/Pause">
             {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
           </button>
-          <button onClick={() => skip(-10)} className="p-1.5 text-white/80 hover:text-white transition-colors" aria-label="Voltar 10s">
+          <button onClick={() => skip(-10)} className="hidden p-1.5 text-white/80 transition-colors hover:text-white sm:inline-flex" aria-label="Voltar 10s">
             <SkipBack className="h-4 w-4" />
           </button>
-          <button onClick={() => skip(10)} className="p-1.5 text-white/80 hover:text-white transition-colors" aria-label="Avançar 10s">
+          <button onClick={() => skip(10)} className="hidden p-1.5 text-white/80 transition-colors hover:text-white sm:inline-flex" aria-label="Avançar 10s">
             <SkipForward className="h-4 w-4" />
           </button>
 
@@ -330,10 +338,20 @@ function SeekBar({ progress, buffered, onSeek }: { progress: number; buffered: n
   useEffect(() => {
     if (!dragging) return;
     const move = (e: MouseEvent) => onSeek(pctFromEvent(e.clientX));
+    const touchMove = (e: TouchEvent) => {
+      if (e.touches[0]) { e.preventDefault(); onSeek(pctFromEvent(e.touches[0].clientX)); }
+    };
     const up = () => setDragging(false);
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    window.addEventListener("touchmove", touchMove, { passive: false });
+    window.addEventListener("touchend", up);
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      window.removeEventListener("touchmove", touchMove);
+      window.removeEventListener("touchend", up);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragging]);
 
@@ -342,10 +360,11 @@ function SeekBar({ progress, buffered, onSeek }: { progress: number; buffered: n
   return (
     <div
       ref={barRef}
-      className="group/seek relative h-4 flex items-center cursor-pointer"
+      className="group/seek relative flex h-5 cursor-pointer touch-none items-center"
       onMouseDown={(e) => { setDragging(true); onSeek(pctFromEvent(e.clientX)); }}
       onMouseMove={(e) => setHoverPct(pctFromEvent(e.clientX))}
       onMouseLeave={() => setHoverPct(null)}
+      onTouchStart={(e) => { if (e.touches[0]) { setDragging(true); onSeek(pctFromEvent(e.touches[0].clientX)); } }}
     >
       <div className="relative h-1 w-full rounded-full bg-white/25 group-hover/seek:h-1.5 transition-all">
         {/* buffered */}
@@ -354,7 +373,7 @@ function SeekBar({ progress, buffered, onSeek }: { progress: number; buffered: n
         <div className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${display}%` }} />
         {/* handle */}
         <div
-          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow opacity-0 group-hover/seek:opacity-100 transition-opacity"
+          className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary shadow transition-opacity sm:h-3 sm:w-3 sm:opacity-0 sm:group-hover/seek:opacity-100"
           style={{ left: `${display}%` }}
         />
       </div>
