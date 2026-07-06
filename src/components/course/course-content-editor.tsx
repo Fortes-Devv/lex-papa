@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Plus, ChevronDown, ChevronRight, ArrowUp, ArrowDown, Trash2, Pencil,
+  Plus, ChevronRight, ArrowUp, ArrowDown, Trash2, Pencil,
   Video, FileText, HelpCircle, Download, Music, Dumbbell, Eye, EyeOff, Clock, Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -188,16 +189,16 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-foreground-muted">
           {restricted ? `${modules.length} módulo${modules.length !== 1 ? "s" : ""} seu${modules.length !== 1 ? "s" : ""}` : `${modules.length} módulos`}
         </p>
-        <div className="flex items-center gap-2">
-          <a href={`/preview/${courseId}`} target="_blank" rel="noopener noreferrer">
-            <Button size="sm" variant="ghost" leftIcon={<Eye className="h-3.5 w-3.5" />}>Assistir (preview)</Button>
-          </a>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/preview/${courseId}`} className="flex-1 sm:flex-none">
+            <Button size="sm" variant="ghost" className="w-full sm:w-auto" leftIcon={<Eye className="h-3.5 w-3.5" />}>Assistir (preview)</Button>
+          </Link>
           {!restricted && (
-            <Button size="sm" variant="outline" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
           )}
         </div>
       </div>
@@ -211,7 +212,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/20"
                 aria-label={expanded.has(mod.id) ? "Recolher módulo" : "Expandir módulo"}
               >
-                {expanded.has(mod.id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <ChevronRight className={`h-4 w-4 transition-transform duration-500 ${expanded.has(mod.id) ? "rotate-90" : ""}`} />
               </button>
               {mod.instructorName && mod.instructorAvatar ? (
                 <img src={mod.instructorAvatar} alt={mod.instructorName} className="h-11 w-11 shrink-0 rounded-lg object-cover" />
@@ -260,8 +261,9 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
             </div>
           </div>
 
-          {expanded.has(mod.id) && (
-            <div className="divide-y divide-border border-t border-border">
+          <div className={`grid transition-[grid-template-rows] duration-500 ease-out ${expanded.has(mod.id) ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="overflow-hidden">
+              <div className="divide-y divide-border border-t border-border">
               {mod.lessons.map((lesson, li) => (
                 <div key={lesson.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/20">
                   {lesson.type === "video" && lesson.videoUrl ? (
@@ -305,8 +307,9 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
               <div className="px-3 py-2.5">
                 <Button size="sm" variant="ghost" onClick={() => openCreateLesson(mod.id)} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>
               </div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
       ))}
 

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronRight, Clock, BookOpen, Users, Trash2 } from "lucide-react";
+import { ChevronRight, Clock, BookOpen, Users, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
@@ -62,10 +62,15 @@ export function CourseCard({ course, teachers = [] }: { course: CourseCardData; 
   return (
     <div className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
-          <button onClick={() => setOpen((v) => !v)} className="shrink-0 text-foreground-muted">
-            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          </button>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="group flex min-w-0 flex-1 items-center gap-3 rounded-md text-left"
+          aria-expanded={open}
+          title={open ? "Recolher curso" : "Abrir conteúdo do curso"}
+        >
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/20">
+            <ChevronRight className={`h-4 w-4 transition-transform duration-500 ${open ? "rotate-90" : ""}`} />
+          </span>
           <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md bg-muted">
             {course.thumbnail && <Image src={course.thumbnail} alt={course.title} fill className="object-cover" />}
           </div>
@@ -78,7 +83,7 @@ export function CourseCard({ course, teachers = [] }: { course: CourseCardData; 
               <span>{formatCurrency(course.price)}</span>
             </div>
           </div>
-        </div>
+        </button>
         <div className="flex flex-wrap items-center gap-2 pl-9 sm:shrink-0 sm:pl-0">
           {course.price <= 0 && (
             <Badge variant="destructive" className="shrink-0">Sem preço</Badge>
@@ -109,11 +114,13 @@ export function CourseCard({ course, teachers = [] }: { course: CourseCardData; 
         </div>
       </div>
 
-      {open && (
-        <div className="border-t border-border bg-muted/30 p-3 sm:p-4">
-          <CourseContentEditor courseId={course.courseId} modules={course.modules} teachers={teachers} />
+      <div className={`grid transition-[grid-template-rows] duration-500 ease-out ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div className="border-t border-border bg-muted/30 p-3 sm:p-4">
+            <CourseContentEditor courseId={course.courseId} modules={course.modules} teachers={teachers} />
+          </div>
         </div>
-      )}
+      </div>
 
       <Dialog
         open={confirmOpen}
