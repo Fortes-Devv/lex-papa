@@ -56,7 +56,12 @@ export default async function CoursePreviewPage({ params }: { params: { courseId
       </div>
       <div className="p-6">
         {/* isEnrolled=false: preview não registra progresso nem XP */}
-        <PlayerClient courseTitle={course.product.title} modules={modules} isEnrolled={false} />
+        <PlayerClient
+          courseTitle={course.product.title}
+          modules={modules}
+          isEnrolled={false}
+          backHref={session.user.role === "teacher" ? "/teacher/courses" : "/admin/courses"}
+        />
       </div>
     </div>
   );

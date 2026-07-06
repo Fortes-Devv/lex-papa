@@ -164,13 +164,18 @@ function RealVideoPlayer({ src, watermark, onComplete, className }: VideoPlayerP
   return (
     <div
       ref={containerRef}
-      className={cn("group relative bg-black rounded-lg overflow-hidden select-none", fullscreen && "rounded-none", className)}
+      className={cn(
+        "group relative select-none overflow-hidden bg-black",
+        fullscreen
+          ? "flex h-screen w-screen items-center justify-center rounded-none"
+          : cn("rounded-lg", className)
+      )}
       onMouseMove={revealControls}
       onMouseLeave={() => playing && setShowControls(false)}
     >
       <video
         ref={videoRef}
-        className="w-full aspect-video bg-black"
+        className={cn("bg-black object-contain", fullscreen ? "max-h-full max-w-full" : "aspect-video w-full")}
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
