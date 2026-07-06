@@ -14,7 +14,7 @@ import { applyCoupon } from "@/lib/actions/checkout";
 interface MpInstance {
   createCardToken: (data: Record<string, string>) => Promise<{ id: string }>;
   getPaymentMethods: (opts: { bin: string }) => Promise<{ results: Array<{ id: string; payment_type_id: string }> }>;
-  getInstallments: (opts: { amount: string; bin: string; paymentTypeId?: string }) => Promise<Array<{ payer_costs: Array<{ installments: number; recommended_message: string }> }>>;
+  getInstallments: (opts: { amount: string; bin: string; paymentTypeId?: string }) => Promise<Array<{ payer_costs: Array<{ installments: number; recommended_message: string; total_amount: number; installment_amount: number; installment_rate: number }> }>>;
 }
 declare global {
   interface Window {
@@ -54,7 +54,7 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
   const [payer, setPayer] = useState({ firstName: firstName ?? "", lastName: rest.join(" "), cpf: "" });
 
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
-  const [installmentOptions, setInstallmentOptions] = useState<Array<{ installments: number; label: string }>>([]);
+  const [installmentOptions, setInstallmentOptions] = useState<Array<{ installments: number; label: string; totalAmount: number; hasInterest: boolean }>>([]);
   const [installments, setInstallments] = useState(1);
 
   const [pixResult, setPixResult] = useState<PixResult | null>(null);
@@ -62,6 +62,8 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
   const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
   const total = Math.max(product.price - discount, 0);
+  const selectedInst = installmentOptions.find((o) => o.installments === installments);
+  const chargeAmount = selectedInst && selectedInst.installments > 1 ? selectedInst.totalAmount : total;
 
   useEffect(() => {
     if (sdkReady && mpPublicKey && window.MercadoPago && !mpRef.current) {
@@ -89,7 +91,18 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
       if (pm) setPaymentMethodId(pm.id);
       const inst = await mpRef.current.getInstallments({ amount: total.toFixed(2), bin, paymentTypeId: "credit_card" });
       const costs = inst?.[0]?.payer_costs ?? [];
-      setInstallmentOptions(costs.map((c) => ({ installments: c.installments, label: c.recommended_message })));
+      // Limita a 12x. O comprador paga os juros (financiamento do MP);
+      // o vendedor recebe o valor base do produto.
+      setInstallmentOptions(
+        costs
+          .filter((c) => c.installments <= 12)
+          .map((c) => ({
+            installments: c.installments,
+            label: c.recommended_message,
+            totalAmount: c.total_amount,
+            hasInterest: c.installment_rate > 0,
+          }))
+      );
     } catch {
       // silencioso — usuário ainda pode tentar enviar
     }
@@ -250,15 +263,21 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
                   <Input label="CPF do titular" placeholder="000.000.000-00" inputMode="numeric" value={card.cpf} onChange={(e) => setCard((c) => ({ ...c, cpf: e.target.value }))} />
                   {installmentOptions.length > 0 && (
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium text-foreground">Parcelas</label>
+                      <label className="mb-1.5 block text-sm font-medium text-foreground">Parcelas (em até 12x)</label>
                       <select className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
                         value={installments} onChange={(e) => setInstallments(Number(e.target.value))}>
                         {installmentOptions.map((o) => <option key={o.installments} value={o.installments}>{o.label}</option>)}
                       </select>
+                      {selectedInst && selectedInst.installments > 1 && (
+                        <p className="mt-1.5 text-xs text-foreground-muted">
+                          Total no cartão: <strong className="text-foreground">{formatCurrency(selectedInst.totalAmount)}</strong>
+                          {selectedInst.hasInterest ? " (com juros do cartão)" : " (sem juros)"}
+                        </p>
+                      )}
                     </div>
                   )}
                   <Button className="w-full" size="lg" loading={loading} onClick={handlePayCard}>
-                    <Lock className="h-4 w-4 mr-1" /> Pagar {formatCurrency(total)}
+                    <Lock className="h-4 w-4 mr-1" /> Pagar {formatCurrency(chargeAmount)}
                   </Button>
                 </div>
               )}
