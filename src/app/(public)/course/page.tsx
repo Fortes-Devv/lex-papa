@@ -73,7 +73,11 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
   const comparePrice = product.comparePrice ? Number(product.comparePrice) : 0;
   const discount = comparePrice ? Math.round(((comparePrice - price) / comparePrice) * 100) : 0;
   const installment = price / 12;
-  const hasLessons = course.totalLessons > 0;
+  // Só conta o que está PUBLICADO (os módulos/aulas já vêm filtrados na query).
+  // Evita mostrar "28 aulas" enquanto o conteúdo ainda está em rascunho.
+  const visibleLessons = course.modules.reduce((s, m) => s + m.lessons.length, 0);
+  const visibleDuration = course.modules.reduce((s, m) => s + m.lessons.reduce((a, l) => a + (l.duration ?? 0), 0), 0);
+  const hasLessons = visibleLessons > 0;
 
   // Destaca a última palavra do título em laranja.
   const words = product.title.trim().split(" ");
@@ -123,10 +127,10 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
               </div>
             )}
             <span className="flex items-center gap-1.5 text-sm text-white/70">
-              <Clock className="h-4 w-4" />{hasLessons ? formatDuration(course.totalDuration) : "Carga horária em breve"}
+              <Clock className="h-4 w-4" />{hasLessons ? formatDuration(visibleDuration) : "Carga horária em breve"}
             </span>
             <span className="flex items-center gap-1.5 text-sm text-white/70">
-              <BookOpen className="h-4 w-4" />{course.totalLessons} aulas
+              <BookOpen className="h-4 w-4" />{visibleLessons} aulas
             </span>
             <span className="flex items-center gap-1.5 text-sm text-white/70">
               <Users className="h-4 w-4" />{product.enrolledCount.toLocaleString("pt-BR")} alunos
@@ -208,7 +212,7 @@ export default async function PublicCoursePage({ searchParams }: { searchParams:
             <div className="mb-4 flex items-center justify-between border-b-2 border-primary/60 pb-2">
               <h2 className="font-sans text-2xl font-bold text-foreground">Conteúdo do curso</h2>
               <span className="text-sm text-foreground-muted">
-                {hasLessons ? `${course.totalLessons} aulas · ${formatDuration(course.totalDuration)}` : "Cronograma em breve"}
+                {hasLessons ? `${visibleLessons} aulas · ${formatDuration(visibleDuration)}` : "Cronograma em breve"}
               </span>
             </div>
             {hasLessons ? (
