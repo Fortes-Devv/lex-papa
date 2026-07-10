@@ -61,6 +61,7 @@ export default async function TeacherContentPage({ searchParams }: { searchParam
       duration: l.duration,
       videoUrl: l.videoUrl,
       videoPublicId: l.videoPublicId,
+      pdfUrl: l.pdfUrl,
       description: l.description,
       isFree: l.isFree,
       isPreview: l.isPreview,

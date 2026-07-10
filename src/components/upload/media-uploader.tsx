@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
-import { Upload, X, Loader2, CheckCircle2, ImageIcon, Video } from "lucide-react";
+import { Upload, X, Loader2, CheckCircle2, ImageIcon, Video, FileText } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 interface UploadResult {
@@ -9,14 +9,28 @@ interface UploadResult {
   duration?: number;
 }
 
+// "raw" é o tipo do Cloudinary para arquivos (PDF, zip, etc.)
+type ResourceType = "image" | "video" | "raw";
+
 interface MediaUploaderProps {
-  resourceType: "image" | "video";
+  resourceType: ResourceType;
   folder?: string;
   value?: string;
   onUploaded: (result: UploadResult) => void;
   onRemove?: () => void;
   className?: string;
 }
+
+const ACCEPT: Record<ResourceType, string> = {
+  image: "image/*",
+  video: "video/*",
+  raw: "application/pdf,.pdf",
+};
+const LABEL: Record<ResourceType, string> = {
+  image: "Enviar imagem",
+  video: "Enviar vídeo",
+  raw: "Enviar PDF",
+};
 
 export function MediaUploader({ resourceType, folder = "lms", value, onUploaded, onRemove, className }: MediaUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -76,7 +90,7 @@ export function MediaUploader({ resourceType, folder = "lms", value, onUploaded,
       <input
         ref={inputRef}
         type="file"
-        accept={resourceType === "image" ? "image/*" : "video/*"}
+        accept={ACCEPT[resourceType]}
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -89,6 +103,8 @@ export function MediaUploader({ resourceType, folder = "lms", value, onUploaded,
         <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2">
           {resourceType === "image" ? (
             <ImageIcon className="h-4 w-4 text-success shrink-0" />
+          ) : resourceType === "raw" ? (
+            <FileText className="h-4 w-4 text-success shrink-0" />
           ) : (
             <Video className="h-4 w-4 text-success shrink-0" />
           )}
@@ -115,7 +131,7 @@ export function MediaUploader({ resourceType, folder = "lms", value, onUploaded,
           ) : (
             <>
               <Upload className="h-4 w-4" />
-              <span>{resourceType === "image" ? "Enviar imagem" : "Enviar vídeo"}</span>
+              <span>{LABEL[resourceType]}</span>
             </>
           )}
         </button>

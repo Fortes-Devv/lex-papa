@@ -7,7 +7,10 @@ import {
   CheckCircle2, Circle, Lock, ChevronRight, ArrowLeft, Play, Loader2,
   Video, FileText, HelpCircle, Download, Music, Dumbbell,
 } from "lucide-react";
+// FileText/Download também são usados no card de material em PDF abaixo do vídeo.
 import { VideoPlayer } from "@/components/player/video-player";
+import { QuizPlayer, type StudentQuiz } from "@/components/player/quiz-player";
+import { PdfViewer, pdfDownloadHref } from "@/components/player/pdf-viewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
@@ -23,11 +26,13 @@ export interface PlayerLesson {
   type: string;
   duration: number | null;
   videoUrl: string | null;
+  pdfUrl: string | null;
   description: string | null;
   isFree: boolean;
   locked: boolean;
   isCompleted: boolean;
   note: string;
+  quiz?: StudentQuiz | null;
 }
 export interface PlayerModule {
   id: string;
@@ -101,10 +106,19 @@ export function PlayerClient({
   }
 
   // Quando o vídeo termina: marca concluída (se matriculado) e inicia contagem
-  // de 4s para a próxima aula (se houver).
+  // de 4s para a próxima aula. Se a aula tem quiz, não conclui nem avança —
+  // quem decide é o quiz (o aluno precisa respondê-lo).
   function handleVideoEnded() {
+    if (current?.quiz) return;
     if (isEnrolled) handleComplete();
     if (nextLesson) setNextCountdown(4);
+  }
+
+  // Chamado quando o aluno passa no quiz da aula.
+  function handleQuizPassed() {
+    if (!current) return;
+    setCompleted((prev) => new Set(prev).add(current.id));
+    router.refresh();
   }
 
   // Contagem regressiva para avançar automaticamente.
@@ -250,12 +264,27 @@ export function PlayerClient({
       <div className="flex min-h-0 flex-1">
         {/* Conteúdo principal */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+          {current.type === "quiz" ? (
+            current.quiz ? (
+              <QuizPlayer key={current.id} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
+            ) : (
+              <div className="mx-auto w-full max-w-3xl p-10 text-center text-sm text-foreground-muted">
+                Este quiz ainda não tem questões cadastradas.
+              </div>
+            )
+          ) : current.pdfUrl && !current.videoUrl ? (
+            <PdfViewer lessonId={current.id} title={current.title} />
+          ) : (
           <div className="relative bg-black">
             {current.videoUrl ? (
               <VideoPlayer key={current.id} title={current.title} watermark="LEX Concursos" src={current.videoUrl} onComplete={handleVideoEnded} autoPlay={autoPlayNext} className="w-full" />
             ) : (
-              <div className="flex aspect-video w-full items-center justify-center text-sm text-white/50">
-                {current.type === "video" ? "Vídeo ainda não enviado para esta aula." : "Esta aula não tem vídeo."}
+              <div className="flex aspect-video w-full items-center justify-center px-6 text-center text-sm text-white/50">
+                {current.type === "video"
+                  ? "Vídeo ainda não enviado para esta aula."
+                  : current.type === "pdf"
+                  ? "PDF ainda não enviado para esta aula."
+                  : "Esta aula não tem vídeo."}
               </div>
             )}
 
@@ -280,6 +309,7 @@ export function PlayerClient({
               </div>
             )}
           </div>
+          )}
 
           <div className="mx-auto w-full max-w-4xl space-y-5 p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -292,7 +322,7 @@ export function PlayerClient({
                   {current.duration ? `${Math.round(current.duration / 60)} min · ` : ""}Curso {courseTitle}
                 </p>
               </div>
-              {isEnrolled && (
+              {isEnrolled && current.type !== "quiz" && !current.quiz && (
                 <Button
                   onClick={handleComplete}
                   variant={isDone ? "secondary" : "outline"}
@@ -305,6 +335,31 @@ export function PlayerClient({
                 </Button>
               )}
             </div>
+
+            {/* Material em PDF anexado a uma aula de vídeo */}
+            {current.videoUrl && current.pdfUrl && (
+              <a
+                href={pdfDownloadHref(current.id)}
+                download
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <FileText className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-foreground">Material da aula (PDF)</span>
+                  <span className="block text-xs text-foreground-muted">Clique para baixar</span>
+                </span>
+                <Download className="h-4 w-4 shrink-0 text-foreground-muted" />
+              </a>
+            )}
+
+            {/* Quiz de fixação da aula (vem depois do vídeo) */}
+            {current.type !== "quiz" && current.quiz && (
+              <div className="overflow-hidden rounded-xl border border-border bg-card">
+                <QuizPlayer key={`quiz-${current.id}`} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
+              </div>
+            )}
 
             <Tabs defaultValue="notes">
               <TabsList>

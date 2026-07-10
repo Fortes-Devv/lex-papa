@@ -167,6 +167,7 @@ model User {
   orders             Order[]
   instructedProducts Product[]        @relation("ProductInstructors")
   instructedModules  Module[]         @relation("ModuleInstructor")
+  quizAttempts       QuizAttempt[]
   favorites          Favorite[]
   notifications      Notification[]
   lessonNotes        LessonNote[]
@@ -373,8 +374,24 @@ model Quiz {
   randomizeOptions   Boolean @default(false)
 
   questions QuizQuestion[]
+  attempts  QuizAttempt[]
 
   @@map("quizzes")
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  quizId    String
+  quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers   Json // { [questionId]: optionId | optionId[] }
+  score     Int // 0-100
+  passed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([quizId, userId])
+  @@map("quiz_attempts")
 }
 
 model QuizQuestion {

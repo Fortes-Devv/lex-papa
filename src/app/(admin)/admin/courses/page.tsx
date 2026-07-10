@@ -62,6 +62,7 @@ export default async function AdminCoursesPage() {
           duration: l.duration,
           videoUrl: l.videoUrl,
           videoPublicId: l.videoPublicId,
+          pdfUrl: l.pdfUrl,
           description: l.description,
           isFree: l.isFree,
           isPreview: l.isPreview,

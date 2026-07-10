@@ -295,6 +295,7 @@ export async function createLesson(moduleId: string, input: {
   videoUrl?: string;
   videoProvider?: VideoProvider;
   videoPublicId?: string;
+  pdfUrl?: string;
   duration?: number;
   isFree: boolean;
   isPreview: boolean;
@@ -313,6 +314,7 @@ export async function createLesson(moduleId: string, input: {
       videoUrl: input.videoUrl,
       videoProvider: input.videoProvider,
       videoPublicId: input.videoPublicId,
+      pdfUrl: input.pdfUrl,
       duration: input.duration,
       isFree: input.isFree,
       isPreview: input.isPreview,
@@ -329,10 +331,12 @@ export async function updateLesson(lessonId: string, input: {
   title: string;
   type: LessonType;
   description?: string;
-  videoUrl?: string;
-  videoProvider?: VideoProvider;
-  videoPublicId?: string;
-  duration?: number;
+  // null = limpar o campo (undefined seria ignorado pelo Prisma)
+  videoUrl?: string | null;
+  videoProvider?: VideoProvider | null;
+  videoPublicId?: string | null;
+  pdfUrl?: string | null;
+  duration?: number | null;
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: CompletionCriteria;
@@ -351,10 +355,12 @@ export async function updateLesson(lessonId: string, input: {
       title: input.title,
       type: input.type,
       description: input.description,
-      videoUrl: input.videoUrl,
-      videoProvider: input.videoProvider,
-      videoPublicId: input.videoPublicId,
-      duration: input.duration,
+      // ?? null garante que "remover vídeo" realmente limpa no banco
+      videoUrl: input.videoUrl ?? null,
+      videoProvider: input.videoProvider ?? null,
+      videoPublicId: input.videoPublicId ?? null,
+      pdfUrl: input.pdfUrl ?? null,
+      duration: input.duration ?? null,
       isFree: input.isFree,
       isPreview: input.isPreview,
       completionCriteria: input.completionCriteria,

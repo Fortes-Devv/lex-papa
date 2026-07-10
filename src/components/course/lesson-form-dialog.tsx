@@ -7,6 +7,8 @@ import { Select } from "@/components/ui/select";
 import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { BunnyVideoUploader } from "@/components/upload/bunny-video-uploader";
+import { MediaUploader } from "@/components/upload/media-uploader";
+import { QuizBuilder } from "@/components/course/quiz-builder";
 import { createLesson, updateLesson } from "@/lib/actions/courses";
 import type { LessonType, Lesson } from "@/lib/types";
 
@@ -36,6 +38,7 @@ export interface LessonFormValue {
   description: string;
   videoUrl: string;
   videoPublicId: string;
+  pdfUrl: string;
   duration: string;
   isFree: boolean;
   isPreview: boolean;
@@ -43,7 +46,7 @@ export interface LessonFormValue {
 }
 
 const EMPTY: LessonFormValue = {
-  title: "", type: "video", description: "", videoUrl: "", videoPublicId: "",
+  title: "", type: "video", description: "", videoUrl: "", videoPublicId: "", pdfUrl: "",
   duration: "", isFree: false, isPreview: false, completionCriteria: "watch_100",
 };
 
@@ -71,23 +74,34 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
     }
     setLoading(true);
     try {
-      const payload = {
+      const base = {
         title: form.title,
         type: form.type,
         description: form.description || undefined,
-        videoUrl: form.videoUrl || undefined,
-        videoProvider: (form.videoPublicId ? "bunny" : undefined) as "bunny" | undefined,
-        videoPublicId: form.videoPublicId || undefined,
-        duration: form.duration ? Number(form.duration) : undefined,
         isFree: form.isFree,
         isPreview: form.isPreview,
         completionCriteria: form.completionCriteria as CompletionCriteria,
       };
       if (form.id) {
-        await updateLesson(form.id, payload);
+        // null limpa de verdade (ex: ao remover o vídeo/PDF)
+        await updateLesson(form.id, {
+          ...base,
+          videoUrl: form.videoUrl || null,
+          videoProvider: form.videoPublicId ? "bunny" : null,
+          videoPublicId: form.videoPublicId || null,
+          pdfUrl: form.pdfUrl || null,
+          duration: form.duration ? Number(form.duration) : null,
+        });
         success("Aula atualizada.");
       } else {
-        await createLesson(moduleId, payload);
+        await createLesson(moduleId, {
+          ...base,
+          videoUrl: form.videoUrl || undefined,
+          videoProvider: (form.videoPublicId ? "bunny" : undefined) as "bunny" | undefined,
+          videoPublicId: form.videoPublicId || undefined,
+          pdfUrl: form.pdfUrl || undefined,
+          duration: form.duration ? Number(form.duration) : undefined,
+        });
         success("Aula criada.");
       }
       router.refresh();
@@ -111,7 +125,7 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         />
         <Textarea label="Descrição" placeholder="Do que se trata essa aula (opcional)" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
 
-        {form.type === "video" && (
+        {(form.type === "video" || form.videoPublicId) && (
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Vídeo</label>
             <BunnyVideoUploader
@@ -124,6 +138,19 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
                 duration: r.duration != null ? String(r.duration) : f.duration,
               }))}
               onRemove={() => setForm((f) => ({ ...f, videoUrl: "", videoPublicId: "" }))}
+            />
+          </div>
+        )}
+
+        {(form.type === "pdf" || form.pdfUrl) && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">PDF da aula</label>
+            <MediaUploader
+              resourceType="raw"
+              folder="lms/pdfs"
+              value={form.pdfUrl}
+              onUploaded={(r) => setForm((f) => ({ ...f, pdfUrl: r.url }))}
+              onRemove={() => setForm((f) => ({ ...f, pdfUrl: "" }))}
             />
           </div>
         )}
@@ -148,6 +175,15 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
             Preview público
           </label>
         </div>
+
+        {/* Quiz opcional — funciona em qualquer tipo de aula, sem trocar o tipo */}
+        {form.id ? (
+          <QuizBuilder lessonId={form.id} />
+        ) : (
+          <p className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-center text-xs text-foreground-muted">
+            Quer um quiz nesta aula? <strong className="text-foreground">Crie a aula primeiro</strong> e depois abra em Editar.
+          </p>
+        )}
       </div>
       <DialogFooter>
         <Button variant="outline" onClick={onClose}>Cancelar</Button>

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-client";
+import { toStudentQuiz } from "@/lib/quiz";
 
 export default async function PlayerPage({ searchParams }: { searchParams: { courseId?: string; lessonId?: string } }) {
   const session = await auth();
@@ -26,7 +27,12 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
       product: true,
       modules: {
         orderBy: { order: "asc" },
-        include: { lessons: { orderBy: { order: "asc" } } },
+        include: {
+          lessons: {
+            orderBy: { order: "asc" },
+            include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+          },
+        },
       },
     },
   });
@@ -55,12 +61,14 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
       type: l.type,
       duration: l.duration,
       videoUrl: l.videoUrl,
+      pdfUrl: l.pdfUrl,
       description: l.description,
       isFree: l.isFree,
       // Bloqueada se o aluno não está matriculado e a aula não é gratuita/preview.
       locked: !isEnrolled && !l.isFree && !l.isPreview,
       isCompleted: completedSet.has(l.id),
       note: notesMap[l.id] ?? "",
+      quiz: toStudentQuiz(l.quiz),
     })),
   }));
 

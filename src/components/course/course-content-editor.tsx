@@ -42,6 +42,7 @@ export interface EditorLesson {
   duration: number | null;
   videoUrl: string | null;
   videoPublicId: string | null;
+  pdfUrl: string | null;
   description: string | null;
   isFree: boolean;
   isPreview: boolean;
@@ -162,6 +163,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
       description: lesson.description ?? "",
       videoUrl: lesson.videoUrl ?? "",
       videoPublicId: lesson.videoPublicId ?? "",
+      pdfUrl: lesson.pdfUrl ?? "",
       duration: lesson.duration ? String(lesson.duration) : "",
       isFree: lesson.isFree,
       isPreview: lesson.isPreview,

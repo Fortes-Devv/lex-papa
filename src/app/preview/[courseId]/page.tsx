@@ -5,6 +5,7 @@ import { Eye } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "@/app/(student)/student/player/player-client";
+import { toStudentQuiz } from "@/lib/quiz";
 
 export default async function CoursePreviewPage({ params }: { params: { courseId: string } }) {
   const session = await auth();
@@ -18,7 +19,15 @@ export default async function CoursePreviewPage({ params }: { params: { courseId
     where: { id: params.courseId },
     include: {
       product: { include: { instructors: { select: { id: true } } } },
-      modules: { orderBy: { order: "asc" }, include: { lessons: { orderBy: { order: "asc" } } } },
+      modules: {
+        orderBy: { order: "asc" },
+        include: {
+          lessons: {
+            orderBy: { order: "asc" },
+            include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+          },
+        },
+      },
     },
   });
   if (!course) notFound();
@@ -38,11 +47,13 @@ export default async function CoursePreviewPage({ params }: { params: { courseId
       type: l.type,
       duration: l.duration,
       videoUrl: l.videoUrl,
+      pdfUrl: l.pdfUrl,
       description: l.description,
       isFree: l.isFree,
       locked: false,
       isCompleted: false,
       note: "",
+      quiz: toStudentQuiz(l.quiz),
     })),
   }));
 
