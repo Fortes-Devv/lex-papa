@@ -150,7 +150,6 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
               <TableHead>Usuário</TableHead>
               <TableHead>Papel</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>2FA</TableHead>
               <TableHead>Último acesso</TableHead>
               <TableHead>Membro desde</TableHead>
               <TableHead className="w-10" />
@@ -173,11 +172,6 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
                 </TableCell>
                 <TableCell>
                   <Badge variant={statusVariants[user.status]} dot>{statusLabels[user.status]}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={user.twoFactorEnabled ? "success" : "secondary"}>
-                    {user.twoFactorEnabled ? "Ativo" : "Inativo"}
-                  </Badge>
                 </TableCell>
                 <TableCell className="text-foreground-muted text-xs">
                   {user.lastLoginAt ? formatRelativeDate(user.lastLoginAt) : "Nunca"}

@@ -14,7 +14,6 @@ export const ROUTES = {
   LOGIN:            "/login",
   REGISTER:         "/register",
   FORGOT_PASSWORD:  "/forgot-password",
-  TWO_FACTOR:       "/two-factor",
 
   ADMIN: {
     DASHBOARD:       "/admin/dashboard",

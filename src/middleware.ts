@@ -11,6 +11,5 @@ export const config = {
     "/login",
     "/register",
     "/forgot-password",
-    "/two-factor",
   ],
 };

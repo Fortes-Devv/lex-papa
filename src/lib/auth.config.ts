@@ -7,7 +7,7 @@ const ROLE_HOME: Record<string, string> = {
   student: "/student/dashboard",
 };
 
-const AUTH_PAGES = ["/login", "/register", "/forgot-password", "/two-factor"];
+const AUTH_PAGES = ["/login", "/register", "/forgot-password"];
 
 // Config "leve": sem providers/DB, roda no Edge Runtime do middleware.
 // A config completa (com Credentials + Prisma) fica em src/lib/auth.ts.

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -139,21 +139,6 @@ export function ProfileClient({ user, xp, achievements }: { user: ProfileUser; x
               <Input label="Confirmar nova senha" type="password" value={pwd.confirm} onChange={(e) => setPwd((p) => ({ ...p, confirm: e.target.value }))} />
             </CardContent>
             <CardFooter><Button onClick={handleChangePassword} loading={savingPwd}>Alterar senha</Button></CardFooter>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle>Autenticação em 2 fatores</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Shield className="h-5 w-5 text-foreground-muted" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">2FA via App Autenticador</p>
-                    <p className="text-xs text-foreground-muted">Em breve.</p>
-                  </div>
-                </div>
-                <Badge variant={user.twoFactorEnabled ? "success" : "secondary"}>{user.twoFactorEnabled ? "Ativo" : "Inativo"}</Badge>
-              </div>
-            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
