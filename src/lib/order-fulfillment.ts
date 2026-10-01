@@ -39,44 +39,59 @@ interface MpOrderLike {
 }
 
 // Atualiza nosso Order a partir da resposta da Order do Mercado Pago e,
-// quando pago, cria a matrícula. Idempotente.
+// quando pago, cria a matrícula. Idempotente e seguro contra corrida:
+// webhook, polling do checkout, /success e reconcilePendingOrders podem
+// chamar ao mesmo tempo para o mesmo pedido.
 export async function fulfillFromMpOrder(ourOrderId: string, mpOrder: MpOrderLike) {
   const order = await db.order.findUnique({ where: { id: ourOrderId }, include: { items: true } });
   if (!order) return;
-  if (order.status === "paid") return; // já processado
+  if (order.status === "paid") return "paid" as const; // já processado
 
   const status = mapMpOrderStatus(mpOrder.status);
   const payment = mpOrder.transactions?.payments?.[0];
   const method = mapMpPaymentMethod(payment?.payment_method?.type, payment?.payment_method?.id);
 
-  await db.order.update({
-    where: { id: ourOrderId },
-    data: {
-      status,
-      mpOrderId: mpOrder.id ?? order.mpOrderId,
-      mpPaymentId: payment?.id ?? order.mpPaymentId,
-      mpStatusDetail: mpOrder.status_detail ?? undefined,
-      paymentMethod: method ?? order.paymentMethod ?? undefined,
-      paidAt: status === "paid" ? new Date() : order.paidAt,
-    },
-  });
+  const data = {
+    status,
+    mpOrderId: mpOrder.id ?? order.mpOrderId,
+    mpPaymentId: payment?.id ?? order.mpPaymentId,
+    mpStatusDetail: mpOrder.status_detail ?? undefined,
+    paymentMethod: method ?? order.paymentMethod ?? undefined,
+    paidAt: status === "paid" ? new Date() : order.paidAt,
+  };
+  // Nunca sobrescreve um pedido que outra chamada já marcou como pago.
+  const notPaid = { id: ourOrderId, status: { not: "paid" as const } };
 
-  if (status === "paid") {
+  if (status !== "paid") {
+    await db.order.updateMany({ where: notPaid, data });
+    return status;
+  }
+
+  await db.$transaction(async (tx) => {
+    // "Claim" atômico: só a chamada que efetivamente muda o pedido para pago
+    // segue com matrícula e contadores. As concorrentes esperam o lock da
+    // linha e, depois do commit, encontram status = paid (count 0).
+    const claimed = await tx.order.updateMany({ where: notPaid, data });
+    if (claimed.count !== 1) return;
+
     for (const item of order.items) {
-      const existing = await db.enrollment.findUnique({
-        where: { userId_productId: { userId: order.userId, productId: item.productId } },
+      const where = { userId_productId: { userId: order.userId, productId: item.productId } };
+      const existing = await tx.enrollment.findUnique({ where, select: { id: true } });
+      // upsert: reativa matrícula antiga (expirada/cancelada) em caso de recompra.
+      await tx.enrollment.upsert({
+        where,
+        create: { userId: order.userId, productId: item.productId, status: "active", accessType: "lifetime", orderId: order.id },
+        update: { status: "active", accessType: "lifetime", expiresAt: null, orderId: order.id },
       });
       if (!existing) {
-        await db.enrollment.create({
-          data: { userId: order.userId, productId: item.productId, status: "active", accessType: "lifetime", orderId: order.id },
-        });
-        await db.product.update({ where: { id: item.productId }, data: { enrolledCount: { increment: 1 } } });
+        await tx.product.update({ where: { id: item.productId }, data: { enrolledCount: { increment: 1 } } });
       }
     }
     if (order.couponCode) {
-      await db.coupon.update({ where: { code: order.couponCode }, data: { usedCount: { increment: 1 } } }).catch(() => {});
+      // updateMany não lança se o cupom foi apagado (um erro abortaria a transação).
+      await tx.coupon.updateMany({ where: { code: order.couponCode }, data: { usedCount: { increment: 1 } } });
     }
-  }
+  });
 
   return status;
 }
