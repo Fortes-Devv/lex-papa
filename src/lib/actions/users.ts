@@ -3,21 +3,13 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import type { UserRole, UserStatus } from "@/lib/types";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "moderator")) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
-}
-
 export async function createUserByAdmin(input: { name: string; email: string; role: UserRole }) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
 
   const existing = await db.user.findUnique({ where: { email: input.email } });
   if (existing) {
@@ -44,7 +36,7 @@ export async function createUserByAdmin(input: { name: string; email: string; ro
 }
 
 export async function updateUserRole(userId: string, role: UserRole) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   if (session.user.id === userId) {
     return { success: false as const, error: "Você não pode alterar o próprio papel." };
   }
@@ -55,7 +47,7 @@ export async function updateUserRole(userId: string, role: UserRole) {
 }
 
 export async function updateUserEmail(userId: string, email: string) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   const normalized = email.trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return { success: false as const, error: "Email inválido." };
@@ -71,7 +63,7 @@ export async function updateUserEmail(userId: string, email: string) {
 }
 
 export async function updateUserStatus(userId: string, status: UserStatus) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   if (session.user.id === userId) {
     return { success: false as const, error: "Você não pode alterar o próprio status." };
   }

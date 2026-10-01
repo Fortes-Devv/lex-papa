@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { markLessonComplete } from "@/lib/actions/learning";
 import type { Prisma } from "@prisma/client";
@@ -20,14 +21,6 @@ export interface QuizQuestionInput {
   options: QuizOption[];
   explanation?: string;
   points: number;
-}
-
-async function requireStaff() {
-  const session = await auth();
-  if (!session?.user || !["admin", "moderator", "teacher"].includes(session.user.role)) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
 }
 
 /** Carrega o quiz de uma aula para edição (inclui as respostas corretas — só staff). */

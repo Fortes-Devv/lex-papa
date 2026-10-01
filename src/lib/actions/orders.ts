@@ -1,21 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "moderator")) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
-}
-
 export async function refundOrder(orderId: string) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
 
   const order = await db.order.findUnique({ where: { id: orderId }, include: { items: true } });
   if (!order) return { success: false as const, error: "Pedido não encontrado." };

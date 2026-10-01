@@ -1,18 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/utils/cn";
 import { logAudit } from "@/lib/audit";
-
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "moderator")) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
-}
 
 async function uniquePageSlug(title: string, ignoreId?: string) {
   const base = slugify(title);
@@ -27,7 +19,7 @@ async function uniquePageSlug(title: string, ignoreId?: string) {
 }
 
 export async function savePage(input: { id?: string; title: string; content: string; status: "draft" | "published" }) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
 
   if (input.id) {
@@ -47,14 +39,14 @@ export async function savePage(input: { id?: string; title: string; content: str
 }
 
 export async function deletePage(id: string) {
-  await requireAdmin();
+  await requireModerator();
   await db.cMSPage.delete({ where: { id } });
   revalidatePath("/admin/cms");
   return { success: true as const };
 }
 
 export async function saveArticle(input: { id?: string; title: string; excerpt: string; content: string; status: "draft" | "published" }) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
 
   if (input.id) {
@@ -76,7 +68,7 @@ export async function saveArticle(input: { id?: string; title: string; excerpt: 
 }
 
 export async function deleteArticle(id: string) {
-  await requireAdmin();
+  await requireModerator();
   await db.article.delete({ where: { id } });
   revalidatePath("/admin/cms");
   return { success: true as const };

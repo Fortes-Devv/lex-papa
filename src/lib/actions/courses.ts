@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/utils/cn";
 import { deleteBunnyVideo } from "@/lib/bunny";
@@ -10,14 +10,6 @@ import type { LessonType, ProductLevel, Lesson } from "@/lib/types";
 
 type CompletionCriteria = Lesson["completionCriteria"];
 type VideoProvider = NonNullable<Lesson["videoProvider"]>;
-
-async function requireStaff() {
-  const session = await auth();
-  if (!session?.user || !["admin", "moderator", "teacher"].includes(session.user.role)) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
-}
 
 async function findOrCreateCategory(name: string) {
   const slug = slugify(name);

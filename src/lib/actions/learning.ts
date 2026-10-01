@@ -1,17 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { awardXp } from "@/lib/gamification";
 
 const XP_PER_LESSON = 50;
-
-async function requireUser() {
-  const session = await auth();
-  if (!session?.user) throw new Error("Não autenticado.");
-  return session.user;
-}
 
 // Recalcula o progresso (0-100) da matrícula do aluno naquele curso.
 async function recalcEnrollmentProgress(userId: string, courseId: string, productId: string) {
@@ -35,7 +29,7 @@ async function recalcEnrollmentProgress(userId: string, courseId: string, produc
 }
 
 export async function markLessonComplete(lessonId: string) {
-  const user = await requireUser();
+  const { user } = await requireUser();
 
   const lesson = await db.lesson.findUnique({
     where: { id: lessonId },
@@ -92,7 +86,7 @@ export async function markLessonComplete(lessonId: string) {
 }
 
 export async function saveLessonNote(lessonId: string, content: string) {
-  const user = await requireUser();
+  const { user } = await requireUser();
   await db.lessonNote.upsert({
     where: { userId_lessonId: { userId: user.id, lessonId } },
     update: { content },
@@ -102,7 +96,7 @@ export async function saveLessonNote(lessonId: string, content: string) {
 }
 
 export async function addLessonComment(lessonId: string, content: string) {
-  const user = await requireUser();
+  const { user } = await requireUser();
   if (!content.trim()) return { success: false as const, error: "Comentário vazio." };
   await db.comment.create({ data: { lessonId, authorId: user.id, content } });
   revalidatePath("/student/player");

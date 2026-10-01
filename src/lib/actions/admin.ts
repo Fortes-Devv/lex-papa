@@ -1,21 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
+import { requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { saveSettings, type PlatformSettingsData } from "@/lib/settings";
 import { logAudit } from "@/lib/audit";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user.role !== "admin" && session.user.role !== "moderator")) {
-    throw new Error("Não autorizado.");
-  }
-  return session;
-}
-
 export async function createAchievement(input: { title: string; description: string; xpReward: number; badgeColor: string }) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
 
   const ach = await db.achievement.create({
@@ -27,7 +19,7 @@ export async function createAchievement(input: { title: string; description: str
 }
 
 export async function deleteAchievement(id: string) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   await db.achievement.delete({ where: { id } });
   await logAudit({ actorId: session.user.id, action: "achievement.deleted", resourceType: "achievement", resourceId: id });
   revalidatePath("/admin/gamification");
@@ -35,7 +27,7 @@ export async function deleteAchievement(id: string) {
 }
 
 export async function savePlatformSettings(data: PlatformSettingsData) {
-  const session = await requireAdmin();
+  const session = await requireModerator();
   await saveSettings(data);
   await logAudit({ actorId: session.user.id, action: "settings.updated", resourceType: "settings" });
   revalidatePath("/admin/settings");
