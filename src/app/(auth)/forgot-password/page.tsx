@@ -16,12 +16,15 @@ export default function ForgotPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const result = await requestPasswordReset(email);
-    setLoading(false);
-    if (!result.success) {
-      error(result.error);
+    try {
+      // Resposta sempre genérica (não revela se o e-mail existe).
+      await requestPasswordReset(email);
+    } catch {
+      setLoading(false);
+      error("Não foi possível enviar agora. Tente novamente em instantes.");
       return;
     }
+    setLoading(false);
     setSent(true);
     success("Se o email existir, enviamos um link de recuperação.");
   }

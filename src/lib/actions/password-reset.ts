@@ -2,7 +2,6 @@
 
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
-import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { passwordResetEmailHtml } from "@/lib/email-templates";
@@ -11,31 +10,47 @@ function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-export async function requestPasswordReset(email: string) {
-  // Sempre responde sucesso genérico para não revelar se o e-mail existe.
-  if (!isEmailConfigured()) {
-    return { success: false as const, error: "O envio de e-mail ainda não está configurado nesta plataforma. Configure RESEND_API_KEY e EMAIL_FROM." };
+// URL pública do site, de configuração — NUNCA do header Host da requisição
+// (host header poisoning: o atacante faria o link apontar para o domínio dele).
+function appUrl(): string | null {
+  const fromEnv = process.env.APP_URL?.trim().replace(/\/+$/, "");
+  if (fromEnv) return fromEnv;
+  // Fallback: domínio de produção definido pela própria Vercel.
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
+  return null;
+}
+
+export async function requestPasswordReset(rawEmail: string) {
+  // Sempre responde sucesso genérico: não revela se o e-mail existe nem a configuração.
+  const generic = { success: true as const };
+  const email = rawEmail.trim().toLowerCase();
+  if (!email) return generic;
+
+  const baseUrl = appUrl();
+  if (!isEmailConfigured() || !baseUrl) {
+    console.error("[password-reset] envio indisponível: configure RESEND_API_KEY, EMAIL_FROM e APP_URL.");
+    return generic;
   }
 
-  const user = await db.user.findUnique({ where: { email } });
+  const user = await db.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (user) {
     const token = crypto.randomBytes(32).toString("hex");
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
-    await db.passwordResetToken.create({ data: { email, tokenHash, expiresAt } });
 
-    const host = (await headers()).get("host");
-    const proto = host?.includes("localhost") ? "http" : "https";
-    const link = `${proto}://${host}/reset-password?token=${token}`;
+    // Só o link mais recente vale: invalida pedidos anteriores ainda não usados.
+    await db.passwordResetToken.updateMany({ where: { email: user.email, usedAt: null }, data: { usedAt: new Date() } });
+    await db.passwordResetToken.create({ data: { email: user.email, tokenHash, expiresAt } });
 
     await sendEmail({
-      to: email,
+      to: user.email,
       subject: "Redefinição de senha — LEX Concursos",
-      html: passwordResetEmailHtml(link),
+      html: passwordResetEmailHtml(`${baseUrl}/reset-password?token=${token}`),
     });
   }
 
-  return { success: true as const };
+  return generic;
 }
 
 export async function resetPassword(token: string, newPassword: string) {
@@ -48,8 +63,11 @@ export async function resetPassword(token: string, newPassword: string) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);
-  await db.user.update({ where: { email: record.email }, data: { passwordHash } });
-  await db.passwordResetToken.update({ where: { id: record.id }, data: { usedAt: new Date() } });
+  await db.$transaction([
+    db.user.update({ where: { email: record.email }, data: { passwordHash } }),
+    // Invalida este e qualquer outro link pendente do mesmo e-mail.
+    db.passwordResetToken.updateMany({ where: { email: record.email, usedAt: null }, data: { usedAt: new Date() } }),
+  ]);
 
   return { success: true as const };
 }
