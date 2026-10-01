@@ -56,8 +56,9 @@ const typeLabels: Record<string, string> = {
 };
 
 export function PlayerClient({
-  courseTitle, modules, initialLessonId, isEnrolled, backHref = "/student/library", buyHref,
+  courseId, courseTitle, modules, initialLessonId, isEnrolled, backHref = "/student/library", buyHref,
 }: {
+  courseId: string;
   courseTitle: string;
   modules: PlayerModule[];
   initialLessonId?: string;
@@ -138,7 +139,7 @@ export function PlayerClient({
 
   async function handleComplete() {
     if (!current || completed.has(current.id)) return;
-    const result = await markLessonComplete(current.id);
+    const result = await markLessonComplete(courseId, current.id);
     if (!result.success) { error(result.error); return; }
     setCompleted((prev) => new Set(prev).add(current.id));
     success(result.awardedXp ? `Aula concluída! +${result.awardedXp} XP` : "Aula concluída!");
@@ -275,7 +276,7 @@ export function PlayerClient({
             </div>
           ) : current.type === "quiz" ? (
             current.quiz ? (
-              <QuizPlayer key={current.id} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
+              <QuizPlayer key={current.id} courseId={courseId} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
             ) : (
               <div className="mx-auto w-full max-w-3xl p-10 text-center text-sm text-foreground-muted">
                 Este quiz ainda não tem questões cadastradas.
@@ -366,7 +367,7 @@ export function PlayerClient({
             {/* Quiz de fixação da aula (vem depois do vídeo) */}
             {current.type !== "quiz" && current.quiz && (
               <div className="overflow-hidden rounded-xl border border-border bg-card">
-                <QuizPlayer key={`quiz-${current.id}`} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
+                <QuizPlayer key={`quiz-${current.id}`} courseId={courseId} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
               </div>
             )}
 

@@ -1,6 +1,8 @@
 // Reset de conteúdo pré-lançamento (01/10/2026).
 // Apaga TODOS os cursos (produtos, módulos, aulas, quizzes) e TODOS os pedidos,
 // e remove as capas dos cursos no Cloudinary. Usuários são mantidos.
+// Obs.: desde os módulos compartilhados (migration shared_modules), apagar o curso
+// NÃO apaga os módulos — eles ficam guardados para reaproveitar.
 // Antes de apagar, salva um backup JSON em scripts/backup-antes-limpeza-<data>.json.
 //
 // Uso:  npx tsx scripts/reset-conteudo.ts --confirmar
@@ -18,7 +20,7 @@ async function main() {
   // 1) Backup de tudo que será apagado
   const products = await db.product.findMany({
     include: {
-      course: { include: { modules: { include: { lessons: { include: { quiz: { include: { questions: true } }, materials: true } } } } } },
+      course: { include: { modules: { include: { module: { include: { lessons: { include: { quiz: { include: { questions: true } }, materials: true } } } } } } } },
       instructors: { select: { id: true, email: true } },
       tags: true,
     },

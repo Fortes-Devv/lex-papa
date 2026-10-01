@@ -16,19 +16,22 @@ export async function GET(_request: Request, props: { params: Promise<{ lessonId
 
   const lesson = await db.lesson.findUnique({
     where: { id: params.lessonId },
-    include: { module: { include: { course: { select: { productId: true } } } } },
+    // Cursos onde o módulo está publicado (o mesmo módulo pode estar em vários cursos).
+    include: { module: { include: { courses: { where: { isPublished: true }, select: { course: { select: { productId: true } } } } } } },
   });
   if (!lesson?.pdfUrl) return new NextResponse("PDF não encontrado.", { status: 404 });
 
   const isStaff = isStaffRole(session.user.role);
-  if (!isStaff && (lesson.status !== "published" || !lesson.module.isPublished)) {
+  const productIds = lesson.module.courses.map((c) => c.course.productId);
+  if (!isStaff && (lesson.status !== "published" || productIds.length === 0)) {
     return new NextResponse("PDF não encontrado.", { status: 404 });
   }
   if (!isStaff && !lesson.isFree && !lesson.isPreview) {
-    const enrollment = await db.enrollment.findUnique({
-      where: { userId_productId: { userId: session.user.id, productId: lesson.module.course.productId } },
+    // Basta matrícula válida em qualquer curso que use o módulo.
+    const enrollments = await db.enrollment.findMany({
+      where: { userId: session.user.id, productId: { in: productIds } },
     });
-    if (!isEnrollmentActive(enrollment)) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
+    if (!enrollments.some(isEnrollmentActive)) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
   }
 
   const upstream = await fetch(lesson.pdfUrl);

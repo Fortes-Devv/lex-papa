@@ -1,23 +1,17 @@
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
+import { requireArea } from "@/lib/auth-guards";
+import { loadEditorModules } from "@/lib/editor-modules";
 import { CreateCourseDialog } from "@/components/course/create-course-dialog";
 import { CourseCard, type CourseCardData } from "./course-card";
 
 export default async function AdminCoursesPage() {
+  const session = await requireArea("admin");
+
   const products = await db.product.findMany({
-    where: { type: "course" },
+    where: { type: "course", course: { isNot: null } },
     orderBy: { createdAt: "desc" },
-    include: {
-      category: true,
-      course: {
-        include: {
-          modules: {
-            orderBy: { order: "asc" },
-            include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true, avatar: true } } },
-          },
-        },
-      },
-    },
+    include: { category: true, course: true },
   });
 
   const teachers = await db.user.findMany({
@@ -26,11 +20,13 @@ export default async function AdminCoursesPage() {
     orderBy: { name: "asc" },
   });
 
-  const courses: CourseCardData[] = products
-    .filter((p) => p.course)
-    .map((p) => ({
+  // Sequencial (driver Neon não gosta de muitas queries em paralelo).
+  const courses: CourseCardData[] = [];
+  for (const p of products) {
+    const course = p.course!;
+    courses.push({
       productId: p.id,
-      courseId: p.course!.id,
+      courseId: course.id,
       title: p.title,
       thumbnail: p.thumbnail,
       status: p.status,
@@ -41,35 +37,12 @@ export default async function AdminCoursesPage() {
       categoryName: p.category?.name ?? "",
       level: p.level,
       enrolledCount: p.enrolledCount,
-      totalLessons: p.course!.totalLessons,
-      totalDuration: p.course!.totalDuration,
-      heroColor: p.course!.heroColor ?? "navy",
-      modules: p.course!.modules.map((m) => ({
-        id: m.id,
-        title: m.title,
-        order: m.order,
-        isPublished: m.isPublished,
-        instructorId: m.instructorId,
-        instructorName: m.instructor?.name ?? null,
-        instructorAvatar: m.instructor?.avatar ?? null,
-        coverImage: m.coverImage,
-        lessons: m.lessons.map((l) => ({
-          id: l.id,
-          title: l.title,
-          type: l.type,
-          status: l.status,
-          order: l.order,
-          duration: l.duration,
-          videoUrl: l.videoUrl,
-          videoPublicId: l.videoPublicId,
-          pdfUrl: l.pdfUrl,
-          description: l.description,
-          isFree: l.isFree,
-          isPreview: l.isPreview,
-          completionCriteria: l.completionCriteria,
-        })),
-      })),
-    }));
+      totalLessons: course.totalLessons,
+      totalDuration: course.totalDuration,
+      heroColor: course.heroColor ?? "navy",
+      modules: await loadEditorModules(course.id, session.user),
+    });
+  }
 
   return (
     <div className="space-y-5">

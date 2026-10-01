@@ -24,9 +24,13 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
       modules: {
         orderBy: { order: "asc" },
         include: {
-          lessons: {
-            orderBy: { order: "asc" },
-            include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+          module: {
+            include: {
+              lessons: {
+                orderBy: { order: "asc" },
+                include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+              },
+            },
           },
         },
       },
@@ -34,13 +38,15 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
   });
   if (!course) notFound();
 
-  // Professor só pode pré-visualizar os próprios cursos.
-  if (session.user.role === "teacher" && !course.product.instructors.some((i) => i.id === session.user.id)) {
+  // Professor só pode pré-visualizar os próprios cursos ou cursos onde tem módulo.
+  const ownsCourse = course.product.instructors.some((i) => i.id === session.user.id);
+  const ownsModule = course.modules.some((cm) => cm.module.instructorId === session.user.id);
+  if (session.user.role === "teacher" && !ownsCourse && !ownsModule) {
     redirect("/teacher/courses");
   }
 
   // No preview, todas as aulas ficam desbloqueadas e nada é marcado como concluído.
-  const modules: PlayerModule[] = course.modules.map((m) => ({
+  const modules: PlayerModule[] = course.modules.map(({ module: m }) => ({
     id: m.id,
     title: m.title,
     lessons: m.lessons.map<PlayerLesson>((l) => ({
@@ -70,6 +76,7 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
       <div className="p-6">
         {/* isEnrolled=false: preview não registra progresso nem XP */}
         <PlayerClient
+          courseId={course.id}
           courseTitle={course.product.title}
           modules={modules}
           isEnrolled={false}

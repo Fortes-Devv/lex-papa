@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { slugify } from "@/lib/utils/cn";
 import { deleteBunnyVideo } from "@/lib/bunny";
 import { deleteCloudinaryImageByUrl } from "@/lib/cloudinary";
+import { canEditCourse, canEditLesson, canEditModule, canEditProduct, NOT_ALLOWED } from "@/lib/course-permissions";
+import { courseLessonsWhere } from "@/lib/lesson-access";
 import type { LessonType, ProductLevel, Lesson } from "@/lib/types";
 
 type CompletionCriteria = Lesson["completionCriteria"];
@@ -83,7 +85,8 @@ export async function updateCourseDetails(productId: string, input: {
   thumbnail: string;
   heroColor?: string;
 }) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
   if (!Number.isFinite(input.price) || input.price <= 0) {
     return { success: false as const, error: "Informe um preço válido maior que zero (ex: 297,00)." };
@@ -130,9 +133,8 @@ export async function deleteCourse(productId: string) {
   if (!product) return { success: false as const, error: "Curso não encontrado." };
 
   // Professor só pode excluir os próprios cursos.
-  if (session.user.role === "teacher") {
-    const owns = await db.product.findFirst({ where: { id: productId, instructors: { some: { id: session.user.id } } } });
-    if (!owns) return { success: false as const, error: "Você só pode excluir os próprios cursos." };
+  if (!(await canEditProduct(session.user, productId))) {
+    return { success: false as const, error: "Você só pode excluir os próprios cursos." };
   }
 
   // Proteção: não excluir curso com vendas ou matrículas (preserva histórico e acesso).
@@ -143,17 +145,12 @@ export async function deleteCourse(productId: string) {
     };
   }
 
-  // Coleta os vídeos Bunny de todas as aulas do curso antes de excluir (cascade).
-  const lessons = await db.lesson.findMany({
-    where: { module: { course: { productId } }, videoProvider: "bunny", videoPublicId: { not: null } },
-    select: { videoPublicId: true },
-  });
-
-  // Cascade remove course → modules → lessons (e favoritos/certificados vazios).
+  // Cascade remove o curso e as ligações com módulos. Os MÓDULOS (aulas e vídeos)
+  // são preservados: podem estar em outros cursos ou ser reaproveitados depois.
+  // Para apagar um módulo de vez, use deleteModule (só quando nenhum curso o usa).
   await db.product.delete({ where: { id: productId } });
 
-  // Limpeza externa: vídeos no Bunny + capa no Cloudinary.
-  for (const l of lessons) if (l.videoPublicId) await deleteBunnyVideo(l.videoPublicId);
+  // Limpeza externa: capa no Cloudinary.
   await deleteCloudinaryImageByUrl(product.thumbnail);
 
   const { logAudit } = await import("@/lib/audit");
@@ -166,7 +163,8 @@ export async function deleteCourse(productId: string) {
 }
 
 export async function updateCourseThumbnail(productId: string, thumbnail: string) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
   await db.product.update({ where: { id: productId }, data: { thumbnail } });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/courses");
@@ -174,7 +172,8 @@ export async function updateCourseThumbnail(productId: string, thumbnail: string
 }
 
 export async function updateCourseStatus(productId: string, status: "draft" | "published") {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
   await db.product.update({
     where: { id: productId },
     data: { status, publishedAt: status === "published" ? new Date() : null },
@@ -184,20 +183,100 @@ export async function updateCourseStatus(productId: string, status: "draft" | "p
   return { success: true as const };
 }
 
-export async function createModule(courseId: string, title: string, instructorId?: string | null, coverImage?: string | null) {
-  await requireStaff();
-  const last = await db.module.findFirst({ where: { courseId }, orderBy: { order: "desc" } });
-  const mod = await db.module.create({
-    data: { courseId, title, order: (last?.order ?? 0) + 1, instructorId: instructorId || null, coverImage: coverImage || null },
-  });
+// ── Módulos ───────────────────────────────────────────────────────────────
+// Um módulo pode estar em vários cursos (CourseModule). Estrutura do curso
+// (adicionar/remover/ordenar/publicar módulo no curso) = canEditCourse.
+// Conteúdo do módulo (título, capa, aulas, quiz) = canEditModule (dono + admin).
+
+function revalidateContent() {
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
+  revalidatePath("/teacher/modules");
   revalidatePath("/teacher/dashboard");
+}
+
+async function nextModuleOrder(courseId: string) {
+  const last = await db.courseModule.findFirst({ where: { courseId }, orderBy: { order: "desc" } });
+  return (last?.order ?? 0) + 1;
+}
+
+export async function createModule(courseId: string, title: string, instructorId?: string | null, coverImage?: string | null) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  if (!title.trim()) return { success: false as const, error: "Dê um título para o módulo." };
+  // Professor que cria o módulo é o dono dele; admin/moderador escolhe o professor.
+  const owner = session.user.role === "teacher" ? session.user.id : instructorId || null;
+  const mod = await db.module.create({
+    data: {
+      title,
+      instructorId: owner,
+      coverImage: coverImage || null,
+      courses: { create: { courseId, order: await nextModuleOrder(courseId) } },
+    },
+  });
+  revalidateContent();
   return { success: true as const, moduleId: mod.id };
 }
 
+// Módulos existentes que podem ser adicionados a este curso (ainda não estão nele).
+export async function listAttachableModules(courseId: string, search = "") {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return [];
+  const modules = await db.module.findMany({
+    where: {
+      courses: { none: { courseId } },
+      ...(search.trim() ? { title: { contains: search.trim(), mode: "insensitive" as const } } : {}),
+    },
+    orderBy: { title: "asc" },
+    take: 50,
+    include: {
+      instructor: { select: { name: true } },
+      _count: { select: { lessons: true } },
+      courses: { select: { course: { select: { product: { select: { title: true } } } } } },
+    },
+  });
+  return modules.map((m) => ({
+    id: m.id,
+    title: m.title,
+    instructorName: m.instructor?.name ?? null,
+    lessonCount: m._count.lessons,
+    usedIn: m.courses.map((c) => c.course.product.title),
+  }));
+}
+
+// Reaproveita um módulo existente neste curso (as aulas não são copiadas).
+export async function attachModule(courseId: string, moduleId: string) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  const exists = await db.module.count({ where: { id: moduleId } });
+  if (!exists) return { success: false as const, error: "Módulo não encontrado." };
+  const already = await db.courseModule.count({ where: { courseId, moduleId } });
+  if (already) return { success: false as const, error: "Este módulo já está no curso." };
+  await db.courseModule.create({ data: { courseId, moduleId, order: await nextModuleOrder(courseId) } });
+  await recalcCourseTotals(courseId);
+  revalidateContent();
+  return { success: true as const };
+}
+
+// Tira o módulo do curso. O módulo e as aulas continuam existindo (podem estar
+// em outros cursos ou ser reaproveitados depois). `orphan` = não está em mais nenhum curso.
+export async function detachModule(courseId: string, moduleId: string) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  await db.courseModule.deleteMany({ where: { courseId, moduleId } });
+  await recalcCourseTotals(courseId);
+  const remaining = await db.courseModule.count({ where: { moduleId } });
+  const canDelete = remaining === 0 && (await canEditModule(session.user, moduleId));
+  revalidateContent();
+  return { success: true as const, orphan: remaining === 0, canDelete };
+}
+
 export async function renameModule(moduleId: string, title: string, instructorId?: string | null, coverImage?: string | null) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
+  if (!title.trim()) return { success: false as const, error: "Dê um título para o módulo." };
+  // Trocar o dono do módulo é só para admin/moderador.
+  const canReassign = session.user.role === "admin" || session.user.role === "moderator";
   // Se a capa foi trocada, remove a antiga do Cloudinary.
   if (coverImage !== undefined) {
     const current = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
@@ -210,13 +289,11 @@ export async function renameModule(moduleId: string, title: string, instructorId
     // undefined = não mexe; null/string = define/remove
     data: {
       title,
-      ...(instructorId === undefined ? {} : { instructorId: instructorId || null }),
+      ...(instructorId === undefined || !canReassign ? {} : { instructorId: instructorId || null }),
       ...(coverImage === undefined ? {} : { coverImage: coverImage || null }),
     },
   });
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
-  revalidatePath("/teacher/dashboard");
+  revalidateContent();
   return { success: true as const };
 }
 
@@ -230,26 +307,40 @@ export async function listTeachers() {
   });
 }
 
-export async function toggleModulePublished(moduleId: string, isPublished: boolean) {
-  await requireStaff();
-  await db.module.update({ where: { id: moduleId }, data: { isPublished } });
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+// Publica/despublica o módulo NESTE curso (não afeta os outros cursos).
+export async function toggleModulePublished(courseId: string, moduleId: string, isPublished: boolean) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  await db.courseModule.updateMany({ where: { courseId, moduleId }, data: { isPublished } });
+  await recalcCourseTotals(courseId);
+  revalidateContent();
   return { success: true as const };
 }
 
-// Publica (ou despublica) o módulo E todas as suas aulas de uma vez.
-export async function setModulePublished(moduleId: string, publish: boolean) {
-  await requireStaff();
-  await db.module.update({ where: { id: moduleId }, data: { isPublished: publish } });
-  await db.lesson.updateMany({ where: { moduleId }, data: { status: publish ? "published" : "draft" } });
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+// Publica o módulo neste curso E todas as suas aulas (aulas valem para todos os
+// cursos, então só quem edita o módulo publica as aulas). Despublicar só tira
+// o módulo deste curso, sem despublicar as aulas nos outros.
+export async function setModulePublished(courseId: string, moduleId: string, publish: boolean) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  await db.courseModule.updateMany({ where: { courseId, moduleId }, data: { isPublished: publish } });
+  if (publish && (await canEditModule(session.user, moduleId))) {
+    await db.lesson.updateMany({ where: { moduleId }, data: { status: "published" } });
+  }
+  await recalcTotalsForModule(moduleId);
+  revalidateContent();
   return { success: true as const };
 }
 
+// Exclui o módulo de vez (aulas e vídeos). Só é permitido quando nenhum curso usa
+// o módulo — evita apagar sem querer o conteúdo de outros cursos.
 export async function deleteModule(moduleId: string) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
+  const usedIn = await db.courseModule.count({ where: { moduleId } });
+  if (usedIn > 0) {
+    return { success: false as const, error: `Este módulo ainda está em ${usedIn} curso(s). Remova-o dos cursos antes de excluir.` };
+  }
   // Coleta os vídeos Bunny das aulas e a capa antes de excluir o módulo (cascade).
   const lessons = await db.lesson.findMany({
     where: { moduleId, videoProvider: "bunny", videoPublicId: { not: null } },
@@ -259,26 +350,27 @@ export async function deleteModule(moduleId: string) {
   await db.module.delete({ where: { id: moduleId } });
   for (const l of lessons) if (l.videoPublicId) await deleteBunnyVideo(l.videoPublicId);
   if (mod?.coverImage) await deleteCloudinaryImageByUrl(mod.coverImage);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  revalidateContent();
   return { success: true as const };
 }
 
 export async function moveModule(courseId: string, moduleId: string, direction: "up" | "down") {
-  await requireStaff();
-  const modules = await db.module.findMany({ where: { courseId }, orderBy: { order: "asc" } });
-  const idx = modules.findIndex((m) => m.id === moduleId);
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  const links = await db.courseModule.findMany({ where: { courseId }, orderBy: { order: "asc" } });
+  const idx = links.findIndex((l) => l.moduleId === moduleId);
   const swapIdx = direction === "up" ? idx - 1 : idx + 1;
-  if (idx === -1 || swapIdx < 0 || swapIdx >= modules.length) return { success: false as const };
+  if (idx === -1 || swapIdx < 0 || swapIdx >= links.length) return { success: false as const };
 
   await db.$transaction([
-    db.module.update({ where: { id: modules[idx].id }, data: { order: modules[swapIdx].order } }),
-    db.module.update({ where: { id: modules[swapIdx].id }, data: { order: modules[idx].order } }),
+    db.courseModule.update({ where: { id: links[idx].id }, data: { order: links[swapIdx].order } }),
+    db.courseModule.update({ where: { id: links[swapIdx].id }, data: { order: links[idx].order } }),
   ]);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  revalidateContent();
   return { success: true as const };
 }
+
+// ── Aulas (conteúdo do módulo: vale em todos os cursos que usam o módulo) ──
 
 export async function createLesson(moduleId: string, input: {
   title: string;
@@ -293,7 +385,8 @@ export async function createLesson(moduleId: string, input: {
   isPreview: boolean;
   completionCriteria: CompletionCriteria;
 }) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
   const last = await db.lesson.findFirst({ where: { moduleId }, orderBy: { order: "desc" } });
   const lesson = await db.lesson.create({
     data: {
@@ -313,9 +406,8 @@ export async function createLesson(moduleId: string, input: {
       completionCriteria: input.completionCriteria,
     },
   });
-  await recalcCourseTotals(moduleId);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  await recalcTotalsForModule(moduleId);
+  revalidateContent();
   return { success: true as const, lessonId: lesson.id };
 }
 
@@ -333,7 +425,8 @@ export async function updateLesson(lessonId: string, input: {
   isPreview: boolean;
   completionCriteria: CompletionCriteria;
 }) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
 
   // Se o vídeo foi trocado, remove o antigo do Bunny.
   const old = await db.lesson.findUnique({ where: { id: lessonId }, select: { videoProvider: true, videoPublicId: true } });
@@ -358,34 +451,35 @@ export async function updateLesson(lessonId: string, input: {
       completionCriteria: input.completionCriteria,
     },
   });
-  await recalcCourseTotals(lesson.moduleId);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  await recalcTotalsForModule(lesson.moduleId);
+  revalidateContent();
   return { success: true as const };
 }
 
 export async function updateLessonStatus(lessonId: string, status: "draft" | "published") {
-  await requireStaff();
-  await db.lesson.update({ where: { id: lessonId }, data: { status } });
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
+  const lesson = await db.lesson.update({ where: { id: lessonId }, data: { status } });
+  await recalcTotalsForModule(lesson.moduleId);
+  revalidateContent();
   return { success: true as const };
 }
 
 export async function deleteLesson(lessonId: string) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
   const lesson = await db.lesson.delete({ where: { id: lessonId } });
   if (lesson.videoProvider === "bunny" && lesson.videoPublicId) {
     await deleteBunnyVideo(lesson.videoPublicId);
   }
-  await recalcCourseTotals(lesson.moduleId);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  await recalcTotalsForModule(lesson.moduleId);
+  revalidateContent();
   return { success: true as const };
 }
 
 export async function moveLesson(moduleId: string, lessonId: string, direction: "up" | "down") {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
   const lessons = await db.lesson.findMany({ where: { moduleId }, orderBy: { order: "asc" } });
   const idx = lessons.findIndex((l) => l.id === lessonId);
   const swapIdx = direction === "up" ? idx - 1 : idx + 1;
@@ -395,20 +489,24 @@ export async function moveLesson(moduleId: string, lessonId: string, direction: 
     db.lesson.update({ where: { id: lessons[idx].id }, data: { order: lessons[swapIdx].order } }),
     db.lesson.update({ where: { id: lessons[swapIdx].id }, data: { order: lessons[idx].order } }),
   ]);
-  revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
+  revalidateContent();
   return { success: true as const };
 }
 
-async function recalcCourseTotals(moduleId: string) {
-  const mod = await db.module.findUnique({ where: { id: moduleId }, select: { courseId: true } });
-  if (!mod) return;
-  const lessons = await db.lesson.findMany({ where: { module: { courseId: mod.courseId } } });
+// Totais exibidos na vitrine: aulas publicadas em módulos publicados no curso.
+async function recalcCourseTotals(courseId: string) {
+  const lessons = await db.lesson.findMany({ where: courseLessonsWhere(courseId), select: { duration: true } });
   await db.course.update({
-    where: { id: mod.courseId },
+    where: { id: courseId },
     data: {
       totalLessons: lessons.length,
       totalDuration: lessons.reduce((sum, l) => sum + (l.duration ?? 0), 0),
     },
   });
+}
+
+// Recalcula todos os cursos que usam o módulo.
+async function recalcTotalsForModule(moduleId: string) {
+  const links = await db.courseModule.findMany({ where: { moduleId }, select: { courseId: true } });
+  for (const l of links) await recalcCourseTotals(l.courseId);
 }

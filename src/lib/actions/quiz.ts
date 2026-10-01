@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { requireStaff } from "@/lib/auth-guards";
+import { canEditLesson, NOT_ALLOWED } from "@/lib/course-permissions";
+import { getEnrolledLessonInCourse } from "@/lib/lesson-access";
 import { db } from "@/lib/db";
 import { markLessonComplete } from "@/lib/actions/learning";
 import type { Prisma } from "@prisma/client";
@@ -25,7 +27,8 @@ export interface QuizQuestionInput {
 
 /** Carrega o quiz de uma aula para edição (inclui as respostas corretas — só staff). */
 export async function getQuizForEdit(lessonId: string) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return null;
   const quiz = await db.quiz.findUnique({
     where: { lessonId },
     include: { questions: { orderBy: { order: "asc" } } },
@@ -56,7 +59,8 @@ export async function saveQuiz(lessonId: string, input: {
   showAnswers: boolean;
   questions: QuizQuestionInput[];
 }) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
 
   if (!input.title.trim()) return { success: false as const, error: "Dê um título ao quiz." };
   if (input.questions.length === 0) return { success: false as const, error: "Adicione ao menos uma questão." };
@@ -113,7 +117,8 @@ export async function saveQuiz(lessonId: string, input: {
 
 /** Remove o quiz da aula. */
 export async function deleteQuiz(lessonId: string) {
-  await requireStaff();
+  const session = await requireStaff();
+  if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
   await db.quiz.deleteMany({ where: { lessonId } });
   revalidatePath("/admin/courses");
   revalidatePath("/teacher/content");
@@ -124,10 +129,14 @@ export async function deleteQuiz(lessonId: string) {
  * Corrige a tentativa NO SERVIDOR (o cliente nunca recebe a resposta certa antes
  * de responder), grava a tentativa e conclui a aula se o aluno passar.
  */
-export async function submitQuizAttempt(lessonId: string, answers: Record<string, string>) {
+export async function submitQuizAttempt(courseId: string, lessonId: string, answers: Record<string, string>) {
   const session = await auth();
   if (!session?.user) return { success: false as const, error: "Faça login para responder." };
   const userId = session.user.id;
+
+  // Só aluno matriculado no curso (com a aula publicada nele) responde.
+  const access = await getEnrolledLessonInCourse(userId, courseId, lessonId);
+  if (!access.ok) return { success: false as const, error: access.error };
 
   const quiz = await db.quiz.findUnique({
     where: { lessonId },
@@ -136,7 +145,7 @@ export async function submitQuizAttempt(lessonId: string, answers: Record<string
   if (!quiz || quiz.questions.length === 0) return { success: false as const, error: "Quiz não encontrado." };
 
   if (quiz.maxAttempts > 0) {
-    const used = await db.quizAttempt.count({ where: { quizId: quiz.id, userId } });
+    const used = await db.quizAttempt.count({ where: { quizId: quiz.id, userId, courseId } });
     if (used >= quiz.maxAttempts) {
       return { success: false as const, error: `Você já usou suas ${quiz.maxAttempts} tentativa(s).` };
     }
@@ -164,16 +173,16 @@ export async function submitQuizAttempt(lessonId: string, answers: Record<string
   const passed = score >= quiz.passingScore;
 
   await db.quizAttempt.create({
-    data: { quizId: quiz.id, userId, answers: answers as Prisma.InputJsonValue, score, passed },
+    data: { quizId: quiz.id, userId, courseId, answers: answers as Prisma.InputJsonValue, score, passed },
   });
 
   let awardedXp = 0;
   if (passed) {
-    const result = await markLessonComplete(lessonId);
+    const result = await markLessonComplete(courseId, lessonId);
     if (result.success) awardedXp = result.awardedXp ?? 0;
   }
 
-  const attemptsUsed = await db.quizAttempt.count({ where: { quizId: quiz.id, userId } });
+  const attemptsUsed = await db.quizAttempt.count({ where: { quizId: quiz.id, userId, courseId } });
 
   return {
     success: true as const,

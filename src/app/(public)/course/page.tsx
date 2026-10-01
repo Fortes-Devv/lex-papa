@@ -49,7 +49,7 @@ export default async function PublicCoursePage(props: { searchParams: Promise<{ 
           modules: {
             orderBy: { order: "asc" },
             where: { isPublished: true },
-            include: { lessons: { orderBy: { order: "asc" }, where: { status: "published" } } },
+            include: { module: { include: { lessons: { orderBy: { order: "asc" }, where: { status: "published" } } } } },
           },
         },
       },
@@ -69,6 +69,8 @@ export default async function PublicCoursePage(props: { searchParams: Promise<{ 
   }
 
   const course = product.course;
+  // Módulos publicados neste curso, na ordem do curso.
+  const modules = course.modules.map((cm) => cm.module);
   const instructor = product.instructors[0];
   const price = Number(product.price);
   const comparePrice = product.comparePrice ? Number(product.comparePrice) : 0;
@@ -76,8 +78,8 @@ export default async function PublicCoursePage(props: { searchParams: Promise<{ 
   const installment = price / 12;
   // Só conta o que está PUBLICADO (os módulos/aulas já vêm filtrados na query).
   // Evita mostrar "28 aulas" enquanto o conteúdo ainda está em rascunho.
-  const visibleLessons = course.modules.reduce((s, m) => s + m.lessons.length, 0);
-  const visibleDuration = course.modules.reduce((s, m) => s + m.lessons.reduce((a, l) => a + (l.duration ?? 0), 0), 0);
+  const visibleLessons = modules.reduce((s, m) => s + m.lessons.length, 0);
+  const visibleDuration = modules.reduce((s, m) => s + m.lessons.reduce((a, l) => a + (l.duration ?? 0), 0), 0);
   const hasLessons = visibleLessons > 0;
 
   // Destaca a última palavra do título em laranja.
@@ -218,7 +220,7 @@ export default async function PublicCoursePage(props: { searchParams: Promise<{ 
             </div>
             {hasLessons ? (
               <CourseCurriculum
-                modules={course.modules.map((m) => ({
+                modules={modules.map((m) => ({
                   id: m.id,
                   title: m.title,
                   lessons: m.lessons.map((l) => ({ id: l.id, title: l.title, isFree: l.isFree, duration: l.duration })),

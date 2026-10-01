@@ -35,7 +35,8 @@ interface AttemptResult {
   }[];
 }
 
-export function QuizPlayer({ lessonId, quiz, canSubmit = true, onPassed }: {
+export function QuizPlayer({ courseId, lessonId, quiz, canSubmit = true, onPassed }: {
+  courseId: string;
   lessonId: string;
   quiz: StudentQuiz;
   canSubmit?: boolean;
@@ -53,7 +54,7 @@ export function QuizPlayer({ lessonId, quiz, canSubmit = true, onPassed }: {
     if (!allAnswered) { error("Responda todas as questões antes de enviar."); return; }
     setSubmitting(true);
     try {
-      const res = await submitQuizAttempt(lessonId, answers);
+      const res = await submitQuizAttempt(courseId, lessonId, answers);
       if (!res.success) { error(res.error); return; }
       setResult(res);
       if (res.passed) onPassed?.(res.awardedXp);

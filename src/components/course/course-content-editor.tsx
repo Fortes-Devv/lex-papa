@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus, ChevronRight, ArrowUp, ArrowDown, Trash2, Pencil,
-  Video, FileText, HelpCircle, Download, Music, Dumbbell, Eye, EyeOff, Clock, Play,
+  Video, FileText, HelpCircle, Download, Music, Dumbbell, Eye, EyeOff, Clock, Play, Layers, Link2, Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,7 @@ import { useToast } from "@/components/ui/toast";
 import { formatDuration, getInitials } from "@/lib/utils/cn";
 import {
   createModule, renameModule, deleteModule, moveModule, toggleModulePublished, setModulePublished,
-  deleteLesson, moveLesson, updateLessonStatus,
+  deleteLesson, moveLesson, updateLessonStatus, detachModule, attachModule, listAttachableModules,
 } from "@/lib/actions/courses";
 import { LessonFormDialog, type LessonFormValue } from "./lesson-form-dialog";
 import { VideoPlayer } from "@/components/player/video-player";
@@ -41,6 +41,7 @@ export interface EditorLesson {
   order: number;
   duration: number | null;
   videoUrl: string | null;
+  previewUrl: string | null; // URL assinada só para a prévia (não salvar)
   videoPublicId: string | null;
   pdfUrl: string | null;
   description: string | null;
@@ -58,6 +59,8 @@ export interface EditorModule {
   instructorName: string | null;
   instructorAvatar: string | null;
   coverImage: string | null;
+  canEdit: boolean; // pode editar o conteúdo (dono do módulo ou admin)
+  usedIn: string[]; // outros cursos que usam este módulo
   lessons: EditorLesson[];
 }
 
@@ -82,6 +85,40 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
   const [editingLesson, setEditingLesson] = useState<LessonFormValue | null>(null);
 
   const [previewLesson, setPreviewLesson] = useState<EditorLesson | null>(null);
+
+  // "Usar módulo existente": reaproveita um módulo de outro curso (sem copiar aulas).
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachSearch, setAttachSearch] = useState("");
+  const [attachable, setAttachable] = useState<Awaited<ReturnType<typeof listAttachableModules>>>([]);
+  const [attachLoading, setAttachLoading] = useState(false);
+
+  async function loadAttachable(search: string) {
+    setAttachLoading(true);
+    setAttachable(await listAttachableModules(courseId, search));
+    setAttachLoading(false);
+  }
+
+  function openAttach() {
+    setAttachSearch("");
+    setAttachOpen(true);
+    loadAttachable("");
+  }
+
+  async function handleAttach(moduleId: string) {
+    const result = await attachModule(courseId, moduleId);
+    if (!result.success) { error(result.error); return; }
+    success("Módulo adicionado ao curso.");
+    setAttachOpen(false);
+    router.refresh();
+  }
+
+  // Mostra o erro das actions (ex.: sem permissão) em vez de falhar em silêncio.
+  function report(result: { success: boolean; error?: string }, ok?: string) {
+    if (!result.success) { error(result.error ?? "Não foi possível concluir."); return false; }
+    if (ok) success(ok);
+    router.refresh();
+    return true;
+  }
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -111,41 +148,38 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
     if (!newModuleTitle) { error("Dê um título para o módulo."); return; }
     const instructorId = newModuleInstructor || null;
     const cover = newModuleCover || null;
-    if (editingModule) {
-      await renameModule(editingModule.id, newModuleTitle, instructorId, cover);
-      success("Módulo atualizado.");
-    } else {
-      await createModule(courseId, newModuleTitle, instructorId, cover);
-      success("Módulo criado.");
-    }
-    setModuleDialogOpen(false);
-    router.refresh();
+    const result = editingModule
+      ? await renameModule(editingModule.id, newModuleTitle, instructorId, cover)
+      : await createModule(courseId, newModuleTitle, instructorId, cover);
+    if (report(result, editingModule ? "Módulo atualizado." : "Módulo criado.")) setModuleDialogOpen(false);
   }
 
-  async function handleDeleteModule(mod: EditorModule) {
-    if (!confirm(`Excluir o módulo "${mod.title}" e todas as suas aulas?`)) return;
-    await deleteModule(mod.id);
-    success("Módulo excluído.");
-    router.refresh();
+  // Remove o módulo deste curso. As aulas continuam existindo; se o módulo não
+  // estiver em mais nenhum curso, oferece excluir de vez.
+  async function handleRemoveModule(mod: EditorModule) {
+    const others = mod.usedIn.length > 0 ? ` Ele continua nos cursos: ${mod.usedIn.join(", ")}.` : "";
+    if (!confirm(`Remover o módulo "${mod.title}" deste curso?${others}`)) return;
+    const result = await detachModule(courseId, mod.id);
+    if (!report(result, "Módulo removido do curso.")) return;
+    if ("orphan" in result && result.orphan && result.canDelete) {
+      const msg = `"${mod.title}" não está em mais nenhum curso. Excluir DE VEZ o módulo e as ${mod.lessons.length} aulas (vídeos apagados do Bunny)?\n\nCancelar = manter guardado para reaproveitar depois.`;
+      if (confirm(msg)) report(await deleteModule(mod.id), "Módulo excluído.");
+    }
   }
 
   async function handleMoveModule(mod: EditorModule, direction: "up" | "down") {
-    await moveModule(courseId, mod.id, direction);
-    router.refresh();
+    report(await moveModule(courseId, mod.id, direction));
   }
 
   async function handleToggleModule(mod: EditorModule) {
-    await toggleModulePublished(mod.id, !mod.isPublished);
-    router.refresh();
+    report(await toggleModulePublished(courseId, mod.id, !mod.isPublished));
   }
 
   const isModuleAllPublished = (m: EditorModule) =>
     m.isPublished && m.lessons.length > 0 && m.lessons.every((l) => l.status === "published");
 
   async function handlePublishAll(mod: EditorModule, publish: boolean) {
-    await setModulePublished(mod.id, publish);
-    success(publish ? "Módulo e aulas publicados." : "Módulo e aulas despublicados.");
-    router.refresh();
+    report(await setModulePublished(courseId, mod.id, publish), publish ? "Módulo e aulas publicados." : "Módulo despublicado neste curso.");
   }
 
   function openCreateLesson(moduleId: string) {
@@ -173,20 +207,16 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
   }
 
   async function handleDeleteLesson(lesson: EditorLesson) {
-    if (!confirm(`Excluir a aula "${lesson.title}"?`)) return;
-    await deleteLesson(lesson.id);
-    success("Aula excluída.");
-    router.refresh();
+    if (!confirm(`Excluir a aula "${lesson.title}"? Ela sai de todos os cursos que usam este módulo.`)) return;
+    report(await deleteLesson(lesson.id), "Aula excluída.");
   }
 
   async function handleMoveLesson(moduleId: string, lesson: EditorLesson, direction: "up" | "down") {
-    await moveLesson(moduleId, lesson.id, direction);
-    router.refresh();
+    report(await moveLesson(moduleId, lesson.id, direction));
   }
 
   async function handleToggleLessonStatus(lesson: EditorLesson) {
-    await updateLessonStatus(lesson.id, lesson.status === "published" ? "draft" : "published");
-    router.refresh();
+    report(await updateLessonStatus(lesson.id, lesson.status === "published" ? "draft" : "published"));
   }
 
   return (
@@ -200,7 +230,10 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
             <Button size="sm" variant="ghost" className="w-full sm:w-auto" leftIcon={<Eye className="h-3.5 w-3.5" />}>Assistir (preview)</Button>
           </Link>
           {!restricted && (
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar módulo</Button>
+            <>
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={openAttach} leftIcon={<Layers className="h-3.5 w-3.5" />}>Usar módulo existente</Button>
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={openCreateModule} leftIcon={<Plus className="h-3.5 w-3.5" />}>Novo módulo</Button>
+            </>
           )}
         </div>
       </div>
@@ -233,7 +266,13 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
                   {mod.instructorName && <Badge variant="default">Prof. {mod.instructorName.split(" ")[0]}</Badge>}
                   <Badge variant={mod.isPublished ? "success" : "secondary"}>{mod.isPublished ? "Publicado" : "Rascunho"}</Badge>
                   <span className="text-xs text-foreground-muted">{mod.lessons.length} aulas</span>
-                  {mod.lessons.length > 0 && (
+                  {mod.usedIn.length > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-foreground-muted" title={`Editar as aulas altera também: ${mod.usedIn.join(", ")}`}>
+                      <Link2 className="h-3 w-3" /> Também em: {mod.usedIn.join(", ")}
+                    </span>
+                  )}
+                  {!mod.canEdit && <Badge variant="secondary">Só leitura</Badge>}
+                  {!restricted && mod.lessons.length > 0 && (
                     <Button
                       size="xs"
                       variant={isModuleAllPublished(mod) ? "outline" : "default"}
@@ -252,12 +291,14 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
                     <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" disabled={mi === modules.length - 1} onClick={() => handleMoveModule(mod, "down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
                   </>
                 )}
-                <Button variant="ghost" size="icon-sm" onClick={() => handleToggleModule(mod)}>{mod.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
                 {!restricted && (
-                  <>
-                    <Button variant="ghost" size="icon-sm" onClick={() => openRenameModule(mod)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteModule(mod)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-                  </>
+                  <Button variant="ghost" size="icon-sm" title={mod.isPublished ? "Despublicar neste curso" : "Publicar neste curso"} onClick={() => handleToggleModule(mod)}>{mod.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
+                )}
+                {mod.canEdit && (
+                  <Button variant="ghost" size="icon-sm" title="Editar módulo" onClick={() => openRenameModule(mod)}><Pencil className="h-3.5 w-3.5" /></Button>
+                )}
+                {!restricted && (
+                  <Button variant="ghost" size="icon-sm" title="Remover do curso" onClick={() => handleRemoveModule(mod)}><Unlink className="h-3.5 w-3.5 text-destructive" /></Button>
                 )}
               </div>
             </div>
@@ -297,18 +338,24 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
                   {lesson.duration ? (
                     <span className="hidden shrink-0 items-center gap-1 text-xs text-foreground-muted sm:flex"><Clock className="h-3 w-3" />{formatDuration(lesson.duration)}</span>
                   ) : null}
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" disabled={li === 0} onClick={() => handleMoveLesson(mod.id, lesson, "up")}><ArrowUp className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" disabled={li === mod.lessons.length - 1} onClick={() => handleMoveLesson(mod.id, lesson, "down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleToggleLessonStatus(lesson)}>{lesson.status === "published" ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => openEditLesson(mod.id, lesson)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteLesson(lesson)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
-                  </div>
+                  {mod.canEdit && (
+                    <div className="flex shrink-0 items-center gap-0.5">
+                      <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" disabled={li === 0} onClick={() => handleMoveLesson(mod.id, lesson, "up")}><ArrowUp className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon-sm" className="hidden sm:inline-flex" disabled={li === mod.lessons.length - 1} onClick={() => handleMoveLesson(mod.id, lesson, "down")}><ArrowDown className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleToggleLessonStatus(lesson)}>{lesson.status === "published" ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}</Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => openEditLesson(mod.id, lesson)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      <Button variant="ghost" size="icon-sm" onClick={() => handleDeleteLesson(lesson)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                    </div>
+                  )}
                 </div>
               ))}
-              <div className="px-3 py-2.5">
-                <Button size="sm" variant="ghost" onClick={() => openCreateLesson(mod.id)} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>
-              </div>
+              {mod.canEdit ? (
+                <div className="px-3 py-2.5">
+                  <Button size="sm" variant="ghost" onClick={() => openCreateLesson(mod.id)} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>
+                </div>
+              ) : (
+                <p className="px-3 py-2.5 text-xs text-foreground-muted">Só o professor responsável pelo módulo (ou o admin) edita estas aulas.</p>
+              )}
               </div>
             </div>
           </div>
@@ -324,16 +371,18 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
       <Dialog open={moduleDialogOpen} onClose={() => setModuleDialogOpen(false)} title={editingModule ? "Editar módulo" : "Novo módulo"}>
         <div className="space-y-4">
           <Input label="Título do módulo" placeholder="Ex: Direito Constitucional" value={newModuleTitle} onChange={(e) => setNewModuleTitle(e.target.value)} />
-          <Select
-            label="Professor responsável"
-            hint="O professor escolhido verá este módulo na área dele."
-            value={newModuleInstructor}
-            onChange={(e) => setNewModuleInstructor(e.target.value)}
-            options={[
-              { value: "", label: "Sem professor específico" },
-              ...teachers.map((t) => ({ value: t.id, label: t.name })),
-            ]}
-          />
+          {teachers.length > 0 && (
+            <Select
+              label="Professor responsável"
+              hint="O professor escolhido é o dono do módulo: só ele (e o admin) edita as aulas."
+              value={newModuleInstructor}
+              onChange={(e) => setNewModuleInstructor(e.target.value)}
+              options={[
+                { value: "", label: "Sem professor específico" },
+                ...teachers.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+            />
+          )}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do módulo</label>
             <MediaUploader
@@ -362,9 +411,44 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
 
       {/* Prévia rápida do vídeo da aula (para o dono/admin conferir sem sair) */}
       <Dialog open={!!previewLesson} onClose={() => setPreviewLesson(null)} title={previewLesson?.title} size="full">
-        {previewLesson?.videoUrl && (
-          <VideoPlayer key={previewLesson.id} src={previewLesson.videoUrl} title={previewLesson.title} className="w-full" />
+        {previewLesson?.previewUrl && (
+          <VideoPlayer key={previewLesson.id} src={previewLesson.previewUrl} title={previewLesson.title} className="w-full" />
         )}
+      </Dialog>
+
+      {/* Reaproveitar um módulo já existente (de outro curso ou guardado) */}
+      <Dialog open={attachOpen} onClose={() => setAttachOpen(false)} title="Usar módulo existente">
+        <div className="space-y-3">
+          <p className="text-sm text-foreground-muted">
+            O módulo entra neste curso com as mesmas aulas e vídeos — nada é copiado nem reenviado. Alterações nas aulas valem para todos os cursos que usam o módulo.
+          </p>
+          <Input
+            placeholder="Buscar pelo nome (ex: Constitucional)"
+            value={attachSearch}
+            onChange={(e) => { setAttachSearch(e.target.value); loadAttachable(e.target.value); }}
+          />
+          <div className="max-h-80 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+            {attachLoading && attachable.length === 0 ? (
+              <p className="p-4 text-center text-sm text-foreground-muted">Carregando…</p>
+            ) : attachable.length === 0 ? (
+              <p className="p-4 text-center text-sm text-foreground-muted">Nenhum módulo disponível.</p>
+            ) : (
+              attachable.map((m) => (
+                <div key={m.id} className="flex items-center gap-3 p-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{m.title}</p>
+                    <p className="truncate text-xs text-foreground-muted">
+                      {m.lessonCount} aula{m.lessonCount !== 1 ? "s" : ""}
+                      {m.instructorName ? ` · Prof. ${m.instructorName}` : ""}
+                      {m.usedIn.length > 0 ? ` · em: ${m.usedIn.join(", ")}` : " · não está em nenhum curso"}
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => handleAttach(m.id)} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar</Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </Dialog>
     </div>
   );

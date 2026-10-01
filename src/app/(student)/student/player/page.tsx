@@ -25,7 +25,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
   }
   if (!courseId) redirect("/student/library");
 
-  // Aluno só enxerga módulos e aulas publicados; a equipe vê tudo.
+  // Aluno só enxerga módulos (publicados neste curso) e aulas publicados; a equipe vê tudo.
   const course = await db.course.findUnique({
     where: { id: courseId },
     include: {
@@ -34,10 +34,14 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         where: isStaff ? undefined : { isPublished: true },
         orderBy: { order: "asc" },
         include: {
-          lessons: {
-            where: isStaff ? undefined : { status: "published" },
-            orderBy: { order: "asc" },
-            include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+          module: {
+            include: {
+              lessons: {
+                where: isStaff ? undefined : { status: "published" },
+                orderBy: { order: "asc" },
+                include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+              },
+            },
           },
         },
       },
@@ -55,14 +59,15 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
   if (course.product.status !== "published" && !isStaff && !isEnrolled) redirect("/student/library");
 
   const [progressRows, notes] = await Promise.all([
-    db.lessonProgress.findMany({ where: { userId, lesson: { module: { courseId } } }, select: { lessonId: true, isCompleted: true } }),
-    db.lessonNote.findMany({ where: { userId, lesson: { module: { courseId } } }, select: { lessonId: true, content: true } }),
+    // Progresso é por curso (o mesmo módulo pode estar em outros cursos).
+    db.lessonProgress.findMany({ where: { userId, courseId }, select: { lessonId: true, isCompleted: true } }),
+    db.lessonNote.findMany({ where: { userId, lesson: { module: { courses: { some: { courseId } } } } }, select: { lessonId: true, content: true } }),
   ]);
 
   const completedSet = new Set(progressRows.filter((p) => p.isCompleted).map((p) => p.lessonId));
   const notesMap = Object.fromEntries(notes.map((n) => [n.lessonId, n.content]));
 
-  const modules: PlayerModule[] = course.modules.map((m) => ({
+  const modules: PlayerModule[] = course.modules.map(({ module: m }) => ({
     id: m.id,
     title: m.title,
     lessons: m.lessons.map<PlayerLesson>((l) => {
@@ -88,6 +93,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
 
   return (
     <PlayerClient
+      courseId={course.id}
       courseTitle={course.product.title}
       modules={modules}
       initialLessonId={searchParams.lessonId}

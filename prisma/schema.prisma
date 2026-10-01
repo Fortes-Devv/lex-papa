@@ -143,30 +143,30 @@ enum CouponType {
 // ─────────────────────────────────────────────────────────────────────────
 
 model User {
-  id               String     @id @default(cuid())
-  name             String
-  email            String     @unique
-  passwordHash     String
-  avatar           String?
-  role             UserRole   @default(student)
-  status           UserStatus @default(active)
-  bio              String?
-  phone            String?
-  location         String?
-  website          String?
-  twoFactorEnabled Boolean    @default(false)
-  emailVerified    Boolean    @default(false)
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-  lastLoginAt      DateTime?
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  passwordHash        String
+  avatar              String?
+  role                UserRole   @default(student)
+  status              UserStatus @default(active)
+  bio                 String?
+  phone               String?
+  location            String?
+  website             String?
+  twoFactorEnabled    Boolean    @default(false)
+  emailVerified       Boolean    @default(false)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  lastLoginAt         DateTime?
   lastViewedProductId String?
 
   enrollments        Enrollment[]
   lessonProgress     LessonProgress[]
   certificates       Certificate[]
   orders             Order[]
-  instructedProducts Product[]        @relation("ProductInstructors")
-  instructedModules  Module[]         @relation("ModuleInstructor")
+  instructedProducts Product[]         @relation("ProductInstructors")
+  instructedModules  Module[]          @relation("ModuleInstructor")
   quizAttempts       QuizAttempt[]
   favorites          Favorite[]
   notifications      Notification[]
@@ -282,29 +282,46 @@ model Course {
   targetAudience        String[] @default([])
   updatedAt             DateTime @updatedAt
 
-  modules Module[]
+  modules        CourseModule[]
+  lessonProgress LessonProgress[]
+  quizAttempts   QuizAttempt[]
 
   @@map("courses")
 }
 
+// Módulo é independente de curso: o mesmo módulo (aulas, vídeos, quizzes)
+// pode ser usado em vários cursos via CourseModule. O professor responsável
+// (instructor) é o dono — só ele e admin/moderador editam o conteúdo.
 model Module {
   id           String   @id @default(cuid())
-  courseId     String
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title        String
   description  String?
   coverImage   String?
-  order        Int      @default(0)
-  isPublished  Boolean  @default(false)
   instructorId String?
   instructor   User?    @relation("ModuleInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   lessons Lesson[]
+  courses CourseModule[]
 
-  @@index([courseId])
   @@index([instructorId])
   @@map("modules")
+}
+
+// Ligação curso ↔ módulo. Ordem e publicação são por curso.
+model CourseModule {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order       Int      @default(0)
+  isPublished Boolean  @default(false)
+  addedAt     DateTime @default(now())
+
+  @@unique([courseId, moduleId])
+  @@index([moduleId])
+  @@map("course_modules")
 }
 
 model Lesson {
@@ -385,12 +402,15 @@ model QuizAttempt {
   quiz      Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Progresso é por curso: tentativas contam separadamente em cada curso que usa o módulo.
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   answers   Json // { [questionId]: optionId | optionId[] }
   score     Int // 0-100
   passed    Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  @@index([quizId, userId])
+  @@index([quizId, userId, courseId])
   @@map("quiz_attempts")
 }
 
@@ -441,13 +461,17 @@ model LessonProgress {
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   lessonId       String
   lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  // Progresso separado por curso (a mesma aula pode estar em vários cursos).
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
   isCompleted    Boolean   @default(false)
   watchedSeconds Int       @default(0)
   totalSeconds   Int       @default(0)
   completedAt    DateTime?
   updatedAt      DateTime  @updatedAt
 
-  @@unique([userId, lessonId])
+  @@unique([userId, courseId, lessonId])
+  @@index([lessonId])
   @@map("lesson_progress")
 }
 
@@ -613,16 +637,16 @@ enum AchievementType {
 }
 
 model Achievement {
-  id          String            @id @default(cuid())
+  id          String          @id @default(cuid())
   title       String
   description String
-  icon        String            @default("star")
-  type        AchievementType   @default(custom)
+  icon        String          @default("star")
+  type        AchievementType @default(custom)
   condition   Json?
-  xpReward    Int               @default(0)
-  badgeColor  String            @default("#5E6AD2")
-  isSecret    Boolean           @default(false)
-  createdAt   DateTime          @default(now())
+  xpReward    Int             @default(0)
+  badgeColor  String          @default("#5E6AD2")
+  isSecret    Boolean         @default(false)
+  createdAt   DateTime        @default(now())
 
   users UserAchievement[]
 
@@ -772,12 +796,12 @@ model Article {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   email     String
-  tokenHash String   @unique
+  tokenHash String    @unique
   expiresAt DateTime
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([email])
   @@map("password_reset_tokens")

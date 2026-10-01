@@ -240,7 +240,7 @@ export async function getCourseAnalyticsList(limit?: number, teacherId?: string)
     const enrollmentAgg = await db.enrollment.aggregate({ _avg: { progress: true }, _count: { _all: true }, where: { productId: p.id } });
     const revenueAgg = await db.orderItem.aggregate({ _sum: { totalPrice: true }, where: { productId: p.id, order: { status: "paid" } } });
     const watchAgg = p.course
-      ? await db.lessonProgress.aggregate({ _sum: { watchedSeconds: true }, where: { lesson: { module: { courseId: p.course.id } } } })
+      ? await db.lessonProgress.aggregate({ _sum: { watchedSeconds: true }, where: { courseId: p.course.id } })
       : { _sum: { watchedSeconds: 0 } };
     const completions = await db.enrollment.count({ where: { productId: p.id, status: "completed" } });
     results.push({

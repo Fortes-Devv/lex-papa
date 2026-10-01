@@ -3,6 +3,7 @@ import { BookOpen } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CourseContentEditor, type EditorModule } from "@/components/course/course-content-editor";
+import { loadEditorModules } from "@/lib/editor-modules";
 
 export default async function TeacherContentPage(props: { searchParams: Promise<{ courseId?: string }> }) {
   const searchParams = await props.searchParams;
@@ -11,13 +12,13 @@ export default async function TeacherContentPage(props: { searchParams: Promise<
 
   const userId = session.user.id;
 
-  // Cursos acessíveis: onde é dono (instrutor do produto) OU dono de algum módulo.
+  // Cursos acessíveis: onde é dono (instrutor do produto) OU dono de algum módulo do curso.
   const products = await db.product.findMany({
     where: {
       type: "course",
       OR: [
         { instructors: { some: { id: userId } } },
-        { course: { modules: { some: { instructorId: userId } } } },
+        { course: { modules: { some: { module: { instructorId: userId } } } } },
       ],
     },
     orderBy: { createdAt: "desc" },
@@ -27,48 +28,12 @@ export default async function TeacherContentPage(props: { searchParams: Promise<
   const activeCourseId = searchParams.courseId ?? products.find((p) => p.course)?.course?.id;
   const activeProduct = products.find((p) => p.course?.id === activeCourseId);
 
-  // Dono do curso vê todos os módulos; professor de módulo vê só os dele.
+  // Dono do curso vê todos os módulos (e monta o curso); professor de módulo vê só os dele.
   const isOwner = Boolean(activeProduct?.instructors.some((i) => i.id === userId));
 
-  const modules = activeCourseId
-    ? await db.module.findMany({
-        where: { courseId: activeCourseId, ...(isOwner ? {} : { instructorId: userId }) },
-        orderBy: { order: "asc" },
-        include: { lessons: { orderBy: { order: "asc" } }, instructor: { select: { name: true, avatar: true } } },
-      })
+  const editorModules: EditorModule[] = activeProduct && activeCourseId
+    ? await loadEditorModules(activeCourseId, session.user, { onlyOwn: !isOwner })
     : [];
-
-  const teachers = await db.user.findMany({
-    where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
-
-  const editorModules: EditorModule[] = modules.map((m) => ({
-    id: m.id,
-    title: m.title,
-    order: m.order,
-    isPublished: m.isPublished,
-    instructorId: m.instructorId,
-    instructorName: m.instructor?.name ?? null,
-    instructorAvatar: m.instructor?.avatar ?? null,
-    coverImage: m.coverImage,
-    lessons: m.lessons.map((l) => ({
-      id: l.id,
-      title: l.title,
-      type: l.type,
-      status: l.status,
-      order: l.order,
-      duration: l.duration,
-      videoUrl: l.videoUrl,
-      videoPublicId: l.videoPublicId,
-      pdfUrl: l.pdfUrl,
-      description: l.description,
-      isFree: l.isFree,
-      isPreview: l.isPreview,
-      completionCriteria: l.completionCriteria,
-    })),
-  }));
 
   return (
     <div className="space-y-5">
@@ -99,7 +64,7 @@ export default async function TeacherContentPage(props: { searchParams: Promise<
       )}
 
       {activeCourseId ? (
-        <CourseContentEditor courseId={activeCourseId} modules={editorModules} teachers={teachers} restricted={!isOwner} />
+        <CourseContentEditor courseId={activeCourseId} modules={editorModules} restricted={!isOwner} />
       ) : (
         <div className="py-16 text-center text-sm text-foreground-muted border border-dashed border-border rounded-lg flex flex-col items-center gap-2">
           <BookOpen className="h-8 w-8 text-foreground-subtle" />
