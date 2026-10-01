@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { sanitizeRichHtml } from "@/lib/sanitize";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 
@@ -10,7 +11,7 @@ export default async function CmsPageView(props: { params: Promise<{ slug: strin
   return (
     <div className="max-w-3xl mx-auto px-4 py-12">
       <h1 className="text-3xl font-bold text-foreground mb-6">{page.title}</h1>
-      <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground" dangerouslySetInnerHTML={{ __html: page.content }} />
+      <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap text-foreground" dangerouslySetInnerHTML={{ __html: sanitizeRichHtml(page.content) }} />
     </div>
   );
 }
