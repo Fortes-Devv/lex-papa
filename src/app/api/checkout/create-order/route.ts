@@ -1,38 +1,57 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeOrderTotal } from "@/lib/pricing";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFreeOrder, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 
-interface CardPayload {
-  method: "card";
-  token: string;
-  installments: number;
-  paymentMethodId: string; // ex: "visa", "master"
-  payer: { email: string; identificationType: string; identificationNumber: string };
+const cpf = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 11, "CPF deve ter 11 dígitos.");
+const basePayer = {
+  email: z.string().trim().email("E-mail inválido."),
+  identificationType: z.literal("CPF"),
+  identificationNumber: cpf,
+};
+const namedPayer = z.object({
+  ...basePayer,
+  firstName: z.string().trim().min(1, "Informe o nome.").max(100),
+  lastName: z.string().trim().max(100).optional(),
+});
+const common = { productId: z.string().min(1).max(64), couponCode: z.string().trim().max(64).nullish() };
+
+const payloadSchema = z.discriminatedUnion("method", [
+  z.object({
+    ...common,
+    method: z.literal("card"),
+    token: z.string().min(1).max(200),
+    installments: z.number().int().min(1, "Parcelas inválidas.").max(12, "Máximo de 12 parcelas."),
+    paymentMethodId: z.string().regex(/^[a-z_]{2,30}$/, "Bandeira inválida."), // ex: "visa", "master"
+    payer: z.object(basePayer),
+  }),
+  z.object({ ...common, method: z.literal("pix"), payer: namedPayer }),
+  z.object({ ...common, method: z.literal("boleto"), payer: namedPayer }),
+  z.object({ ...common, method: z.literal("free") }), // total R$ 0 (cupom de 100%)
+]);
+
+// Mensagem amigável para falhas do Mercado Pago (o erro cru vai só para o log).
+function friendlyMpError(err: unknown): string {
+  const text = (err instanceof Error ? err.message : JSON.stringify(err ?? "")).toLowerCase();
+  if (text.includes("identification") || text.includes("cpf")) return "CPF inválido. Confira o número e tente novamente.";
+  if (text.includes("card_token") || text.includes("token")) return "Os dados do cartão expiraram. Preencha o cartão de novo.";
+  if (text.includes("installments")) return "Número de parcelas indisponível para este cartão.";
+  if (text.includes("email")) return "E-mail do pagador inválido.";
+  return "Não foi possível processar o pagamento agora. Tente novamente ou use outra forma de pagamento.";
 }
-interface PixPayload {
-  method: "pix";
-  payer: { email: string; firstName: string; lastName?: string; identificationType: string; identificationNumber: string };
-}
-interface BoletoPayload {
-  method: "boleto";
-  payer: { email: string; firstName: string; lastName?: string; identificationType: string; identificationNumber: string };
-}
-interface FreePayload {
-  method: "free"; // total R$ 0 (cupom de 100%)
-}
-type Payload = { productId: string; couponCode?: string } & (CardPayload | PixPayload | BoletoPayload | FreePayload);
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Faça login para continuar." }, { status: 401 });
 
-  const body = (await request.json().catch(() => null)) as Payload | null;
-  if (!body?.productId || !body?.method) {
-    return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
+  const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Requisição inválida." }, { status: 400 });
   }
+  const body = parsed.data;
 
   let priced;
   try {
@@ -147,7 +166,7 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     await db.order.update({ where: { id: order.id }, data: { status: "failed" } });
-    const msg = err instanceof Error ? err.message : "Erro ao processar pagamento.";
-    return NextResponse.json({ error: msg }, { status: 502 });
+    console.error(`[checkout] falha no Mercado Pago (pedido ${order.id}):`, err);
+    return NextResponse.json({ error: friendlyMpError(err) }, { status: 502 });
   }
 }
