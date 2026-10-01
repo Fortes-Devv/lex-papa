@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 
 /**
  * Baixa o PDF da aula pelo nosso servidor:
@@ -18,12 +19,15 @@ export async function GET(_request: Request, { params }: { params: { lessonId: s
   });
   if (!lesson?.pdfUrl) return new NextResponse("PDF não encontrado.", { status: 404 });
 
-  const isStaff = ["admin", "moderator", "teacher"].includes(session.user.role);
+  const isStaff = isStaffRole(session.user.role);
+  if (!isStaff && (lesson.status !== "published" || !lesson.module.isPublished)) {
+    return new NextResponse("PDF não encontrado.", { status: 404 });
+  }
   if (!isStaff && !lesson.isFree && !lesson.isPreview) {
     const enrollment = await db.enrollment.findUnique({
       where: { userId_productId: { userId: session.user.id, productId: lesson.module.course.productId } },
     });
-    if (!enrollment) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
+    if (!isEnrollmentActive(enrollment)) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
   }
 
   const upstream = await fetch(lesson.pdfUrl);

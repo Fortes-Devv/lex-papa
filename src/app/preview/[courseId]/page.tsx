@@ -47,7 +47,7 @@ export default async function CoursePreviewPage({ params }: { params: { courseId
       type: l.type,
       duration: l.duration,
       videoUrl: l.videoUrl,
-      pdfUrl: l.pdfUrl,
+      hasPdf: !!l.pdfUrl,
       description: l.description,
       isFree: l.isFree,
       locked: false,

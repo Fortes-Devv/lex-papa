@@ -3,11 +3,13 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-client";
 import { toStudentQuiz } from "@/lib/quiz";
+import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 
 export default async function PlayerPage({ searchParams }: { searchParams: { courseId?: string; lessonId?: string } }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
   const userId = session.user.id;
+  const isStaff = isStaffRole(session.user.role);
 
   // Se não veio courseId, usa o curso acessado mais recentemente pelo aluno.
   let courseId = searchParams.courseId;
@@ -21,14 +23,17 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
   }
   if (!courseId) redirect("/student/library");
 
+  // Aluno só enxerga módulos e aulas publicados; a equipe vê tudo.
   const course = await db.course.findUnique({
     where: { id: courseId },
     include: {
       product: true,
       modules: {
+        where: isStaff ? undefined : { isPublished: true },
         orderBy: { order: "asc" },
         include: {
           lessons: {
+            where: isStaff ? undefined : { status: "published" },
             orderBy: { order: "asc" },
             include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
           },
@@ -38,11 +43,14 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
   });
   if (!course) redirect("/student/library");
 
-  // Controle de acesso: precisa estar matriculado (a menos que só veja preview).
+  // Controle de acesso: precisa de matrícula válida (a menos que só veja preview).
   const enrollment = await db.enrollment.findUnique({
     where: { userId_productId: { userId, productId: course.productId } },
   });
-  const isEnrolled = !!enrollment;
+  const isEnrolled = isEnrollmentActive(enrollment);
+
+  // Produto não publicado só abre para equipe ou quem já é matriculado.
+  if (course.product.status !== "published" && !isStaff && !isEnrolled) redirect("/student/library");
 
   const [progressRows, notes] = await Promise.all([
     db.lessonProgress.findMany({ where: { userId, lesson: { module: { courseId } } }, select: { lessonId: true, isCompleted: true } }),
@@ -55,21 +63,25 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
   const modules: PlayerModule[] = course.modules.map((m) => ({
     id: m.id,
     title: m.title,
-    lessons: m.lessons.map<PlayerLesson>((l) => ({
-      id: l.id,
-      title: l.title,
-      type: l.type,
-      duration: l.duration,
-      videoUrl: l.videoUrl,
-      pdfUrl: l.pdfUrl,
-      description: l.description,
-      isFree: l.isFree,
+    lessons: m.lessons.map<PlayerLesson>((l) => {
       // Bloqueada se o aluno não está matriculado e a aula não é gratuita/preview.
-      locked: !isEnrolled && !l.isFree && !l.isPreview,
-      isCompleted: completedSet.has(l.id),
-      note: notesMap[l.id] ?? "",
-      quiz: toStudentQuiz(l.quiz),
-    })),
+      const locked = !isEnrolled && !l.isFree && !l.isPreview;
+      // Aula bloqueada não leva nenhum conteúdo pago para o navegador.
+      return {
+        id: l.id,
+        title: l.title,
+        type: l.type,
+        duration: l.duration,
+        videoUrl: locked ? null : l.videoUrl,
+        hasPdf: !locked && !!l.pdfUrl,
+        description: l.description,
+        isFree: l.isFree,
+        locked,
+        isCompleted: completedSet.has(l.id),
+        note: notesMap[l.id] ?? "",
+        quiz: locked ? null : toStudentQuiz(l.quiz),
+      };
+    }),
   }));
 
   return (
@@ -78,6 +90,7 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
       modules={modules}
       initialLessonId={searchParams.lessonId}
       isEnrolled={isEnrolled}
+      buyHref={`/course?productId=${course.productId}`}
     />
   );
 }

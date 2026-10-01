@@ -26,7 +26,7 @@ export interface PlayerLesson {
   type: string;
   duration: number | null;
   videoUrl: string | null;
-  pdfUrl: string | null;
+  hasPdf: boolean;
   description: string | null;
   isFree: boolean;
   locked: boolean;
@@ -56,13 +56,14 @@ const typeLabels: Record<string, string> = {
 };
 
 export function PlayerClient({
-  courseTitle, modules, initialLessonId, isEnrolled, backHref = "/student/library",
+  courseTitle, modules, initialLessonId, isEnrolled, backHref = "/student/library", buyHref,
 }: {
   courseTitle: string;
   modules: PlayerModule[];
   initialLessonId?: string;
   isEnrolled: boolean;
   backHref?: string;
+  buyHref?: string;
 }) {
   const { success, error } = useToast();
   const router = useRouter();
@@ -264,7 +265,15 @@ export function PlayerClient({
       <div className="flex min-h-0 flex-1">
         {/* Conteúdo principal */}
         <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-          {current.type === "quiz" ? (
+          {current.locked ? (
+            <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 bg-black px-6 text-center">
+              <Lock className="h-10 w-10 text-white/60" />
+              <p className="max-w-sm text-sm text-white/70">Esta aula é exclusiva para alunos matriculados no curso.</p>
+              {buyHref && (
+                <Link href={buyHref}><Button>Garantir minha vaga</Button></Link>
+              )}
+            </div>
+          ) : current.type === "quiz" ? (
             current.quiz ? (
               <QuizPlayer key={current.id} lessonId={current.id} quiz={current.quiz} canSubmit={isEnrolled} onPassed={handleQuizPassed} />
             ) : (
@@ -272,7 +281,7 @@ export function PlayerClient({
                 Este quiz ainda não tem questões cadastradas.
               </div>
             )
-          ) : current.pdfUrl && !current.videoUrl ? (
+          ) : current.hasPdf && !current.videoUrl ? (
             <PdfViewer lessonId={current.id} title={current.title} />
           ) : (
           <div className="relative bg-black">
@@ -337,7 +346,7 @@ export function PlayerClient({
             </div>
 
             {/* Material em PDF anexado a uma aula de vídeo */}
-            {current.videoUrl && current.pdfUrl && (
+            {current.videoUrl && current.hasPdf && (
               <a
                 href={pdfDownloadHref(current.id)}
                 download
