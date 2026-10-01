@@ -3,6 +3,15 @@ import crypto from "crypto";
 import { db } from "@/lib/db";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
+import { logAudit } from "@/lib/audit";
+
+// Status HTTP de um erro do SDK do Mercado Pago, quando houver.
+function mpErrorStatus(err: unknown): number | undefined {
+  if (!err || typeof err !== "object") return undefined;
+  const e = err as { status?: unknown; cause?: { status?: unknown } };
+  const status = e.status ?? e.cause?.status;
+  return typeof status === "number" ? status : undefined;
+}
 
 // Verifica a assinatura x-signature do Mercado Pago (HMAC-SHA256).
 // https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
@@ -65,8 +74,22 @@ export async function POST(request: Request) {
     if (mpOrder.external_reference) {
       await fulfillFromMpOrder(mpOrder.external_reference, mpOrder);
     }
-  } catch {
-    // não relança — evita reenvio infinito do MP por erro transitório
+  } catch (err) {
+    // Erro 4xx da API do MP (ex.: order inexistente) não melhora com reenvio: confirma.
+    // Qualquer outra falha (rede, banco, 5xx) devolve 500 para o MP reenviar
+    // a notificação — senão o aluno pode pagar e ficar sem acesso.
+    const status = mpErrorStatus(err);
+    const permanent = status !== undefined && status >= 400 && status < 500;
+    console.error(`[mp-webhook] falha ao processar notificação ${type ?? "?"}:${dataId}${permanent ? " (permanente, ignorada)" : ""}`, err);
+    await logAudit({
+      action: "payment.webhook_failed",
+      resourceType: "order",
+      resourceId: String(dataId),
+      metadata: { type, permanent, error: err instanceof Error ? err.message : String(err) },
+    });
+    if (!permanent) {
+      return NextResponse.json({ error: "Falha ao processar a notificação." }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ received: true });
