@@ -176,6 +176,25 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
     }
   }
 
+  // Cupom de 100%: não há cobrança, o servidor libera o acesso direto.
+  async function handleFreeEnroll() {
+    setLoading(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch("/api/checkout/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, couponCode, method: "free" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Não foi possível liberar o acesso.");
+      window.location.href = `/checkout/success?order_id=${data.orderId}`;
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Não foi possível liberar o acesso.");
+      setLoading(false);
+    }
+  }
+
   async function handlePayPixOrBoleto(m: "pix" | "boleto") {
     if (!payer.cpf || !payer.firstName) { setSubmitError("Preencha nome e CPF."); return; }
     setLoading(true);
@@ -228,7 +247,16 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
             <h1 className="text-xl font-semibold text-foreground">Finalizar compra</h1>
           </div>
 
-          {!mpPublicKey ? (
+          {total === 0 && discount > 0 ? (
+            <div className="space-y-4 rounded-xl border border-success/40 bg-success-muted/30 p-5">
+              <div>
+                <p className="font-semibold text-foreground">Seu cupom cobre 100% do valor 🎉</p>
+                <p className="mt-1 text-sm text-foreground-muted">Não é preciso pagar nada. Clique abaixo para liberar o curso na sua conta.</p>
+              </div>
+              {submitError && <p className="text-sm text-destructive">{submitError}</p>}
+              <Button className="w-full" size="lg" loading={loading} onClick={handleFreeEnroll}>Liberar meu acesso</Button>
+            </div>
+          ) : !mpPublicKey ? (
             <div className="flex items-start gap-3 rounded-md border border-warning/40 bg-warning-muted/30 p-4 text-sm">
               <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
               <div>

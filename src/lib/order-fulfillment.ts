@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { OrderStatus, PaymentMethod } from "@prisma/client";
+import type { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 
 // Mapeia o status da Order do Mercado Pago para o OrderStatus do nosso schema.
@@ -67,6 +67,25 @@ export async function fulfillFromMpOrder(ourOrderId: string, mpOrder: MpOrderLik
     return status;
   }
 
+  await markPaidAndEnroll(order, data);
+  return status;
+}
+
+// Pedido de valor zero (cupom de 100%): não passa pelo Mercado Pago.
+export async function fulfillFreeOrder(ourOrderId: string) {
+  const order = await db.order.findUnique({ where: { id: ourOrderId }, include: { items: true } });
+  if (!order || order.status === "paid") return;
+  if (Number(order.total) !== 0) throw new Error("Pedido não é gratuito.");
+  await markPaidAndEnroll(order, { status: "paid", paidAt: new Date() });
+}
+
+type OrderWithItems = { id: string; userId: string; couponCode: string | null; items: Array<{ productId: string }> };
+
+// Marca o pedido como pago e libera o acesso. Seguro contra corrida:
+// webhook, polling do checkout, /success e reconcilePendingOrders podem
+// chamar ao mesmo tempo para o mesmo pedido.
+async function markPaidAndEnroll(order: OrderWithItems, data: Prisma.OrderUpdateManyMutationInput) {
+  const notPaid = { id: order.id, status: { not: "paid" as const } };
   await db.$transaction(async (tx) => {
     // "Claim" atômico: só a chamada que efetivamente muda o pedido para pago
     // segue com matrícula e contadores. As concorrentes esperam o lock da
@@ -92,8 +111,6 @@ export async function fulfillFromMpOrder(ourOrderId: string, mpOrder: MpOrderLik
       await tx.coupon.updateMany({ where: { code: order.couponCode }, data: { usedCount: { increment: 1 } } });
     }
   });
-
-  return status;
 }
 
 // Re-consulta no Mercado Pago os pedidos ainda pendentes/processando (com mpOrderId)

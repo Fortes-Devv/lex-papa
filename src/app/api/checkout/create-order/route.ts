@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeOrderTotal } from "@/lib/pricing";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
-import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
+import { fulfillFreeOrder, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 
 interface CardPayload {
   method: "card";
@@ -20,15 +20,14 @@ interface BoletoPayload {
   method: "boleto";
   payer: { email: string; firstName: string; lastName?: string; identificationType: string; identificationNumber: string };
 }
-type Payload = { productId: string; couponCode?: string } & (CardPayload | PixPayload | BoletoPayload);
+interface FreePayload {
+  method: "free"; // total R$ 0 (cupom de 100%)
+}
+type Payload = { productId: string; couponCode?: string } & (CardPayload | PixPayload | BoletoPayload | FreePayload);
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) return NextResponse.json({ error: "Faça login para continuar." }, { status: 401 });
-
-  if (!isMercadoPagoConfigured()) {
-    return NextResponse.json({ error: "Mercado Pago não configurado." }, { status: 500 });
-  }
 
   const body = (await request.json().catch(() => null)) as Payload | null;
   if (!body?.productId || !body?.method) {
@@ -46,6 +45,30 @@ export async function POST(request: Request) {
     where: { userId_productId: { userId: session.user.id, productId: body.productId } },
   });
   if (already) return NextResponse.json({ error: "Você já tem acesso a este curso." }, { status: 400 });
+
+  // Cupom de 100% (total R$ 0): pedido pago e matrícula na hora, sem Mercado Pago.
+  if (priced.total === 0) {
+    const freeOrder = await db.order.create({
+      data: {
+        userId: session.user.id,
+        subtotal: priced.subtotal,
+        discount: priced.discount,
+        total: 0,
+        status: "pending",
+        couponCode: priced.coupon?.code,
+        items: { create: [{ productId: body.productId, quantity: 1, unitPrice: priced.subtotal, totalPrice: priced.subtotal, discount: priced.discount }] },
+      },
+    });
+    await fulfillFreeOrder(freeOrder.id);
+    return NextResponse.json({ orderId: freeOrder.id, status: "processed", free: true });
+  }
+
+  if (body.method === "free") {
+    return NextResponse.json({ error: "Este pedido não é gratuito." }, { status: 400 });
+  }
+  if (!isMercadoPagoConfigured()) {
+    return NextResponse.json({ error: "Mercado Pago não configurado." }, { status: 500 });
+  }
 
   // Cria o pedido local (pending)
   const order = await db.order.create({
