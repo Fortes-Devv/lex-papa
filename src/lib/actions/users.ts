@@ -32,7 +32,7 @@ export async function createUserByAdmin(input: { name: string; email: string; ro
   if (PRIVILEGED_ROLES.includes(role) && session.user.role !== "admin") return forbidden;
 
   const email = input.email.trim().toLowerCase();
-  const existing = await db.user.findUnique({ where: { email } });
+  const existing = await db.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } } });
   if (existing) {
     return { success: false as const, error: "Este email já está cadastrado." };
   }
@@ -77,7 +77,7 @@ export async function updateUserEmail(userId: string, email: string) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return { success: false as const, error: "Email inválido." };
   }
-  const existing = await db.user.findUnique({ where: { email: normalized } });
+  const existing = await db.user.findFirst({ where: { email: { equals: normalized, mode: "insensitive" } } });
   if (existing && existing.id !== userId) {
     return { success: false as const, error: "Este email já está em uso por outra conta." };
   }

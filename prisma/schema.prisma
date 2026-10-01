@@ -806,3 +806,15 @@ model PasswordResetToken {
   @@index([email])
   @@map("password_reset_tokens")
 }
+
+// Tentativas para limite de requisições (login, cadastro, "esqueci a senha").
+// Uma linha por tentativa; linhas antigas são limpas automaticamente.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+  @@index([createdAt])
+  @@map("rate_limit_hits")
+}

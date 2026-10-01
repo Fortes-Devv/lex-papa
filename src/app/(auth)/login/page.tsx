@@ -31,7 +31,9 @@ export default function LoginPage() {
         redirect: false,
       });
       if (result?.error) {
-        error("Email ou senha inválidos.");
+        error(result.code === "rate_limited"
+          ? "Muitas tentativas de login. Aguarde 15 minutos e tente novamente."
+          : "Email ou senha inválidos.");
         return;
       }
       const session = await getSession();

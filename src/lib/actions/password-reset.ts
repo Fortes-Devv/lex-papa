@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { passwordResetEmailHtml } from "@/lib/email-templates";
+import { clientIp, hitRateLimit, normalizeEmail } from "@/lib/rate-limit";
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -24,8 +25,13 @@ function appUrl(): string | null {
 export async function requestPasswordReset(rawEmail: string) {
   // Sempre responde sucesso genérico: não revela se o e-mail existe nem a configuração.
   const generic = { success: true as const };
-  const email = rawEmail.trim().toLowerCase();
+  const email = normalizeEmail(rawEmail);
   if (!email) return generic;
+
+  // Limite: 3 pedidos por e-mail e 10 por IP por hora (excesso é ignorado em silêncio).
+  const byEmail = await hitRateLimit(`reset:email:${email}`, 3, 60 * 60);
+  const byIp = await hitRateLimit(`reset:ip:${await clientIp()}`, 10, 60 * 60);
+  if (!byEmail.allowed || !byIp.allowed) return generic;
 
   const baseUrl = appUrl();
   if (!isEmailConfigured() || !baseUrl) {
