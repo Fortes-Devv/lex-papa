@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 
-export default async function CmsPageView({ params }: { params: { slug: string } }) {
+export default async function CmsPageView(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const page = await db.cMSPage.findUnique({ where: { slug: params.slug } });
   if (!page || page.status !== "published") notFound();
 

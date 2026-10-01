@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CourseContentEditor, type EditorModule } from "@/components/course/course-content-editor";
 
-export default async function TeacherContentPage({ searchParams }: { searchParams: { courseId?: string } }) {
+export default async function TeacherContentPage(props: { searchParams: Promise<{ courseId?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   if (!session?.user) return null;
 

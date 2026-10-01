@@ -24,7 +24,7 @@ export async function requestPasswordReset(email: string) {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
     await db.passwordResetToken.create({ data: { email, tokenHash, expiresAt } });
 
-    const host = headers().get("host");
+    const host = (await headers()).get("host");
     const proto = host?.includes("localhost") ? "http" : "https";
     const link = `${proto}://${host}/reset-password?token=${token}`;
 

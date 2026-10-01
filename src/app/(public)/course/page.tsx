@@ -32,7 +32,8 @@ const DEFAULT_BENEFITS = [
   { icon: Award, title: "Preço de lançamento", desc: "Condição especial por tempo limitado." },
 ];
 
-export default async function PublicCoursePage({ searchParams }: { searchParams: { slug?: string; productId?: string } }) {
+export default async function PublicCoursePage(props: { searchParams: Promise<{ slug?: string; productId?: string }> }) {
+  const searchParams = await props.searchParams;
   const product = await db.product.findFirst({
     where: {
       type: "course",

@@ -8,7 +8,8 @@ import { PlayerClient, type PlayerModule, type PlayerLesson } from "@/app/(stude
 import { toStudentQuiz } from "@/lib/quiz";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
 
-export default async function CoursePreviewPage({ params }: { params: { courseId: string } }) {
+export default async function CoursePreviewPage(props: { params: Promise<{ courseId: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
   // Só equipe (admin/moderador/professor) pode pré-visualizar sem matrícula.

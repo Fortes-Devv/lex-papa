@@ -6,7 +6,8 @@ import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
 
-export default async function PlayerPage({ searchParams }: { searchParams: { courseId?: string; lessonId?: string } }) {
+export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
   const userId = session.user.id;

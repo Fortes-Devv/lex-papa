@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils/cn";
 
-export default async function BlogArticleView({ params }: { params: { slug: string } }) {
+export default async function BlogArticleView(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const article = await db.article.findUnique({ where: { slug: params.slug } });
   if (!article || article.status !== "published") notFound();
 

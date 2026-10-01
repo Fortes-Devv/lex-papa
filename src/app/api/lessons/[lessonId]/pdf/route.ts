@@ -9,7 +9,8 @@ import { isEnrollmentActive, isStaffRole } from "@/lib/access";
  * - força o download com nome de arquivo legível (Content-Disposition);
  * - evita expor a URL do Cloudinary direto para o aluno.
  */
-export async function GET(_request: Request, { params }: { params: { lessonId: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ lessonId: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) return new NextResponse("Faça login para baixar.", { status: 401 });
 

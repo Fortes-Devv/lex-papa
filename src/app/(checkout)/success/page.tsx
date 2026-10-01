@@ -11,7 +11,8 @@ import { SuccessPoller } from "@/components/checkout/success-poller";
 
 export const dynamic = "force-dynamic";
 
-export default async function CheckoutSuccessPage({ searchParams }: { searchParams: { order_id?: string } }) {
+export default async function CheckoutSuccessPage(props: { searchParams: Promise<{ order_id?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
   if (!searchParams.order_id) redirect("/");

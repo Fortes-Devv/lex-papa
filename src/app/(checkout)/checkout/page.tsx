@@ -4,7 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CheckoutClient } from "@/components/checkout/checkout-client";
 
-export default async function CheckoutPage({ searchParams }: { searchParams: { productId?: string } }) {
+export default async function CheckoutPage(props: { searchParams: Promise<{ productId?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   const { productId } = searchParams;
 
