@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "@/app/(student)/student/player/player-client";
 import { toStudentQuiz } from "@/lib/quiz";
+import { resolveLessonVideoUrl } from "@/lib/bunny";
 
 export default async function CoursePreviewPage({ params }: { params: { courseId: string } }) {
   const session = await auth();
@@ -46,7 +47,7 @@ export default async function CoursePreviewPage({ params }: { params: { courseId
       title: l.title,
       type: l.type,
       duration: l.duration,
-      videoUrl: l.videoUrl,
+      videoUrl: resolveLessonVideoUrl(l),
       hasPdf: !!l.pdfUrl,
       description: l.description,
       isFree: l.isFree,

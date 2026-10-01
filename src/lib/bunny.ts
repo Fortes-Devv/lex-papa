@@ -49,6 +49,40 @@ export function getBunnyPlaybackUrl(videoId: string): string {
   return `https://${cdnHostname}/${videoId}/playlist.m3u8`;
 }
 
+const PLAYBACK_TOKEN_TTL = 4 * 60 * 60; // 4h: cobre aulas longas com pausas
+
+// URL de reprodução assinada (Token Authentication da Pull Zone do Bunny).
+// Usa o formato por diretório (/bcdn_token=...&token_path=/{videoId}/) para que
+// os segmentos HLS (caminhos relativos ao playlist) herdem o token.
+// token = base64url(sha256(securityKey + token_path + expires + "token_path=" + token_path))
+// Só chame no servidor, depois de checar o acesso do usuário.
+// Sem BUNNY_STREAM_TOKEN_KEY, devolve a URL pública (antes de ativar o token no painel).
+export function signBunnyPlaybackUrl(videoId: string): string {
+  const { cdnHostname } = cfg();
+  const key = process.env.BUNNY_STREAM_TOKEN_KEY;
+  const path = `/${videoId}/playlist.m3u8`;
+  if (!key) return `https://${cdnHostname}${path}`;
+
+  const tokenPath = `/${videoId}/`;
+  const expires = Math.floor(Date.now() / 1000) + PLAYBACK_TOKEN_TTL;
+  const token = crypto
+    .createHash("sha256")
+    .update(key + tokenPath + expires + `token_path=${tokenPath}`)
+    .digest("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=/g, "");
+  return `https://${cdnHostname}/bcdn_token=${token}&token_path=${encodeURIComponent(tokenPath)}&expires=${expires}${path}`;
+}
+
+// Resolve a URL que o player deve tocar: vídeos do Bunny saem assinados; os demais, como estão.
+export function resolveLessonVideoUrl(lesson: { videoUrl: string | null; videoProvider: string | null; videoPublicId: string | null }): string | null {
+  if (lesson.videoProvider === "bunny" && lesson.videoPublicId && isBunnyConfigured()) {
+    return signBunnyPlaybackUrl(lesson.videoPublicId);
+  }
+  return lesson.videoUrl;
+}
+
 export function getBunnyThumbnailUrl(videoId: string): string {
   const { cdnHostname } = cfg();
   return `https://${cdnHostname}/${videoId}/thumbnail.jpg`;

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-client";
 import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
+import { resolveLessonVideoUrl } from "@/lib/bunny";
 
 export default async function PlayerPage({ searchParams }: { searchParams: { courseId?: string; lessonId?: string } }) {
   const session = await auth();
@@ -72,7 +73,7 @@ export default async function PlayerPage({ searchParams }: { searchParams: { cou
         title: l.title,
         type: l.type,
         duration: l.duration,
-        videoUrl: locked ? null : l.videoUrl,
+        videoUrl: locked ? null : resolveLessonVideoUrl(l),
         hasPdf: !locked && !!l.pdfUrl,
         description: l.description,
         isFree: l.isFree,
