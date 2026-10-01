@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 export async function computeOrderTotal(productId: string, couponCode?: string | null) {
   const product = await db.product.findUnique({ where: { id: productId } });
   if (!product) throw new Error("Produto não encontrado.");
+  // Só vende produto publicado (a API pode ser chamada direto, sem passar pela página).
+  if (product.status !== "published") throw new Error("Este curso não está disponível para compra.");
 
   const subtotal = Number(product.price);
   let discount = 0;
