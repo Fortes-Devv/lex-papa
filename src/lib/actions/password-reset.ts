@@ -6,20 +6,10 @@ import { db } from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
 import { passwordResetEmailHtml } from "@/lib/email-templates";
 import { clientIp, hitRateLimit, normalizeEmail } from "@/lib/rate-limit";
+import { siteUrl } from "@/lib/site-url";
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-// URL pública do site, de configuração — NUNCA do header Host da requisição
-// (host header poisoning: o atacante faria o link apontar para o domínio dele).
-function appUrl(): string | null {
-  const fromEnv = process.env.APP_URL?.trim().replace(/\/+$/, "");
-  if (fromEnv) return fromEnv;
-  // Fallback: domínio de produção definido pela própria Vercel.
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  if (process.env.NODE_ENV !== "production") return "http://localhost:3000";
-  return null;
 }
 
 export async function requestPasswordReset(rawEmail: string) {
@@ -33,7 +23,7 @@ export async function requestPasswordReset(rawEmail: string) {
   const byIp = await hitRateLimit(`reset:ip:${await clientIp()}`, 10, 60 * 60);
   if (!byEmail.allowed || !byIp.allowed) return generic;
 
-  const baseUrl = appUrl();
+  const baseUrl = siteUrl();
   if (!isEmailConfigured() || !baseUrl) {
     console.error("[password-reset] envio indisponível: configure RESEND_API_KEY, EMAIL_FROM e APP_URL.");
     return generic;

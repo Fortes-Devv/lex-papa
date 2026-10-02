@@ -98,7 +98,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
       modules={modules}
       initialLessonId={searchParams.lessonId}
       isEnrolled={isEnrolled}
-      buyHref={`/course?productId=${course.productId}`}
+      buyHref={`/cursos/${course.product.slug}`}
     />
   );
 }

@@ -4,8 +4,11 @@ import { SessionProvider } from "@/components/providers/session-provider";
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/source-serif-4";
 import "@/styles/globals.css";
+import { siteUrl } from "@/lib/site-url";
 
 export const metadata: Metadata = {
+  // Base das URLs absolutas (prévia de link, canonical).
+  metadataBase: new URL(siteUrl() ?? "https://lexcursos.site"),
   title: { default: "LEX Concursos — Sua aprovação começa aqui", template: "%s | LEX Concursos" },
   description: "A plataforma de preparação para concursos públicos com cursos para GMF, PPCE, TJCE, GCM e muito mais.",
   keywords: ["concursos públicos", "preparatório", "GMF", "PPCE", "TJCE", "GCM", "direito", "segurança pública"],
