@@ -1,55 +1,88 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { CheckCircle, XCircle, ExternalLink } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { CreditCard, PlayCircle, Image as ImageIcon, Mail, Database, BarChart3, MessageCircle, AlertCircle } from "lucide-react";
+import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { isBunnyConfigured } from "@/lib/bunny";
+import { isEmailConfigured } from "@/lib/email";
+import { PageHeader, Pill, ButtonLink } from "@/components/admin/page-kit";
+import { formatRelativeDate, cn } from "@/lib/utils/cn";
 
-export default async function AdminIntegrationsPage() {
+type Status = "ok" | "error" | "off";
+const STATUS_LABEL: Record<Status, string> = { ok: "Conectado", error: "Erro", off: "Não configurado" };
+
+// Integrações (modelo 5h): status real de cada serviço. ?status=conectadas|erro|pendentes, ?categoria=.
+export default async function AdminIntegrationsPage(props: { searchParams: Promise<{ status?: string; categoria?: string }> }) {
+  const { status, categoria } = await props.searchParams;
   const settings = await getSettings();
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const lastFailure = await db.auditLog.findFirst({ where: { action: "payment.webhook_failed" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
+  const lastPaid = await db.order.findFirst({ where: { status: "paid" }, orderBy: { paidAt: "desc" }, select: { paidAt: true } });
+  const videos = await db.lesson.count({ where: { videoProvider: "bunny", videoPublicId: { not: null } } });
+  const recentFailure = lastFailure && lastFailure.createdAt > dayAgo;
   const cloudinaryOk = Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
-  const mpOk = isMercadoPagoConfigured();
+  const tokenOn = Boolean(process.env.BUNNY_STREAM_TOKEN_KEY);
 
-  const integrations = [
-    { name: "Neon (Postgres)", description: "Banco de dados da plataforma", connected: true, category: "Infraestrutura", configHint: "Configurado via DATABASE_URL", href: null },
-    { name: "Cloudinary", description: "Upload e streaming de vídeos e imagens", connected: cloudinaryOk, category: "Mídia", configHint: "Configure CLOUDINARY_* nas variáveis de ambiente", href: null },
-    { name: "Mercado Pago", description: "Processamento de pagamentos (Checkout Bricks)", connected: mpOk, category: "Pagamento", configHint: "Configure MERCADOPAGO_* nas variáveis de ambiente", href: null },
-    { name: "Google Analytics", description: "Rastreamento de visitas e eventos", connected: Boolean(settings.integrations.googleAnalyticsId), category: "Analytics", configHint: "Configure em Configurações → Integrações", href: "/admin/settings" },
-    { name: "Meta Pixel", description: "Conversões e remarketing", connected: Boolean(settings.integrations.metaPixelId), category: "Marketing", configHint: "Configure em Configurações → Integrações", href: "/admin/settings" },
-    { name: "WhatsApp", description: "Botão de suporte via WhatsApp", connected: Boolean(settings.integrations.whatsappNumber), category: "Comunicação", configHint: "Configure em Configurações → Integrações", href: "/admin/settings" },
+  const services: { id: string; name: string; desc: string; category: string; icon: React.ReactNode; status: Status; detail: string; href?: string }[] = [
+    {
+      id: "mp", name: "Gateway de pagamento", desc: "Mercado Pago · Pix, boleto e cartão", category: "pagamentos", icon: <CreditCard className="h-4 w-4" />,
+      status: !isMercadoPagoConfigured() ? "off" : recentFailure ? "error" : "ok",
+      detail: recentFailure ? `Último erro: webhook · ${formatRelativeDate(lastFailure!.createdAt.toISOString())}` : lastPaid?.paidAt ? `Última venda: ${formatRelativeDate(lastPaid.paidAt.toISOString())}` : "Nenhuma venda ainda",
+      href: recentFailure ? "/admin/logs?nivel=erro&origem=pagamentos" : undefined,
+    },
+    {
+      id: "bunny", name: "Hospedagem de vídeo", desc: "Bunny Stream · upload, HLS e player", category: "video", icon: <PlayCircle className="h-4 w-4" />,
+      status: isBunnyConfigured() ? "ok" : "off",
+      detail: `${videos} vídeo${videos !== 1 ? "s" : ""} · links ${tokenOn ? "protegidos por token" : "SEM token (configure BUNNY_STREAM_TOKEN_KEY)"}`,
+    },
+    { id: "cloudinary", name: "Imagens e PDFs", desc: "Cloudinary · capas, avatares e materiais", category: "video", icon: <ImageIcon className="h-4 w-4" />, status: cloudinaryOk ? "ok" : "off", detail: cloudinaryOk ? "Uploads ativos" : "Configure CLOUDINARY_*" },
+    { id: "email", name: "E-mail transacional", desc: "Resend · redefinição de senha", category: "email", icon: <Mail className="h-4 w-4" />, status: isEmailConfigured() ? "ok" : "off", detail: isEmailConfigured() ? "Envio ativo" : "Configure RESEND_API_KEY e EMAIL_FROM" },
+    { id: "db", name: "Banco de dados", desc: "Neon Postgres", category: "infra", icon: <Database className="h-4 w-4" />, status: "ok", detail: "Conectado (esta página carregou do banco)" },
+    { id: "ga", name: "Google Analytics", desc: "Visitas e conversões", category: "marketing", icon: <BarChart3 className="h-4 w-4" />, status: settings.integrations.googleAnalyticsId ? "ok" : "off", detail: settings.integrations.googleAnalyticsId || "Sem ID configurado", href: "/admin/settings?secao=integracoes" },
+    { id: "wa", name: "WhatsApp", desc: "Botão de suporte", category: "marketing", icon: <MessageCircle className="h-4 w-4" />, status: settings.integrations.whatsappNumber ? "ok" : "off", detail: settings.integrations.whatsappNumber || "Sem número configurado", href: "/admin/settings?secao=integracoes" },
   ];
 
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Integrações</h1>
-        <p className="text-sm text-foreground-muted mt-0.5">Serviços conectados à plataforma</p>
-      </div>
+  const visible = services.filter((s) =>
+    (!status || (status === "conectadas" && s.status === "ok") || (status === "erro" && s.status === "error") || (status === "pendentes" && s.status === "off"))
+    && (!categoria || s.category === categoria),
+  );
+  const connected = services.filter((s) => s.status === "ok").length;
+  const errors = services.filter((s) => s.status === "error").length;
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {integrations.map((integration) => (
-          <div key={integration.name} className="rounded-lg border border-border bg-card p-4 flex flex-col gap-3">
+  return (
+    <div>
+      <PageHeader title="Integrações" subtitle={`${connected} conectada${connected !== 1 ? "s" : ""}${errors ? ` · ${errors} com erro` : ""}`} />
+
+      {recentFailure && (
+        <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[14px] border border-danger/30 bg-danger-soft p-4 dark:bg-danger/10">
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-danger text-white"><AlertCircle className="h-4 w-4" /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] font-bold text-foreground">Webhook de pagamento falhou {formatRelativeDate(lastFailure!.createdAt.toISOString())}</p>
+            <p className="text-xs text-foreground-muted">O Mercado Pago reenvia sozinho; se um aluno pagou e não recebeu acesso, confira em Pedidos.</p>
+          </div>
+          <ButtonLink href="/admin/logs?nivel=erro&origem=pagamentos" variant="dark">Ver log</ButtonLink>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:gap-4 xl:grid-cols-3">
+        {visible.map((s) => (
+          <div key={s.id} className={cn("flex flex-col rounded-[14px] border bg-card p-4", s.status === "error" ? "border-danger/40" : "border-border")}>
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold text-foreground">{integration.name}</p>
-                <Badge variant="secondary" className="text-2xs mt-1">{integration.category}</Badge>
-              </div>
-              {integration.connected ? (
-                <Badge variant="success"><CheckCircle className="h-3 w-3" />Ativo</Badge>
-              ) : (
-                <Badge variant="secondary"><XCircle className="h-3 w-3" />Inativo</Badge>
-              )}
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-navy text-white">{s.icon}</span>
+              <Pill tone={s.status === "ok" ? "ok" : s.status === "error" ? "danger" : "gray"}>{STATUS_LABEL[s.status]}</Pill>
             </div>
-            <p className="text-xs text-foreground-muted flex-1">{integration.description}</p>
-            <p className="text-2xs text-foreground-subtle">{integration.configHint}</p>
-            {integration.href && (
-              <Link href={integration.href}>
-                <Button variant="outline" size="sm" className="w-full" rightIcon={<ExternalLink className="h-3.5 w-3.5" />}>Configurar</Button>
+            <p className="mt-3 text-[15px] font-bold text-foreground">{s.name}</p>
+            <p className="text-xs text-foreground-muted">{s.desc}</p>
+            <p className="mt-3 flex-1 text-[11.5px] text-foreground-muted">{s.detail}</p>
+            {s.href && (
+              <Link href={s.href} className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-line-strong text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
+                {s.status === "error" ? "Ver log" : "Configurar"}
               </Link>
             )}
           </div>
         ))}
+        {visible.length === 0 && <p className="col-span-full py-12 text-center text-sm text-foreground-muted">Nenhuma integração neste filtro.</p>}
       </div>
     </div>
   );

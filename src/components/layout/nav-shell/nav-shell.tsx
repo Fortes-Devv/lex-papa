@@ -26,13 +26,25 @@ const PROFILE_PATH = { admin: "/admin/profile", teacher: "/teacher/profile" } as
 // Telas de detalhe têm o próprio cabeçalho no celular (‹ voltar · título · ⋯).
 const DETAIL_ROUTES = [/^\/admin\/courses\/[^/]+$/, /^\/teacher\/content$/];
 
-function filterHref(section: NavSection, f: NavFilter) {
-  return f.param ? `${section.href}?${f.param}=${f.value}` : section.href;
+// Parâmetros de URL de um grupo de filtros.
+const groupParams = (filters: NavFilter[]) => Array.from(new Set(filters.map((f) => f.param).filter(Boolean))) as string[];
+
+function isFilterActive(f: NavFilter, params: URLSearchParams, gParams: string[]) {
+  if (f.value === undefined) return gParams.every((p) => !params.get(p)); // "Todos"
+  if (f.isDefault && !params.get(f.param!)) return true;
+  return params.get(f.param!) === f.value;
 }
 
-function isFilterActive(f: NavFilter, params: URLSearchParams, sectionParams: string[]) {
-  if (!f.param) return sectionParams.every((p) => !params.get(p));
-  return params.get(f.param) === f.value;
+// Link do filtro: troca só o parâmetro do próprio grupo e mantém os outros (e a busca).
+// `toggle`: clicar num filtro já ativo de um grupo extra o desliga.
+function filterHref(section: NavSection, f: NavFilter, params: URLSearchParams, gParams: string[], toggle = false) {
+  const next = new URLSearchParams(params.toString());
+  next.delete("novo");
+  if (f.value === undefined) gParams.forEach((p) => next.delete(p));
+  else if (toggle && params.get(f.param!) === f.value) next.delete(f.param!);
+  else next.set(f.param!, f.value);
+  const qs = next.toString();
+  return `${section.href}${qs ? `?${qs}` : ""}`;
 }
 
 function useWide() {
@@ -52,7 +64,6 @@ function PanelBody({ section, data, size, onNavigate }: { section: NavSection; d
   const router = useRouter();
   const params = useSearchParams();
   const pathname = usePathname();
-  const sectionParams = Array.from(new Set((section.filters ?? []).map((f) => f.param).filter(Boolean))) as string[];
   const [q, setQ] = useState(params.get("q") ?? "");
   useEffect(() => setQ(params.get("q") ?? ""), [params]);
 
@@ -75,24 +86,47 @@ function PanelBody({ section, data, size, onNavigate }: { section: NavSection; d
         </form>
       )}
 
-      {section.filters && (
-        <div className="flex flex-col gap-0.5">
-          {section.filters.map((f) => {
-            const active = isFilterActive(f, params, sectionParams);
-            const count = data?.counts?.[f.countKey];
-            return (
-              <Link key={f.label} href={filterHref(section, f)} onClick={onNavigate} aria-current={active ? "true" : undefined}
-                className={cn("flex items-center rounded-[10px] px-2.5 font-semibold transition-colors", item,
-                  active ? "bg-brand-soft font-bold text-brand-dark dark:bg-brand/15 dark:text-brand" : "text-ink-2 hover:bg-background dark:text-foreground-muted")}>
-                {f.label}
-                {count !== undefined && <span className={cn("ml-auto text-[11px] font-semibold", active ? "text-brand-dark dark:text-brand" : "text-ink-faint")}>{count}</span>}
-              </Link>
-            );
-          })}
-        </div>
-      )}
+      {[
+        ...(section.filters ? [{ title: section.filtersTitle, filters: section.filters, extra: false }] : []),
+        ...(section.filterGroups ?? []).map((g) => ({ ...g, extra: true })),
+      ].map((group, gi) => {
+        const gp = groupParams(group.filters);
+        return (
+          <div key={gi} className={gi > 0 ? "pt-3" : undefined}>
+            {group.title && <p className="px-2.5 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[1.2px] text-ink-faint">{group.title}</p>}
+            <div className="flex flex-col gap-0.5">
+              {group.filters.map((f) => {
+                const active = isFilterActive(f, params, gp);
+                const count = f.countKey ? data?.counts?.[f.countKey] : undefined;
+                return (
+                  <Link key={f.label} href={filterHref(section, f, params, gp, group.extra)} onClick={onNavigate} aria-current={active ? "true" : undefined}
+                    className={cn("flex items-center rounded-[10px] px-2.5 font-semibold transition-colors", item,
+                      active ? "bg-brand-soft font-bold text-brand-dark dark:bg-brand/15 dark:text-brand" : "text-ink-2 hover:bg-background dark:text-foreground-muted")}>
+                    {f.label}
+                    {count !== undefined && <span className={cn("ml-auto text-[11px] font-semibold", active ? "text-brand-dark dark:text-brand" : "text-ink-faint")}>{count}</span>}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
 
       {!section.filters && section.hint && <p className="px-1 text-xs leading-relaxed text-foreground-muted">{section.hint}</p>}
+
+      {section.shortcuts && section.shortcuts.length > 0 && (
+        <>
+          <p className="px-2.5 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-[1.2px] text-ink-faint">Atalhos</p>
+          <div className="flex flex-col gap-1.5">
+            {section.shortcuts.map((s) => (
+              <Link key={s.href} href={s.href} onClick={onNavigate}
+                className="flex h-10 items-center gap-2 rounded-[10px] border border-line px-3 text-[13px] font-semibold text-foreground transition-colors hover:border-brand hover:bg-background dark:border-white/10">
+                <Plus className="h-3.5 w-3.5 text-brand" /> {s.label}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {data?.recents && data.recents.length > 0 && (
         <>
@@ -272,11 +306,11 @@ export function NavShell({ area, user, pendingOrders = 0, panelData = {}, childr
         {!isDetail && current.filters && (
           <div className="no-scrollbar flex gap-2 overflow-x-auto px-[18px] pt-3 lg:hidden">
             {current.filters.map((f) => {
-              const params = Array.from(new Set(current.filters!.map((x) => x.param).filter(Boolean))) as string[];
-              const active = isFilterActive(f, searchParams, params);
-              const count = data?.counts?.[f.countKey];
+              const gp = groupParams(current.filters!);
+              const active = isFilterActive(f, searchParams, gp);
+              const count = f.countKey ? data?.counts?.[f.countKey] : undefined;
               return (
-                <Link key={f.label} href={filterHref(current, f)}
+                <Link key={f.label} href={filterHref(current, f, searchParams, gp)}
                   className={cn("inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-xs font-semibold",
                     active ? "border-navy bg-navy text-white" : "border-line-strong bg-card text-ink-2 dark:border-white/10 dark:text-foreground-muted")}>
                   {f.label}{count !== undefined ? ` · ${count}` : ""}

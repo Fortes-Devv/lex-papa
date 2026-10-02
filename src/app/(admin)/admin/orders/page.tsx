@@ -10,7 +10,7 @@ export default async function AdminOrdersPage() {
 
   const orders = await db.order.findMany({
     orderBy: { createdAt: "desc" },
-    include: { user: true, items: { include: { product: true }, take: 1 } },
+    include: { user: { select: { name: true, email: true, avatar: true } }, items: { include: { product: { select: { title: true } } }, take: 1 } },
   });
 
   const dtos: OrderDTO[] = orders.map((o) => ({
@@ -22,6 +22,12 @@ export default async function AdminOrdersPage() {
     total: Number(o.total),
     status: o.status,
     createdAt: o.createdAt.toISOString(),
+    paidAt: o.paidAt?.toISOString() ?? null,
+    email: o.user.email,
+    couponCode: o.couponCode,
+    discount: Number(o.discount),
+    mpOrderId: o.mpOrderId,
+    mpStatusDetail: o.mpStatusDetail,
   }));
 
   return <OrdersClient orders={dtos} />;

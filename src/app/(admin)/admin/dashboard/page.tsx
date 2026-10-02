@@ -1,147 +1,106 @@
 export const dynamic = "force-dynamic";
-import {
-  Users, DollarSign, BookOpen, TrendingUp, ShoppingCart, ArrowUpRight,
-} from "lucide-react";
-import { StatCard } from "@/components/ui/stat-card";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
-import { formatCurrency, formatRelativeDate } from "@/lib/utils/cn";
-import { db } from "@/lib/db";
-import { getDashboardMetrics, getRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
-import { CdnImg } from "@/components/ui/cdn-img";
+import Link from "next/link";
+import { DollarSign, UserPlus, AlertTriangle, Plus } from "lucide-react";
+import { requireArea } from "@/lib/auth-guards";
+import { getDashboardData, PERIOD_LABEL, type DashboardPeriod } from "@/lib/dashboard";
+import { MetricCard, PageHeader, SectionCard, ButtonLink } from "@/components/admin/page-kit";
+import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils/cn";
 
-const metricIcons = [
-  <DollarSign key="revenue" className="h-4 w-4" />,
-  <Users key="students" className="h-4 w-4" />,
-  <BookOpen key="enrollments" className="h-4 w-4" />,
-  <TrendingUp key="completion" className="h-4 w-4" />,
-  <ShoppingCart key="ticket" className="h-4 w-4" />,
-  <ArrowUpRight key="refunds" className="h-4 w-4" />,
-];
-const metricFormats: ("currency" | "number" | "percent")[] = [
-  "currency", "number", "number", "percent", "currency", "percent",
-];
+const PERIODS: DashboardPeriod[] = ["hoje", "7d", "30d", "ano"];
 
-const statusColors: Record<string, "success" | "warning" | "destructive" | "secondary"> = {
-  paid: "success", pending: "warning", processing: "warning", refunded: "destructive", failed: "destructive", cancelled: "secondary", chargeback: "destructive",
-};
-const statusLabels: Record<string, string> = {
-  paid: "Pago", pending: "Pendente", processing: "Processando", refunded: "Reembolsado", failed: "Falhou", cancelled: "Cancelado", chargeback: "Chargeback",
-};
+function greeting() {
+  const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Fortaleza" }).format(new Date()));
+  return hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+}
 
-export default async function AdminDashboardPage() {
-  // Sequencial de propósito: o driver WebSocket do Neon estoura o pool com
-  // muitas queries em paralelo (cada função abaixo já dispara várias internas).
-  const metrics = await getDashboardMetrics();
-  const revenueSeries = await getRevenueSeries(30);
-  const topCourses = await getCourseAnalyticsList(3);
-  const recentOrders = await db.order.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    include: { user: true, items: { include: { product: true }, take: 1 } },
-  });
-  const recentUsers = await db.user.findMany({ where: { role: "student" }, orderBy: { createdAt: "desc" }, take: 4 });
+const change = (v: number | null, suffix: string) =>
+  v === null ? undefined : `${v >= 0 ? "▲" : "▼"} ${Math.abs(v)}%${suffix}`;
 
-  const revenueTotal = revenueSeries.reduce((s, d) => s + d.revenue, 0);
+const ACTIVITY_ICON = {
+  paid: { icon: <DollarSign className="h-3.5 w-3.5" />, cls: "bg-ok-soft text-ok-text dark:bg-ok/15 dark:text-ok" },
+  student: { icon: <UserPlus className="h-3.5 w-3.5" />, cls: "bg-brand-soft text-brand-dark dark:bg-brand/15 dark:text-brand" },
+  error: { icon: <AlertTriangle className="h-3.5 w-3.5" />, cls: "bg-danger-soft text-danger dark:bg-danger/15" },
+} as const;
+
+export default async function AdminDashboardPage(props: { searchParams: Promise<{ periodo?: string }> }) {
+  const session = await requireArea("admin");
+  const { periodo } = await props.searchParams;
+  const period: DashboardPeriod = PERIODS.includes(periodo as DashboardPeriod) ? (periodo as DashboardPeriod) : "7d";
+  const d = await getDashboardData(period);
+
+  const today = new Intl.DateTimeFormat("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Fortaleza" }).format(new Date());
+  const firstName = (session.user.name ?? "").split(" ")[0] || "Admin";
+  const max = Math.max(1, ...d.series.map((b) => b.paid + b.pending));
+  const prevLabel = period === "hoje" ? " vs ontem" : period === "ano" ? " vs ano anterior" : " vs período anterior";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Dashboard</h1>
-        <p className="text-sm text-foreground-muted mt-0.5">Visão geral da plataforma — últimos 30 dias</p>
+    <div>
+      <PageHeader
+        title={`${greeting()}, ${firstName}`}
+        subtitle={<><span className="capitalize">{today}</span> · {PERIOD_LABEL[period]}</>}
+        actions={<ButtonLink href="/admin/courses?novo=1" variant="primary"><Plus className="h-4 w-4" /> Novo curso</ButtonLink>}
+      />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <MetricCard label="Receita" value={formatCurrency(d.revenue)} hint={change(d.revenueChange, prevLabel)} hintTone={d.revenueChange !== null && d.revenueChange < 0 ? "down" : "up"} />
+        <MetricCard label="Pedidos" value={d.orders} hint={d.waiting > 0 ? `${d.waiting} aguardando pagamento` : "nenhum pendente"} hintTone={d.waiting > 0 ? "brand" : "muted"} />
+        <MetricCard label="Novos alunos" value={d.newStudents} hint={change(d.newStudentsChange, "")} hintTone={d.newStudentsChange !== null && d.newStudentsChange < 0 ? "down" : "up"} />
+        <MetricCard dark label="Horas assistidas" value={`${d.watchedHours.toLocaleString("pt-BR")}h`} hint={d.topCourse ? `Mais visto: ${d.topCourse}` : "sem aulas assistidas no período"} hintTone="brand" />
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {metrics.map((metric, i) => (
-          <StatCard key={metric.label} metric={metric} format={metricFormats[i]} icon={metricIcons[i]} />
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card padding="none" className="xl:col-span-2">
-          <div className="p-5 border-b border-border flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Receita — últimos 30 dias</h2>
-              <p className="text-xs text-foreground-muted mt-0.5">Total: {formatCurrency(revenueTotal)}</p>
-            </div>
-          </div>
-          <div className="p-5">
-            <RevenueAreaChart data={revenueSeries} />
-          </div>
-        </Card>
-
-        <Card padding="none">
-          <div className="p-5 border-b border-border">
-            <h2 className="text-sm font-semibold text-foreground">Cursos em destaque</h2>
-            <p className="text-xs text-foreground-muted mt-0.5">Por matrículas</p>
-          </div>
-          <div className="p-5 space-y-4">
-            {topCourses.map((course) => (
-              <div key={course.productId} className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <CdnImg width={32} src={course.thumbnail} className="h-8 w-8 rounded object-cover shrink-0" alt={course.title} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{course.title}</p>
-                    <p className="text-2xs text-foreground-muted">{course.enrollments} alunos</p>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <SectionCard
+          title={period === "ano" ? "Vendas por mês" : "Vendas por dia"}
+          action={
+            <span className="flex items-center gap-3 text-[11px] text-foreground-muted">
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-brand" /> Pagos</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-line-strong dark:bg-white/20" /> Pendentes</span>
+            </span>
+          }
+        >
+          {d.series.every((b) => b.paid + b.pending === 0) ? (
+            <p className="px-[18px] pb-10 pt-6 text-center text-sm text-foreground-muted">Nenhuma venda no período.</p>
+          ) : (
+            <div className="flex h-[260px] items-end gap-1.5 px-[18px] pb-3 pt-4 sm:gap-2.5">
+              {d.series.map((b, i) => {
+                const total = b.paid + b.pending;
+                const last = i === d.series.length - 1;
+                return (
+                  <div key={i} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5" title={`${b.label}: ${formatCurrency(b.paid)} pagos · ${formatCurrency(b.pending)} pendentes`}>
+                    <div className="flex w-full flex-col justify-end overflow-hidden rounded-t-md" style={{ height: `${Math.max(2, (total / max) * 100)}%` }}>
+                      {b.pending > 0 && <div className="w-full bg-line-strong dark:bg-white/20" style={{ height: `${(b.pending / total) * 100}%` }} />}
+                      {b.paid > 0 && <div className="w-full bg-brand" style={{ height: `${(b.paid / total) * 100}%` }} />}
+                    </div>
+                    <span className={cn("truncate text-[10px]", last ? "font-bold text-foreground" : "text-foreground-muted")}>{b.label}</span>
                   </div>
-                </div>
-                <Progress value={course.completionRate} size="xs" showLabel label={`${course.completionRate.toFixed(0)}% conclusão`} />
-              </div>
-            ))}
-            {topCourses.length === 0 && <p className="text-xs text-foreground-muted text-center py-4">Nenhum curso ainda.</p>}
-          </div>
-        </Card>
-      </div>
+                );
+              })}
+            </div>
+          )}
+        </SectionCard>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card padding="none" className="xl:col-span-2">
-          <div className="p-5 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Pedidos recentes</h2>
-            <a href="/admin/orders" className="text-xs text-primary hover:underline">Ver todos</a>
-          </div>
-          <div className="divide-y divide-border">
-            {recentOrders.map((order) => (
-              <div key={order.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                <Avatar src={order.user.avatar ?? undefined} name={order.user.name} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{order.user.name}</p>
-                  <p className="text-xs text-foreground-muted truncate">{order.items[0]?.product.title}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-semibold text-foreground">{formatCurrency(Number(order.total))}</p>
-                  <p className="text-xs text-foreground-muted">{formatRelativeDate(order.createdAt.toISOString())}</p>
-                </div>
-                <Badge variant={statusColors[order.status] ?? "secondary"}>{statusLabels[order.status] ?? order.status}</Badge>
-              </div>
-            ))}
-            {recentOrders.length === 0 && <p className="text-xs text-foreground-muted text-center py-8">Nenhum pedido ainda.</p>}
-          </div>
-        </Card>
-
-        <Card padding="none">
-          <div className="p-5 border-b border-border flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">Novos usuários</h2>
-            <a href="/admin/users" className="text-xs text-primary hover:underline">Ver todos</a>
-          </div>
-          <div className="divide-y divide-border">
-            {recentUsers.map((user) => (
-              <div key={user.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/30 transition-colors">
-                <Avatar src={user.avatar ?? undefined} name={user.name} size="sm" status="online" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{user.name}</p>
-                  <p className="text-xs text-foreground-muted truncate">{user.email}</p>
-                </div>
-                <Badge variant={user.status === "active" ? "success" : "secondary"} dot>
-                  {user.status === "active" ? "Ativo" : "Inativo"}
-                </Badge>
-              </div>
-            ))}
-            {recentUsers.length === 0 && <p className="text-xs text-foreground-muted text-center py-8">Nenhum aluno ainda.</p>}
-          </div>
-        </Card>
+        <SectionCard title="Atividade recente">
+          {d.activity.length === 0 ? (
+            <p className="px-[18px] pb-8 pt-4 text-center text-sm text-foreground-muted">Nada por aqui ainda.</p>
+          ) : (
+            <ul className="divide-y divide-line-soft px-[18px] pb-2 dark:divide-white/10">
+              {d.activity.map((a, i) => (
+                <li key={i}>
+                  <Link href={a.href} className="flex items-start gap-3 py-3 hover:opacity-80">
+                    <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-full", ACTIVITY_ICON[a.kind].cls)}>{ACTIVITY_ICON[a.kind].icon}</span>
+                    <span className="min-w-0">
+                      <span className="block text-[13.5px] font-semibold text-foreground">{a.title}</span>
+                      <span className="block truncate text-[11.5px] text-foreground-muted">
+                        {a.detail} · {formatRelativeDate(a.at.toISOString())}
+                        {a.kind === "error" && <span className="text-brand"> · ver log</span>}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
       </div>
     </div>
   );

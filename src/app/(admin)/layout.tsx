@@ -8,6 +8,7 @@ const ROLE_LABEL: Record<string, string> = { admin: "Administrador", moderator: 
 async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: number }> {
   // Sequencial: o driver Neon não gosta de muitas queries em paralelo.
   const courseStatus = await db.product.groupBy({ by: ["status"], where: { type: "course" }, _count: true });
+  const productGroups = await db.product.groupBy({ by: ["status", "type"], _count: true });
   const recentCourses = await db.product.findMany({
     where: { type: "course", course: { isNot: null } },
     orderBy: { updatedAt: "desc" },
@@ -15,6 +16,7 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
     select: { title: true, status: true, course: { select: { id: true, _count: { select: { modules: true } } } } },
   });
   const userRoles = await db.user.groupBy({ by: ["role"], _count: true });
+  const userStatus = await db.user.groupBy({ by: ["status"], _count: true });
   const orderStatus = await db.order.groupBy({ by: ["status"], _count: true });
 
   const count = <T extends { _count: number }>(rows: T[], pick: (r: T) => boolean) => rows.filter(pick).reduce((s, r) => s + r._count, 0);
@@ -36,12 +38,25 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
           mark: "LEX",
         })),
       },
+      products: {
+        counts: {
+          all: count(productGroups, () => true),
+          active: count(productGroups, (r) => r.status === "published"),
+          inactive: count(productGroups, (r) => r.status !== "published"),
+          course: count(productGroups, (r) => r.type === "course"),
+          bundle: count(productGroups, (r) => r.type === "bundle"),
+          subscription: count(productGroups, (r) => r.type === "subscription"),
+        },
+      },
       users: {
         counts: {
           all: count(userRoles, () => true),
           student: count(userRoles, (r) => r.role === "student"),
           teacher: count(userRoles, (r) => r.role === "teacher"),
           admin: count(userRoles, (r) => r.role === "admin" || r.role === "moderator"),
+          active: count(userStatus, (r) => r.status === "active"),
+          inactive: count(userStatus, (r) => r.status === "inactive"),
+          banned: count(userStatus, (r) => r.status === "banned"),
         },
       },
       orders: {
@@ -50,6 +65,7 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
           pending: pendingOrders,
           paid: count(orderStatus, (r) => r.status === "paid"),
           cancelled: count(orderStatus, (r) => r.status === "cancelled" || r.status === "failed"),
+          refunded: count(orderStatus, (r) => r.status === "refunded" || r.status === "chargeback"),
         },
       },
     },
