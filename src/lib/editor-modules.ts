@@ -1,6 +1,7 @@
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { resolveLessonThumbUrl, resolveLessonVideoUrl } from "@/lib/bunny";
+import { syncPendingDurations } from "@/lib/video-durations";
 import type { EditorModule } from "@/components/course/module-board/types";
 
 type SessionUser = Pick<Session["user"], "id" | "role">;
@@ -11,6 +12,7 @@ type SessionUser = Pick<Session["user"], "id" | "role">;
 // - previewUrl: assinada (Bunny com token), para a prévia no editor funcionar.
 export async function loadEditorModules(courseId: string, user: SessionUser, opts: { onlyOwn?: boolean } = {}): Promise<EditorModule[]> {
   const isManager = user.role === "admin" || user.role === "moderator";
+  await syncPendingDurations(courseId);
   const links = await db.courseModule.findMany({
     where: { courseId, ...(opts.onlyOwn ? { module: { instructorId: user.id } } : {}) },
     orderBy: { order: "asc" },

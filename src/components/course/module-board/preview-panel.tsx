@@ -1,6 +1,6 @@
 "use client";
 
-import { Play, FileText, Download, MoreHorizontal, Plus, Pencil, EyeOff, Video } from "lucide-react";
+import { Play, FileText, Download, MoreHorizontal, Plus, Pencil, EyeOff, Video, HardDrive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dropdown, type DropdownItem } from "@/components/ui/dropdown";
 import { VideoPlayer } from "@/components/player/video-player";
@@ -17,6 +17,7 @@ interface PreviewPanelProps {
   onSelectLesson: (lesson: EditorLesson) => void;
   onEditModule?: () => void;
   onAddLesson?: () => void;
+  onImportDrive?: () => void;
   lessonMenu: (lesson: EditorLesson, index: number) => DropdownItem[];
   headerMenu?: React.ReactNode; // ⋯ do módulo (folha do celular)
   className?: string;
@@ -74,7 +75,7 @@ function PreviewStage({ lesson, playing, onPlay }: { lesson: EditorLesson | null
   );
 }
 
-export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onEditModule, onAddLesson, lessonMenu, headerMenu, className }: PreviewPanelProps) {
+export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onEditModule, onAddLesson, onImportDrive, lessonMenu, headerMenu, className }: PreviewPanelProps) {
   const hint = mod.usedIn.length > 0;
   const meta = [
     mod.instructorName ? `Prof. ${mod.instructorName.split(" ")[0]}` : null,
@@ -105,6 +106,7 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
             <Video className="h-6 w-6 text-foreground-subtle" />
             <p className="text-sm text-foreground-muted">Nenhuma aula ainda</p>
             {onAddLesson && <Button size="sm" onClick={onAddLesson} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>}
+            {onImportDrive && <Button size="sm" variant="outline" onClick={onImportDrive} leftIcon={<HardDrive className="h-3.5 w-3.5" />}>Importar do Google Drive</Button>}
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -150,6 +152,7 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
         <div className="flex shrink-0 gap-2 border-t border-border p-3">
           {onEditModule && <Button variant="outline" className="h-12 flex-1 rounded-xl lg:h-9 lg:rounded-lg" onClick={onEditModule} leftIcon={<Pencil className="h-3.5 w-3.5" />}>Editar módulo</Button>}
           {onAddLesson && <Button className="h-12 flex-1 rounded-xl bg-[#1f2b3a] text-white hover:bg-[#1f2b3a]/90 lg:h-9 lg:rounded-lg" onClick={onAddLesson} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>}
+          {onImportDrive && <Button variant="outline" aria-label="Importar do Google Drive" title="Importar do Google Drive" className="h-12 shrink-0 rounded-xl px-3 lg:h-9 lg:rounded-lg" onClick={onImportDrive}><HardDrive className="h-4 w-4" /></Button>}
         </div>
       )}
     </div>

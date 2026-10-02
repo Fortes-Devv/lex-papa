@@ -125,3 +125,31 @@ export async function getBunnyStorageBytes(): Promise<number | null> {
     return null;
   }
 }
+
+// O Bunny baixa o vídeo de uma URL (ex.: Google Drive) e processa sozinho.
+// A API de fetch não devolve o GUID: usamos um marcador único no título e
+// buscamos o vídeo criado; depois o título vira o nome real.
+export async function fetchBunnyVideoFromUrl(url: string, title: string): Promise<{ videoId: string }> {
+  const { libraryId, apiKey } = cfg();
+  const headers = { AccessKey: apiKey, "Content-Type": "application/json", accept: "application/json" };
+  const tag = `lex-${crypto.randomBytes(6).toString("hex")}`;
+  const res = await fetch(`${API_BASE}/library/${libraryId}/videos/fetch`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ url, title: tag }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { success?: boolean; message?: string };
+  if (!res.ok || body.success === false) throw new Error(`O Bunny não aceitou o link${body.message ? `: ${body.message}` : ` (${res.status})`}.`);
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 1000));
+    const list = await fetch(`${API_BASE}/library/${libraryId}/videos?page=1&itemsPerPage=5&search=${tag}`, { headers, cache: "no-store" });
+    const data = (await list.json().catch(() => ({}))) as { items?: { guid: string; title: string }[] };
+    const video = data.items?.find((v) => v.title === tag);
+    if (video) {
+      await fetch(`${API_BASE}/library/${libraryId}/videos/${video.guid}`, { method: "POST", headers, body: JSON.stringify({ title }) }).catch(() => {});
+      return { videoId: video.guid };
+    }
+  }
+  throw new Error("O Bunny recebeu o link, mas o vídeo não apareceu na biblioteca. Tente de novo em instantes.");
+}

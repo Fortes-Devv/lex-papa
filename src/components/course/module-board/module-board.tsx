@@ -6,7 +6,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSe
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
   ChevronLeft, MoreHorizontal, Plus, Layers, Play, ImagePlus, RotateCcw, ArrowUp, ArrowDown,
-  Eye, EyeOff, Pencil, Unlink, Trash2,
+  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { CdnImg } from "@/components/ui/cdn-img";
 import { MediaUploader } from "@/components/upload/media-uploader";
 import { useToast } from "@/components/ui/toast";
 import { LessonFormDialog, type LessonFormValue } from "@/components/course/lesson-form-dialog";
+import { DriveImportDialog } from "@/components/course/drive-import-dialog";
 import { uploadToCloudinary } from "@/lib/cloudinary-upload";
 import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
@@ -96,6 +97,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
   const [attachable, setAttachable] = useState<Awaited<ReturnType<typeof listAttachableModules>>>([]);
   const [attachLoading, setAttachLoading] = useState(false);
   // Aula (nova / editar)
+  const [driveFor, setDriveFor] = useState<EditorModule | null>(null);
   const [lessonDialog, setLessonDialog] = useState<{ open: boolean; moduleId: string | null; initial: LessonFormValue | null }>({ open: false, moduleId: null, initial: null });
 
   const report = useCallback((result: ActionResult, ok?: string) => {
@@ -228,6 +230,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       if (m.coverImage) items.push({ label: "Voltar para capa automática", icon: <RotateCcw className="h-3.5 w-3.5" />, onClick: async () => report(await setModuleCover(m.id, null), "Capa automática restaurada.") });
       items.push({ label: "Editar módulo", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => openEditModule(m) });
       items.push({ label: "Adicionar aula", icon: <Plus className="h-3.5 w-3.5" />, onClick: () => openNewLesson(m) });
+      items.push({ label: "Importar do Google Drive", icon: <HardDrive className="h-3.5 w-3.5" />, onClick: () => setDriveFor(m) });
     }
     if (!restricted) {
       items.push({ label: "Mover para cima", icon: <ArrowUp className="h-3.5 w-3.5" />, disabled: index === 0, onClick: async () => report(await moveModule(header.courseId, m.id, "up")) });
@@ -308,6 +311,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       onSelectLesson={selectLesson}
       onEditModule={selected.canEdit ? () => openEditModule(selected) : undefined}
       onAddLesson={selected.canEdit ? () => openNewLesson(selected) : undefined}
+      onImportDrive={selected.canEdit ? () => setDriveFor(selected) : undefined}
       lessonMenu={lessonMenu(selected)}
       className={isDesktop ? "max-h-[calc(100vh-120px)]" : "min-h-0 flex-1 rounded-none border-0"}
       headerMenu={!isDesktop ? (
@@ -556,6 +560,11 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
           moduleId={lessonDialog.moduleId}
           initial={lessonDialog.initial}
         />
+      )}
+
+      {/* ── Diálogo: importar do Google Drive ── */}
+      {driveFor && (
+        <DriveImportDialog open onClose={() => setDriveFor(null)} moduleId={driveFor.id} moduleTitle={driveFor.title} />
       )}
 
       {/* Anuncia o módulo selecionado para leitores de tela */}
