@@ -58,7 +58,8 @@ export async function createCourse(input: {
       slug,
       shortDescription: input.shortDescription,
       description: input.description,
-      thumbnail: input.thumbnail || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800",
+      // Sem capa enviada, usa o logo (antes: foto de demonstração do Unsplash).
+      thumbnail: input.thumbnail || "/logo.png",
       price: input.price,
       comparePrice: input.comparePrice,
       level: input.level,
