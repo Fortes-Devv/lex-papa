@@ -1,3 +1,5 @@
+// Importação do Google Drive (server action desta página) chama Drive e Bunny.
+export const maxDuration = 60;
 import Link from "next/link";
 import { BookOpen, ExternalLink, MonitorPlay } from "lucide-react";
 import { auth } from "@/lib/auth";

@@ -1,4 +1,6 @@
 export const dynamic = "force-dynamic";
+// Importação do Google Drive (server action desta página) chama Drive e Bunny.
+export const maxDuration = 60;
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireArea } from "@/lib/auth-guards";
