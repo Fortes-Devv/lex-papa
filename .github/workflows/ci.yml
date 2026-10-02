@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24 # mesma versão do ambiente de desenvolvimento (npm 11 gera o lockfile)
           cache: npm
       - run: npm ci
       - name: Type-check
