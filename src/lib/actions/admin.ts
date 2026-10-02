@@ -11,5 +11,7 @@ export async function savePlatformSettings(data: PlatformSettingsData) {
   await logAudit({ actorId: session.user.id, action: "settings.updated", resourceType: "settings" });
   revalidatePath("/admin/settings");
   revalidatePath("/admin/integrations");
+  revalidatePath("/termos");
+  revalidatePath("/privacidade");
   return { success: true as const };
 }

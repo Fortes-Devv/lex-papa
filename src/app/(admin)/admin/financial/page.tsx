@@ -1,7 +1,10 @@
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
-import { getFinanceData, type FinancePeriod } from "@/lib/financial";
-import { MetricCard, PageHeader, SectionCard, Pill, tableHeadClass } from "@/components/admin/page-kit";
+import { financeRange, getFinanceData, getTeacherPayouts, type FinancePeriod } from "@/lib/financial";
+import { processPayouts } from "@/lib/actions/finance";
+import { requireArea } from "@/lib/auth-guards";
+import { ActionButton } from "@/components/admin/action-button";
+import { MetricCard, PageHeader, SectionCard, Pill, ButtonLink, tableHeadClass } from "@/components/admin/page-kit";
 import { formatCurrency, formatDate, cn } from "@/lib/utils/cn";
 
 const PERIODS: FinancePeriod[] = ["atual", "anterior", "ano"];
@@ -37,9 +40,14 @@ function CumulativeChart({ current, previous }: { current: { label: string; valu
 }
 
 export default async function AdminFinancialPage(props: { searchParams: Promise<{ mes?: string; visao?: string }> }) {
+  const session = await requireArea("admin");
   const { mes, visao } = await props.searchParams;
   const period: FinancePeriod = PERIODS.includes(mes as FinancePeriod) ? (mes as FinancePeriod) : "atual";
   const d = await getFinanceData(period);
+  const range = financeRange(period);
+  const payouts = await getTeacherPayouts(range.start, range.end);
+  const isAdmin = session.user.role === "admin";
+  const initials = (n: string) => n.split(/s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   const coupons = visao === "cupons" ? await db.coupon.findMany({ orderBy: { createdAt: "desc" } }) : [];
 
   const methodsCard = (
@@ -75,14 +83,16 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
 
   return (
     <div>
-      <PageHeader title={d.label} subtitle="Receita bruta, reembolsos e líquido do período" />
+      <PageHeader title={d.label} subtitle="Receita bruta, taxas e líquido do período"
+        actions={<ButtonLink href={`/api/admin/export?tipo=financeiro&mes=${period}`} download>Exportar relatório</ButtonLink>} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
         <MetricCard label="Receita bruta" value={formatCurrency(d.gross)}
           hint={d.grossChange === null ? `${d.salesCount} venda${d.salesCount !== 1 ? "s" : ""}` : `${d.grossChange >= 0 ? "▲" : "▼"} ${Math.abs(d.grossChange)}% vs ${d.prevLabel}`}
           hintTone={d.grossChange !== null && d.grossChange < 0 ? "down" : d.grossChange === null ? "muted" : "up"} />
-        <MetricCard label="Reembolsos e chargebacks" value={d.refunded > 0 ? `− ${formatCurrency(d.refunded)}` : formatCurrency(0)} valueTone={d.refunded > 0 ? "danger" : undefined} hint={`${d.refundedShare.toString().replace(".", ",")}% da receita`} />
-        <MetricCard label="Líquido" value={formatCurrency(d.net)} hint="antes das taxas do Mercado Pago" />
+        <MetricCard label="Taxas + reembolsos" value={`− ${formatCurrency(d.fees + d.refunded)}`} valueTone={d.fees + d.refunded > 0 ? "danger" : undefined}
+          hint={`${d.deductionsShare.toString().replace(".", ",")}% da receita · taxa estimada ${d.feePercent.toString().replace(".", ",")}%`} />
+        <MetricCard label="Líquido" value={formatCurrency(d.net)} hint={payouts.totalDue > 0 ? `${formatCurrency(payouts.totalDue)} a repassar` : "sem repasses pendentes"} hintTone={payouts.totalDue > 0 ? "brand" : "muted"} />
       </div>
 
       {visao === "cupons" ? (
@@ -117,9 +127,35 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
               <CumulativeChart current={d.current} previous={d.previous} />
             )}
           </SectionCard>
-          {methodsCard}
+          <SectionCard title="Repasses pendentes" action={<span className="text-[11px] text-foreground-muted">comissão {payouts.rate}%</span>}>
+            {payouts.rows.length === 0 ? (
+              <p className="px-[18px] pb-8 pt-2 text-center text-sm text-foreground-muted">Nenhuma venda com módulo de professor no período.</p>
+            ) : (
+              <ul className="divide-y divide-line-soft px-[18px] dark:divide-white/10">
+                {payouts.rows.map((t) => (
+                  <li key={t.teacherId} className="flex items-center gap-3 py-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-[11px] font-extrabold text-brand">{initials(t.name)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-semibold text-foreground">Prof. {t.name.split(" ")[0]}</span>
+                      <span className="block text-[11px] text-foreground-muted">{t.modules} módulo{t.modules !== 1 ? "s" : ""}{t.paid > 0 ? ` · já pago ${formatCurrency(t.paid)}` : ""}</span>
+                    </span>
+                    <span className={cn("text-[13.5px] font-bold", t.due > 0 ? "text-foreground" : "text-foreground-muted")}>{formatCurrency(t.due)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {isAdmin && payouts.totalDue > 0 && (
+              <div className="p-[18px] pt-2">
+                <ActionButton action={processPayouts.bind(null, period)} okText="Repasses registrados como pagos." className="w-full"
+                  confirmText={`Registrar ${formatCurrency(payouts.totalDue)} como pagos aos professores (${d.label})? Faça o PIX/transferência fora da plataforma.`}>
+                  Processar repasses · {formatCurrency(payouts.totalDue)}
+                </ActionButton>
+              </div>
+            )}
+          </SectionCard>
         </div>
       )}
+      {!visao && <div className="mt-4">{methodsCard}</div>}
     </div>
   );
 }

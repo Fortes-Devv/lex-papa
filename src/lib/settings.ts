@@ -20,12 +20,29 @@ export interface PlatformSettingsData {
     metaPixelId: string;
     whatsappNumber: string;
   };
+  // Dados da empresa: aparecem nos Termos de Uso e na Política de Privacidade.
+  company: {
+    legalName: string;
+    cnpj: string;
+    address: string;
+    city: string; // foro (cidade/UF)
+    contactEmail: string;
+    dpoName: string;
+    dpoEmail: string;
+  };
+  // Financeiro: estimativa de taxas e comissão de repasse aos professores.
+  finance: {
+    gatewayFeePercent: number; // % médio cobrado pelo Mercado Pago
+    teacherCommissionPercent: number; // % da venda repassado aos donos dos módulos
+  };
 }
 
 export const DEFAULT_SETTINGS: PlatformSettingsData = {
   general: { name: "LEX Concursos", tagline: "Sua aprovação começa aqui", supportEmail: "suporte@lexconcursos.com", currency: "BRL" },
   gamification: { xpEnabled: true, achievementsEnabled: true, rankingEnabled: true, streakEnabled: true, xpPerLesson: 50, xpPerCourse: 1000 },
   integrations: { googleAnalyticsId: "", metaPixelId: "", whatsappNumber: "" },
+  company: { legalName: "", cnpj: "", address: "", city: "Fortaleza/CE", contactEmail: "", dpoName: "", dpoEmail: "" },
+  finance: { gatewayFeePercent: 4.99, teacherCommissionPercent: 30 },
 };
 
 export async function getSettings(): Promise<PlatformSettingsData> {
@@ -37,6 +54,8 @@ export async function getSettings(): Promise<PlatformSettingsData> {
     general: { ...DEFAULT_SETTINGS.general, ...stored.general },
     gamification: { ...DEFAULT_SETTINGS.gamification, ...stored.gamification },
     integrations: { ...DEFAULT_SETTINGS.integrations, ...stored.integrations },
+    company: { ...DEFAULT_SETTINGS.company, ...stored.company },
+    finance: { ...DEFAULT_SETTINGS.finance, ...stored.finance },
   };
 }
 

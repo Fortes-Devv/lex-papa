@@ -161,6 +161,7 @@ model User {
   lastLoginAt         DateTime?
   lastViewedProductId String?
 
+  payouts            Payout[]          @relation("TeacherPayouts")
   enrollments        Enrollment[]
   lessonProgress     LessonProgress[]
   certificates       Certificate[]
@@ -352,6 +353,7 @@ model Lesson {
 
   materials      Material[]
   quiz           Quiz?
+  downloads      DownloadEvent[]
   lessonProgress LessonProgress[]
   notes          LessonNote[]
   comments       Comment[]
@@ -821,4 +823,35 @@ model RateLimitHit {
   @@index([key, createdAt])
   @@index([createdAt])
   @@map("rate_limit_hits")
+}
+
+// Repasse pago a um professor (Financeiro › Repasses). O valor devido é calculado
+// a partir das vendas; aqui fica o registro do que já foi pago, por período.
+model Payout {
+  id          String   @id @default(cuid())
+  teacherId   String
+  teacher     User     @relation("TeacherPayouts", fields: [teacherId], references: [id], onDelete: Cascade)
+  amount      Decimal  @db.Decimal(10, 2)
+  periodStart DateTime
+  periodEnd   DateTime
+  paidAt      DateTime @default(now())
+  createdById String?
+  note        String?
+
+  @@index([teacherId, periodStart])
+  @@map("payouts")
+}
+
+// Download de PDF (aula ou material anexado) — alimenta "PDFs baixados" no Analytics.
+model DownloadEvent {
+  id         String   @id @default(cuid())
+  userId     String?
+  lessonId   String
+  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  materialId String?
+  createdAt  DateTime @default(now())
+
+  @@index([lessonId, createdAt])
+  @@index([createdAt])
+  @@map("download_events")
 }

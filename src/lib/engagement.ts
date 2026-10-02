@@ -35,6 +35,11 @@ export async function getCourseEngagement(courseId: string, days: number) {
   const activeStudents = new Set(inPeriod.map((p) => p.userId)).size;
   const watchedHours = Math.round(inPeriod.reduce((s, p) => s + p.watchedSeconds, 0) / 3600);
   const completedLessons = progress.filter((p) => p.isCompleted && p.completedAt && p.completedAt >= since).length;
+  // PDFs baixados no período (tabela nova: se ainda não existir, conta 0).
+  let pdfDownloads = 0;
+  try {
+    pdfDownloads = await db.downloadEvent.count({ where: { createdAt: { gte: since }, lesson: { module: { courses: { some: { courseId } } } } } });
+  } catch { /* migration ainda não aplicada */ }
 
   // Tabela por módulo.
   const now = Date.now();
@@ -72,6 +77,7 @@ export async function getCourseEngagement(courseId: string, days: number) {
     watchedHours,
     avgCompletion: Math.round(enrollAgg._avg.progress ?? 0),
     completedLessons,
+    pdfDownloads,
     modules,
   };
 }

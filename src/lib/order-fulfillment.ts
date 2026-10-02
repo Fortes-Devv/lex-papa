@@ -79,6 +79,14 @@ export async function fulfillFreeOrder(ourOrderId: string) {
   await markPaidAndEnroll(order, { status: "paid", paidAt: new Date() });
 }
 
+// Liberação manual pelo admin (ex.: pagamento confirmado fora do Mercado Pago).
+export async function fulfillManualOrder(ourOrderId: string) {
+  const order = await db.order.findUnique({ where: { id: ourOrderId }, include: { items: true } });
+  if (!order) throw new Error("Pedido não encontrado.");
+  if (order.status === "paid") return;
+  await markPaidAndEnroll(order, { status: "paid", paidAt: new Date(), mpStatusDetail: "liberado manualmente" });
+}
+
 type OrderWithItems = { id: string; userId: string; couponCode: string | null; items: Array<{ productId: string }> };
 
 // Marca o pedido como pago e libera o acesso. Seguro contra corrida:

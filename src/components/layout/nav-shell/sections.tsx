@@ -187,6 +187,10 @@ export const ADMIN_SECTIONS: NavSection[] = [
       { label: "Geral", param: "secao", value: "geral", isDefault: true },
       { label: "Área do aluno", param: "secao", value: "aluno" },
       { label: "Integrações", param: "secao", value: "integracoes" },
+      { label: "Empresa", param: "secao", value: "empresa" },
+      { label: "Pagamentos", param: "secao", value: "pagamentos" },
+      { label: "Equipe", param: "secao", value: "equipe" },
+      { label: "Segurança", param: "secao", value: "seguranca" },
     ],
   },
 ];

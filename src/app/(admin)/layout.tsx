@@ -1,6 +1,7 @@
 import { NavShell, type PanelData } from "@/components/layout/nav-shell/nav-shell";
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
+import { getBunnyStorageBytes } from "@/lib/bunny";
 
 const ROLE_LABEL: Record<string, string> = { admin: "Administrador", moderator: "Moderador" };
 
@@ -18,6 +19,7 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
   const userRoles = await db.user.groupBy({ by: ["role"], _count: true });
   const userStatus = await db.user.groupBy({ by: ["status"], _count: true });
   const orderStatus = await db.order.groupBy({ by: ["status"], _count: true });
+  const storage = await getBunnyStorageBytes();
 
   const count = <T extends { _count: number }>(rows: T[], pick: (r: T) => boolean) => rows.filter(pick).reduce((s, r) => s + r._count, 0);
   const pendingOrders = count(orderStatus, (r) => r.status === "pending" || r.status === "processing");
@@ -25,6 +27,7 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
   return {
     pendingOrders,
     panel: {
+      dashboard: storage === null ? {} : { footer: { label: "Armazenamento de vídeo", value: `${(storage / 1024 ** 3).toFixed(1).replace(".", ",")} GB usados no Bunny` } },
       courses: {
         counts: {
           all: count(courseStatus, () => true),

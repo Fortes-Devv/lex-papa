@@ -111,3 +111,17 @@ export function resolveLessonThumbUrl(lesson: { videoProvider: string | null; vi
   }
   return null;
 }
+
+// Armazenamento usado pela biblioteca de vídeos (bytes). null se indisponível.
+export async function getBunnyStorageBytes(): Promise<number | null> {
+  if (!isBunnyConfigured()) return null;
+  try {
+    const { libraryId, apiKey } = cfg();
+    const res = await fetch(`${API_BASE}/library/${libraryId}`, { headers: { AccessKey: apiKey, accept: "application/json" }, next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { StorageUsage?: number };
+    return typeof data.StorageUsage === "number" ? data.StorageUsage : null;
+  } catch {
+    return null;
+  }
+}

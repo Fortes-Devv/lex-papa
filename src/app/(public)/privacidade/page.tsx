@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
+import { getSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { LegalPage } from "@/components/legal/legal-page";
 
+export const revalidate = 300;
 export const metadata: Metadata = { title: "Política de Privacidade" };
 
-export default function PrivacidadePage() {
+// Dados da empresa vêm de Configurações › Empresa; sem preencher, mostra o marcador.
+const v = (value: string, placeholder: string) => value || placeholder;
+
+export default async function PrivacidadePage() {
+  const c = (await getSettings().catch(() => DEFAULT_SETTINGS)).company;
   return (
     <LegalPage title="Política de Privacidade" updatedAt="[DATA]">
       <p>
-        Esta Política explica como [RAZÃO SOCIAL], CNPJ [CNPJ] (&quot;LEX&quot;), trata seus dados pessoais na plataforma LEX
+        Esta Política explica como {v(c.legalName, "[RAZÃO SOCIAL]")}, CNPJ {v(c.cnpj, "[CNPJ]")} (&quot;LEX&quot;), trata seus dados pessoais na plataforma LEX
         Concursos, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018 — LGPD).
       </p>
 
@@ -48,7 +54,7 @@ export default function PrivacidadePage() {
       <h2>5. Seus direitos</h2>
       <p>
         Você pode pedir acesso, correção, portabilidade ou exclusão dos seus dados, e revogar consentimentos, pelo e-mail
-        [E-MAIL DO ENCARREGADO/DPO]. Responderemos no prazo previsto na LGPD.
+        {v(c.dpoEmail, "[E-MAIL DO ENCARREGADO/DPO]")}. Responderemos no prazo previsto na LGPD.
       </p>
 
       <h2>6. Segurança</h2>
@@ -64,7 +70,7 @@ export default function PrivacidadePage() {
       </p>
 
       <h2>8. Contato</h2>
-      <p>Encarregado de dados (DPO): [NOME] — [E-MAIL]. Endereço: [ENDEREÇO].</p>
+      <p>Encarregado de dados (DPO): {v(c.dpoName, "[NOME]")} — {v(c.dpoEmail, "[E-MAIL]")}. Endereço: {v(c.address, "[ENDEREÇO]")}.</p>
     </LegalPage>
   );
 }

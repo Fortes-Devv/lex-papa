@@ -47,3 +47,14 @@ export async function pdfDownloadResponse(url: string, fileTitle: string): Promi
     },
   });
 }
+
+// Registra o download de um PDF (para "PDFs baixados" no Analytics).
+// Só alunos contam; falha aqui nunca impede o download.
+export async function recordDownload(user: Session["user"], lessonId: string, materialId?: string) {
+  if (isStaffRole(user.role)) return;
+  try {
+    await db.downloadEvent.create({ data: { userId: user.id, lessonId, materialId: materialId ?? null } });
+  } catch (err) {
+    console.error("[downloads] não foi possível registrar:", err);
+  }
+}

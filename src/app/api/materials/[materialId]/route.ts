@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { lessonFileAccessError, pdfDownloadResponse } from "@/lib/lesson-file";
+import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/lib/lesson-file";
 
 /** Baixa um material (PDF) anexado a uma aula, com a mesma regra de acesso da aula. */
 export async function GET(_request: Request, props: { params: Promise<{ materialId: string }> }) {
@@ -15,5 +15,6 @@ export async function GET(_request: Request, props: { params: Promise<{ material
   const denied = await lessonFileAccessError(session.user, material.lessonId);
   if (denied) return denied;
 
+  await recordDownload(session.user, material.lessonId, materialId);
   return pdfDownloadResponse(material.url, material.title);
 }

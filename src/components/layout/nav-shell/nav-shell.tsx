@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils/cn";
 import { ADMIN_BOTTOM, ADMIN_SECTIONS, TEACHER_BOTTOM, TEACHER_SECTIONS, activeSection, type NavFilter, type NavSection } from "./sections";
 
 export interface PanelRecent { href: string; title: string; subtitle: string; mark: string }
-export type PanelData = Record<string, { counts?: Record<string, number>; recents?: PanelRecent[] }>;
+export type PanelData = Record<string, { counts?: Record<string, number>; recents?: PanelRecent[]; footer?: { label: string; value: string } }>;
 
 interface NavShellProps {
   area: "admin" | "teacher";
@@ -272,6 +272,12 @@ export function NavShell({ area, user, pendingOrders = 0, panelData = {}, childr
         <div className="flex-1 overflow-y-auto p-3">
           <PanelBody section={current} data={data} size="panel" onNavigate={() => !wide && setOverlayOpen(false)} />
         </div>
+        {data?.footer && (
+          <div className="mx-3 mb-3 rounded-xl border border-line-soft bg-background px-3 py-2.5 dark:border-white/10">
+            <p className="text-[10px] font-bold uppercase tracking-[1.2px] text-ink-faint">{data.footer.label}</p>
+            <p className="mt-0.5 text-xs font-semibold text-foreground">{data.footer.value}</p>
+          </div>
+        )}
         <button type="button" onClick={() => (wide ? setPanel(false) : setOverlayOpen(false))}
           className="flex items-center gap-1 border-t border-line-soft px-4 py-3 pb-[18px] text-left text-xs font-semibold text-ink-faint hover:text-foreground dark:border-white/10">
           <ChevronLeft className="h-3.5 w-3.5" /> Recolher painel

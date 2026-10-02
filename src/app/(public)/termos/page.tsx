@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
+import { getSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { LegalPage } from "@/components/legal/legal-page";
 
+export const revalidate = 300;
 export const metadata: Metadata = { title: "Termos de Uso" };
 
-export default function TermosPage() {
+// Dados da empresa vêm de Configurações › Empresa; sem preencher, mostra o marcador.
+const v = (value: string, placeholder: string) => value || placeholder;
+
+export default async function TermosPage() {
+  const c = (await getSettings().catch(() => DEFAULT_SETTINGS)).company;
   return (
     <LegalPage title="Termos de Uso" updatedAt="[DATA]">
       <p>
-        Estes Termos regulam o uso da plataforma LEX Concursos (&quot;Plataforma&quot;), mantida por [RAZÃO SOCIAL], inscrita no
-        CNPJ [CNPJ], com sede em [ENDEREÇO] (&quot;LEX&quot;). Ao criar uma conta ou comprar um curso, você concorda com estes Termos.
+        Estes Termos regulam o uso da plataforma LEX Concursos (&quot;Plataforma&quot;), mantida por {v(c.legalName, "[RAZÃO SOCIAL]")}, inscrita no
+        CNPJ {v(c.cnpj, "[CNPJ]")}, com sede em {v(c.address, "[ENDEREÇO]")} (&quot;LEX&quot;). Ao criar uma conta ou comprar um curso, você concorda com estes Termos.
       </p>
 
       <h2>1. Conta</h2>
@@ -34,7 +40,7 @@ export default function TermosPage() {
       <h2>4. Direito de arrependimento e reembolso</h2>
       <p>
         Conforme o art. 49 do Código de Defesa do Consumidor, você pode desistir da compra em até 7 (sete) dias a partir da
-        contratação, com reembolso integral, solicitando pelo e-mail [E-MAIL DE CONTATO]. [DESCREVER AQUI QUALQUER POLÍTICA
+        contratação, com reembolso integral, solicitando pelo e-mail {v(c.contactEmail, "[E-MAIL DE CONTATO]")}. [DESCREVER AQUI QUALQUER POLÍTICA
         ADICIONAL DE REEMBOLSO.]
       </p>
 
@@ -55,7 +61,7 @@ export default function TermosPage() {
 
       <h2>8. Contato e foro</h2>
       <p>
-        Dúvidas: [E-MAIL DE CONTATO]. Fica eleito o foro da comarca de [CIDADE/UF], sem prejuízo dos direitos do consumidor.
+        Dúvidas: {v(c.contactEmail, "[E-MAIL DE CONTATO]")}. Fica eleito o foro da comarca de {v(c.city, "[CIDADE/UF]")}, sem prejuízo dos direitos do consumidor.
       </p>
     </LegalPage>
   );

@@ -10,6 +10,7 @@ import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
 import { formatRelativeDate, cn } from "@/lib/utils/cn";
 import { PageHeader, Pill, tableHeadClass } from "@/components/admin/page-kit";
+import { ImportUsersDialog } from "./import-users-dialog";
 import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail } from "@/lib/actions/users";
 import type { User, UserRole, UserStatus } from "@/lib/types";
 
@@ -165,7 +166,10 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0 }: { in
       <PageHeader
         title={roleFilter === "student" ? "Alunos" : roleFilter === "teacher" ? "Professores" : roleFilter === "admin" ? "Administradores" : "Todos os usuários"}
         subtitle={`${users.length.toLocaleString("pt-BR")} ${search || roleFilter || statusFilter ? "encontrados" : "cadastrados"} · ${newThisWeek} novo${newThisWeek !== 1 ? "s" : ""} esta semana`}
-        actions={<Button onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>Novo usuário</Button>}
+        actions={<>
+          <ImportUsersDialog />
+          <Button onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>Novo usuário</Button>
+        </>}
       />
 
       {/* Desktop: tabela */}

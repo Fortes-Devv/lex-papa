@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { lessonFileAccessError, pdfDownloadResponse } from "@/lib/lesson-file";
+import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/lib/lesson-file";
 
 /**
  * Baixa o PDF principal da aula pelo nosso servidor:
@@ -18,5 +18,6 @@ export async function GET(_request: Request, props: { params: Promise<{ lessonId
 
   const lesson = await db.lesson.findUnique({ where: { id: lessonId }, select: { pdfUrl: true, title: true } });
   if (!lesson?.pdfUrl) return new NextResponse("PDF não encontrado.", { status: 404 });
+  await recordDownload(session.user, lessonId);
   return pdfDownloadResponse(lesson.pdfUrl, lesson.title);
 }

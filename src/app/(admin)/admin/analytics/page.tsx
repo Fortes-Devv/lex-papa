@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getOverviewStats, getCourseAnalyticsList } from "@/lib/analytics";
 import { getCourseEngagement } from "@/lib/engagement";
-import { MetricCard, PageHeader, SectionCard, Pill, tableHeadClass } from "@/components/admin/page-kit";
+import { MetricCard, PageHeader, SectionCard, Pill, ButtonLink, tableHeadClass } from "@/components/admin/page-kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { formatCurrency, formatNumber, cn } from "@/lib/utils/cn";
 
@@ -64,7 +64,8 @@ export default async function AdminAnalyticsPage(props: { searchParams: Promise<
 
   return (
     <div>
-      <PageHeader title="Engajamento" subtitle={`${selected!.product.title} · últimos ${days} dias`} />
+      <PageHeader title="Engajamento" subtitle={`${selected!.product.title} · últimos ${days} dias`}
+        actions={<ButtonLink href={`/api/admin/export?tipo=analytics&curso=${selected!.id}&dias=${days}`} download>Exportar CSV</ButtonLink>} />
 
       {courses.length > 1 && (
         <div className="no-scrollbar -mx-1 mb-4 flex gap-2 overflow-x-auto px-1">
@@ -82,7 +83,7 @@ export default async function AdminAnalyticsPage(props: { searchParams: Promise<
         <MetricCard label="Alunos ativos" value={formatNumber(e.activeStudents)} hint={e.enrolled ? `${e.baseShare}% da base (${e.enrolled})` : "sem matrículas"} />
         <MetricCard label="Horas assistidas" value={`${formatNumber(e.watchedHours)}h`} hint={`últimos ${days} dias`} />
         <MetricCard label="Conclusão média" value={`${e.avgCompletion}%`} hint="das matrículas do curso" />
-        <MetricCard label="Aulas concluídas" value={formatNumber(e.completedLessons)} hint={`últimos ${days} dias`} />
+        <MetricCard label="PDFs baixados" value={formatNumber(e.pdfDownloads)} hint={`${formatNumber(e.completedLessons)} aulas concluídas no período`} />
       </div>
 
       <SectionCard title="Por módulo" action={<span className="text-[11px] text-foreground-muted">desde o início · abandono = parado há 14+ dias</span>} className="mt-4">

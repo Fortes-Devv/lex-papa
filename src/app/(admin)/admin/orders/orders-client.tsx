@@ -5,7 +5,7 @@ import { Download, RefreshCcw, ChevronDown, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Pill, tableHeadClass } from "@/components/admin/page-kit";
 import { useToast } from "@/components/ui/toast";
-import { refundOrder } from "@/lib/actions/orders";
+import { refundOrder, releaseOrderAccess, cancelOrder, getOrderPixCode } from "@/lib/actions/orders";
 import { formatCurrency, formatDate, formatRelativeDate, cn } from "@/lib/utils/cn";
 
 export interface OrderDTO {
@@ -69,7 +69,7 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       const q = search.toLowerCase();
-      const matchSearch = !search || o.userName.toLowerCase().includes(q) || o.email.toLowerCase().includes(q) || o.id.toLowerCase().includes(q);
+      const matchSearch = !search || o.userName.toLowerCase().includes(q) || o.email.toLowerCase().includes(q) || o.id.toLowerCase().includes(q) || (o.mpOrderId ?? "").toLowerCase().includes(q);
       // Agrupa como o painel: pendente inclui "em processamento"; cancelado inclui "falhou".
       const matchStatus = !statusFilter || o.status === statusFilter
         || (statusFilter === "pending" && o.status === "processing")
@@ -92,6 +92,20 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
     a.download = `pedidos-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function run(fn: () => Promise<{ success: boolean; error?: string }>, ok: string) {
+    const result = await fn();
+    if (!result.success) { error(result.error ?? "Não foi possível concluir."); return; }
+    success(ok);
+    startTransition(() => router.refresh());
+  }
+
+  async function copyPix(orderId: string) {
+    const result = await getOrderPixCode(orderId);
+    if (!result.success) { error(result.error); return; }
+    await navigator.clipboard.writeText(result.code);
+    success(result.kind === "pix" ? "Código Pix copiado — envie ao aluno." : "Link do boleto copiado — envie ao aluno.");
   }
 
   async function handleRefund(orderId: string) {
@@ -123,6 +137,26 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3 text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
             <Copy className="h-3.5 w-3.5" /> Copiar ID
           </button>
+          {(o.status === "pending" || o.status === "processing") && (o.paymentMethod === "pix" || o.paymentMethod === "boleto") && (
+            <button type="button" onClick={() => copyPix(o.id)}
+              className="inline-flex h-9 items-center rounded-lg border border-line-strong bg-card px-3 text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
+              {o.paymentMethod === "pix" ? "Copiar Pix" : "Copiar boleto"}
+            </button>
+          )}
+          {o.status !== "paid" && o.status !== "refunded" && o.status !== "chargeback" && (
+            <button type="button" disabled={isPending}
+              onClick={() => { if (confirm(`Liberar o acesso de ${o.userName} sem pagamento confirmado pelo Mercado Pago? O pedido fica como pago e a ação vai para o log.`)) run(() => releaseOrderAccess(o.id), "Acesso liberado."); }}
+              className="inline-flex h-9 items-center rounded-lg bg-navy px-3 text-[13px] font-semibold text-white hover:bg-navy-deep disabled:opacity-50">
+              Liberar acesso
+            </button>
+          )}
+          {(o.status === "pending" || o.status === "processing" || o.status === "failed") && (
+            <button type="button" disabled={isPending}
+              onClick={() => { if (confirm(`Cancelar o pedido ${shortId(o.id)}?`)) run(() => cancelOrder(o.id), "Pedido cancelado."); }}
+              className="inline-flex h-9 items-center rounded-lg border border-line-strong bg-card px-3 text-[13px] font-semibold text-danger hover:bg-background disabled:opacity-50 dark:border-white/10">
+              Cancelar
+            </button>
+          )}
           {o.status === "paid" && (
             <button type="button" disabled={isPending} onClick={() => { if (confirm(`Reembolsar o pedido ${shortId(o.id)} de ${o.userName}? O acesso ao curso é removido.`)) handleRefund(o.id); }}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3 text-[13px] font-semibold text-danger hover:bg-background disabled:opacity-50 dark:border-white/10">

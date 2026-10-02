@@ -7,9 +7,12 @@ import { isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { isBunnyConfigured } from "@/lib/bunny";
 import { isEmailConfigured } from "@/lib/email";
 import { PageHeader, Pill, ButtonLink } from "@/components/admin/page-kit";
+import { ActionButton } from "@/components/admin/action-button";
+import { testIntegration, reprocessPendingPayments } from "@/lib/actions/integrations";
 import { formatRelativeDate, cn } from "@/lib/utils/cn";
 
 type Status = "ok" | "error" | "off";
+const TESTABLE = new Set(["mp", "bunny", "cloudinary", "email", "db"]);
 const STATUS_LABEL: Record<Status, string> = { ok: "Conectado", error: "Erro", off: "Não configurado" };
 
 // Integrações (modelo 5h): status real de cada serviço. ?status=conectadas|erro|pendentes, ?categoria=.
@@ -52,7 +55,8 @@ export default async function AdminIntegrationsPage(props: { searchParams: Promi
 
   return (
     <div>
-      <PageHeader title="Integrações" subtitle={`${connected} conectada${connected !== 1 ? "s" : ""}${errors ? ` · ${errors} com erro` : ""}`} />
+      <PageHeader title="Integrações" subtitle={`${connected} conectada${connected !== 1 ? "s" : ""}${errors ? ` · ${errors} com erro` : ""}`}
+        actions={<ButtonLink href="/admin/settings?secao=integracoes" variant="primary">+ Conectar serviço</ButtonLink>} />
 
       {recentFailure && (
         <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[14px] border border-danger/30 bg-danger-soft p-4 dark:bg-danger/10">
@@ -61,7 +65,8 @@ export default async function AdminIntegrationsPage(props: { searchParams: Promi
             <p className="text-[13.5px] font-bold text-foreground">Webhook de pagamento falhou {formatRelativeDate(lastFailure!.createdAt.toISOString())}</p>
             <p className="text-xs text-foreground-muted">O Mercado Pago reenvia sozinho; se um aluno pagou e não recebeu acesso, confira em Pedidos.</p>
           </div>
-          <ButtonLink href="/admin/logs?nivel=erro&origem=pagamentos" variant="dark">Ver log</ButtonLink>
+          <ButtonLink href="/admin/logs?nivel=erro&origem=pagamentos">Ver log</ButtonLink>
+          <ActionButton action={reprocessPendingPayments}>Reprocessar</ActionButton>
         </div>
       )}
 
@@ -75,11 +80,14 @@ export default async function AdminIntegrationsPage(props: { searchParams: Promi
             <p className="mt-3 text-[15px] font-bold text-foreground">{s.name}</p>
             <p className="text-xs text-foreground-muted">{s.desc}</p>
             <p className="mt-3 flex-1 text-[11.5px] text-foreground-muted">{s.detail}</p>
-            {s.href && (
-              <Link href={s.href} className="mt-3 inline-flex h-9 items-center justify-center rounded-lg border border-line-strong text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
-                {s.status === "error" ? "Ver log" : "Configurar"}
-              </Link>
-            )}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {s.href ? (
+                <Link href={s.href} className="inline-flex h-9 items-center justify-center rounded-lg border border-line-strong text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
+                  {s.status === "error" ? "Ver log" : "Configurar"}
+                </Link>
+              ) : <span />}
+              {TESTABLE.has(s.id) && <ActionButton action={testIntegration.bind(null, s.id)} variant="ghost">Testar</ActionButton>}
+            </div>
           </div>
         ))}
         {visible.length === 0 && <p className="col-span-full py-12 text-center text-sm text-foreground-muted">Nenhuma integração neste filtro.</p>}

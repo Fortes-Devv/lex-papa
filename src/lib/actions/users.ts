@@ -100,3 +100,35 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
   revalidatePath("/admin/users");
   return { success: true as const };
 }
+
+// "Importar CSV": cria vários usuários de uma vez. Colunas: nome, email, papel (aluno|professor|admin).
+// Separador vírgula ou ponto e vírgula; primeira linha pode ser cabeçalho. Máx. 500 linhas.
+// Devolve as senhas temporárias para o admin repassar (não são guardadas em texto).
+export async function importUsersCsv(csvText: string) {
+  const session = await requireModerator();
+  const ROLE: Record<string, UserRole> = { aluno: "student", student: "student", professor: "teacher", teacher: "teacher", admin: "admin", moderador: "moderator", moderator: "moderator" };
+  const lines = csvText.replace(/^﻿/, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) return { success: false as const, error: "Arquivo vazio." };
+  if (lines.length > 501) return { success: false as const, error: "Máximo de 500 usuários por arquivo." };
+
+  const results: { name: string; email: string; status: "criado" | "erro"; password?: string; error?: string }[] = [];
+  for (const [i, line] of lines.entries()) {
+    const cols = line.split(/[;,]/).map((c) => c.trim().replace(/^"|"$/g, ""));
+    if (i === 0 && /e-?mail/i.test(line)) continue; // cabeçalho
+    const [name = "", rawEmail = "", rawRole = "aluno"] = cols;
+    const email = rawEmail.toLowerCase();
+    const role = ROLE[rawRole.toLowerCase()] ?? null;
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { results.push({ name, email, status: "erro", error: "nome ou e-mail inválido" }); continue; }
+    if (!role) { results.push({ name, email, status: "erro", error: `papel "${rawRole}" inválido` }); continue; }
+    if (PRIVILEGED_ROLES.includes(role) && session.user.role !== "admin") { results.push({ name, email, status: "erro", error: "só admin cria admin/moderador" }); continue; }
+    const exists = await db.user.findFirst({ where: { email: { equals: email, mode: "insensitive" } }, select: { id: true } });
+    if (exists) { results.push({ name, email, status: "erro", error: "e-mail já cadastrado" }); continue; }
+    const password = crypto.randomBytes(9).toString("base64url");
+    await db.user.create({ data: { name, email, role, passwordHash: await bcrypt.hash(password, 10), status: "active", emailVerified: false } });
+    results.push({ name, email, status: "criado", password });
+  }
+  const created = results.filter((r) => r.status === "criado").length;
+  await logAudit({ actorId: session.user.id, action: "user.imported", resourceType: "user", metadata: { created, errors: results.length - created } });
+  revalidatePath("/admin/users");
+  return { success: true as const, created, results };
+}
