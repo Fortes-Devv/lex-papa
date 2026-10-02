@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal/legal-page";
 
-export const metadata: Metadata = { title: "Política de Privacidade — LEX Concursos" };
+export const metadata: Metadata = { title: "Política de Privacidade" };
 
 export default function PrivacidadePage() {
   return (
