@@ -98,7 +98,7 @@ export function LibraryClient({ enrollments }: { enrollments: LibraryEnrollment[
               {filtered(completed).map((e) => <CourseCard key={e.id} enrollment={e} />)}
             </div>
           ) : (
-            <EmptyState icon={<CheckCircle2 className="h-5 w-5" />} title="Nenhum curso concluído ainda" description="Continue seus estudos e conquiste seu primeiro certificado." />
+            <EmptyState icon={<CheckCircle2 className="h-5 w-5" />} title="Nenhum curso concluído ainda" description="Continue seus estudos para concluir seu primeiro curso." />
           )}
         </TabsContent>
       </Tabs>

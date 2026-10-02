@@ -51,25 +51,7 @@ export async function markLessonComplete(courseId: string, lessonId: string) {
 
   if (!alreadyDone) await awardXp(user.id, XP_PER_LESSON);
 
-  const { isComplete } = await recalcEnrollmentProgress(user.id, courseId, productId);
-
-  // Emite certificado ao concluir 100% (se o curso oferece).
-  if (isComplete && course.completionCertificate) {
-    const hasCert = await db.certificate.findFirst({ where: { userId: user.id, productId } });
-    if (!hasCert) {
-      await db.certificate.create({
-        data: {
-          userId: user.id,
-          productId,
-          code: `CERT-${Date.now().toString(36).toUpperCase()}-${user.id.slice(-4).toUpperCase()}`,
-          downloadUrl: "",
-        },
-      });
-      await db.notification.create({
-        data: { userId: user.id, type: "achievement", title: "Certificado emitido!", message: `Parabéns por concluir ${course.product.title}.`, link: "/student/certificates" },
-      });
-    }
-  }
+  await recalcEnrollmentProgress(user.id, courseId, productId);
 
   revalidatePath("/student/player");
   revalidatePath("/student/dashboard");

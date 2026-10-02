@@ -38,7 +38,6 @@ export const ROUTES = {
     DASHBOARD:    "/student/dashboard",
     LIBRARY:      "/student/library",
     PLAYER:       "/student/player",
-    CERTIFICATES: "/student/certificates",
     COMMUNITY:    "/student/community",
     PROFILE:      "/student/profile",
   },

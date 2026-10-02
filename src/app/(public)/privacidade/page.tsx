@@ -23,7 +23,7 @@ export default function PrivacidadePage() {
       <ul>
         <li>Criar e manter sua conta e liberar os cursos comprados (execução de contrato).</li>
         <li>Processar pagamentos e emitir comprovantes (execução de contrato e obrigação legal).</li>
-        <li>Mostrar seu progresso, desempenho e certificados.</li>
+        <li>Mostrar seu progresso e desempenho.</li>
         <li>Enviar e-mails de serviço, como redefinição de senha.</li>
         <li>Proteger a plataforma contra fraudes e acessos indevidos (legítimo interesse).</li>
         <li>[SE HOUVER MARKETING: descrever aqui, com opção de descadastro.]</li>
