@@ -25,7 +25,10 @@ jobs:
         with:
           node-version: 24 # mesma versão do ambiente de desenvolvimento (npm 11 gera o lockfile)
           cache: npm
-      - run: npm ci
+      - name: Instalar dependências
+        run: npm ci --ignore-scripts
+      - name: Prisma generate
+        run: npx prisma generate
       - name: Type-check
         run: npm run type-check
       - name: Lint
