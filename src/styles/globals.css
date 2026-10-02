@@ -14,7 +14,7 @@
 
     /* ── LIGHT THEME — warm parchment + orange ────────────────────────── */
 
-    --background:  36 50% 97%;     /* #FDFAF5 */
+    --background:  36 24% 96%;     /* #f7f5f2 (spec Layout de módulos) */
     --surface:     0 0% 100%;
     --card:        0 0% 100%;
     --popover:     0 0% 100%;
@@ -22,19 +22,19 @@
     --sidebar:        36 30% 96%;  /* #F9F6F0 */
     --sidebar-border: 30 20% 88%;  /* #E5DDD3 */
 
-    --border:  30 20% 88%;
+    --border:  35 21% 89%;         /* #e9e4dd */
     --divider: 30 20% 88%;
     --input:   30 20% 88%;
     --ring:    26 91% 47%;
 
-    --foreground:         22 45% 10%;   /* #21140A */
-    --foreground-muted:   25 20% 42%;   /* #796558 */
-    --foreground-subtle:  25 14% 60%;   /* #A8988E */
+    --foreground:         0 0% 11%;     /* #1c1c1c */
+    --foreground-muted:   0 0% 42%;     /* #6b6b6b */
+    --foreground-subtle:  0 0% 54%;     /* #8a8a8a */
 
-    --primary:            26 91% 47%;   /* #E8650A */
+    --primary:            22 89% 53%;   /* #f26a1b */
     --primary-foreground: 0 0% 100%;
-    --primary-hover:      26 91% 41%;   /* darker on light */
-    --primary-muted:      26 91% 93%;   /* very light orange tint */
+    --primary-hover:      22 86% 42%;   /* #c9520f */
+    --primary-muted:      22 87% 94%;   /* #fdece2 */
 
     --secondary:          30 18% 93%;
     --secondary-foreground: 22 30% 20%;

@@ -1,6 +1,6 @@
 "use client";
-import { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, Plus, MoreHorizontal, Shield, Ban, CheckCircle2, UserCog, Copy, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,19 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
   const [statusFilter, setStatusFilter] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Filtros do painel de navegação (?papel=student|teacher|admin, ?q=busca, ?novo=1).
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  useEffect(() => {
+    setRoleFilter(searchParams.get("papel") ?? "");
+    setSearch(searchParams.get("q") ?? "");
+    if (searchParams.get("novo") === "1") {
+      setCreateOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
   const [createForm, setCreateForm] = useState<{ name: string; email: string; role: UserRole }>({ name: "", email: "", role: "student" });
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
 
@@ -43,7 +56,8 @@ export function UsersClient({ initialUsers }: { initialUsers: User[] }) {
   const users = useMemo(() => {
     return initialUsers.filter((u) => {
       const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
-      const matchRole = !roleFilter || u.role === roleFilter;
+      // "admin" no painel inclui moderadores (equipe administrativa).
+      const matchRole = !roleFilter || u.role === roleFilter || (roleFilter === "admin" && u.role === "moderator");
       const matchStatus = !statusFilter || u.status === statusFilter;
       return matchSearch && matchRole && matchStatus;
     });

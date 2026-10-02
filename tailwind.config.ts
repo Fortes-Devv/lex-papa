@@ -11,6 +11,15 @@ const config: Config = {
     extend: {
       // ─── COLORS ────────────────────────────────────────────────────────────
       colors: {
+        // Paleta do redesign (docs/Layout de módulos com preview): navegação, capas e chips.
+        navy:  { DEFAULT: "#1f2b3a", deep: "#0f1620", soft: "#3a4454", panel: "#16202d" },
+        brand: { DEFAULT: "#f26a1b", dark: "#c9520f", soft: "#fdece2", border: "#f8c9a8" },
+        ink:   { DEFAULT: "#1c1c1c", 2: "#3a3a3a", muted: "#6b6b6b", faint: "#8a8a8a" },
+        line:  { DEFAULT: "#e9e4dd", strong: "#e3ddd4", soft: "#eeebe6" },
+        ok:    { DEFAULT: "#2fbf7a", soft: "#e3f6ec", text: "#157a4f" },
+        danger: { DEFAULT: "#e5484d", soft: "#fdecec" },
+        field: "#f3f0eb", // fundo de campo de busca do painel
+
         // Semantic tokens mapped to CSS vars
         background: "hsl(var(--background))",
         surface:    "hsl(var(--surface))",
@@ -114,7 +123,7 @@ const config: Config = {
 
       // ─── TYPOGRAPHY ────────────────────────────────────────────────────────
       fontFamily: {
-        sans: ["Archivo Variable", "system-ui", "sans-serif"],
+        sans: ["Manrope Variable", "system-ui", "sans-serif"],
         serif: ["Source Serif 4 Variable", "Georgia", "serif"],
         mono: ["JetBrains Mono", "Fira Code", "monospace"],
         display: ["Archivo Variable", "system-ui", "sans-serif"],

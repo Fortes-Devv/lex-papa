@@ -1,6 +1,6 @@
 "use client";
-import { useState, useMemo, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, useMemo, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Search, Download, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,10 +54,20 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
+  // Filtros do painel de navegação (?status=pending|paid|cancelled, ?q=busca).
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    setStatusFilter(searchParams.get("status") ?? "");
+    setSearch(searchParams.get("q") ?? "");
+  }, [searchParams]);
+
   const filtered = useMemo(() => {
     return orders.filter((o) => {
       const matchSearch = !search || o.userName.toLowerCase().includes(search.toLowerCase()) || o.id.includes(search);
-      const matchStatus = !statusFilter || o.status === statusFilter;
+      // Agrupa como o painel: pendente inclui "em processamento"; cancelado inclui "falhou".
+      const matchStatus = !statusFilter || o.status === statusFilter
+        || (statusFilter === "pending" && o.status === "processing")
+        || (statusFilter === "cancelled" && o.status === "failed");
       return matchSearch && matchStatus;
     });
   }, [orders, search, statusFilter]);

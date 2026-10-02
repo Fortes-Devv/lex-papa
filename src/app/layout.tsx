@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ToastProvider } from "@/components/ui/toast";
 import { SessionProvider } from "@/components/providers/session-provider";
+import "@fontsource-variable/manrope";
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/source-serif-4";
 import "@/styles/globals.css";

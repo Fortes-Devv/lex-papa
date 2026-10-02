@@ -1,38 +1,67 @@
-import {
-  LayoutDashboard, Users, Package, BookOpen, ShoppingCart,
-  DollarSign, Settings, ScrollText, BarChart2, Plug,
-} from "lucide-react";
-import { AreaShell } from "@/components/layout/area-shell";
+import { NavShell, type PanelData } from "@/components/layout/nav-shell/nav-shell";
 import { requireArea } from "@/lib/auth-guards";
+import { db } from "@/lib/db";
 
-const navSections = [
-  {
-    items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: <LayoutDashboard className="h-4 w-4" />, exact: true },
-    ],
-  },
-  {
-    title: "Gestão",
-    items: [
-      { label: "Usuários", href: "/admin/users", icon: <Users className="h-4 w-4" /> },
-      { label: "Produtos", href: "/admin/products", icon: <Package className="h-4 w-4" /> },
-      { label: "Cursos", href: "/admin/courses", icon: <BookOpen className="h-4 w-4" /> },
-      { label: "Pedidos", href: "/admin/orders", icon: <ShoppingCart className="h-4 w-4" /> },
-      { label: "Financeiro", href: "/admin/financial", icon: <DollarSign className="h-4 w-4" /> },
-      { label: "Analytics", href: "/admin/analytics", icon: <BarChart2 className="h-4 w-4" /> },
-    ],
-  },
-  {
-    title: "Sistema",
-    items: [
-      { label: "Integrações", href: "/admin/integrations", icon: <Plug className="h-4 w-4" /> },
-      { label: "Logs", href: "/admin/logs", icon: <ScrollText className="h-4 w-4" /> },
-      { label: "Configurações", href: "/admin/settings", icon: <Settings className="h-4 w-4" /> },
-    ],
-  },
-];
+const ROLE_LABEL: Record<string, string> = { admin: "Administrador", moderator: "Moderador" };
+
+// Números do painel contextual (contadores dos filtros e cursos recentes).
+async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: number }> {
+  // Sequencial: o driver Neon não gosta de muitas queries em paralelo.
+  const courseStatus = await db.product.groupBy({ by: ["status"], where: { type: "course" }, _count: true });
+  const recentCourses = await db.product.findMany({
+    where: { type: "course", course: { isNot: null } },
+    orderBy: { updatedAt: "desc" },
+    take: 3,
+    select: { title: true, status: true, course: { select: { id: true, _count: { select: { modules: true } } } } },
+  });
+  const userRoles = await db.user.groupBy({ by: ["role"], _count: true });
+  const orderStatus = await db.order.groupBy({ by: ["status"], _count: true });
+
+  const count = <T extends { _count: number }>(rows: T[], pick: (r: T) => boolean) => rows.filter(pick).reduce((s, r) => s + r._count, 0);
+  const pendingOrders = count(orderStatus, (r) => r.status === "pending" || r.status === "processing");
+
+  return {
+    pendingOrders,
+    panel: {
+      courses: {
+        counts: {
+          all: count(courseStatus, () => true),
+          published: count(courseStatus, (r) => r.status === "published"),
+          draft: count(courseStatus, (r) => r.status === "draft"),
+        },
+        recents: recentCourses.map((p) => ({
+          href: `/admin/courses/${p.course!.id}`,
+          title: p.title,
+          subtitle: `${p.course!._count.modules} módulos · ${p.status === "published" ? "Publicado" : "Rascunho"}`,
+          mark: "LEX",
+        })),
+      },
+      users: {
+        counts: {
+          all: count(userRoles, () => true),
+          student: count(userRoles, (r) => r.role === "student"),
+          teacher: count(userRoles, (r) => r.role === "teacher"),
+          admin: count(userRoles, (r) => r.role === "admin" || r.role === "moderator"),
+        },
+      },
+      orders: {
+        counts: {
+          all: count(orderStatus, () => true),
+          pending: pendingOrders,
+          paid: count(orderStatus, (r) => r.status === "paid"),
+          cancelled: count(orderStatus, (r) => r.status === "cancelled" || r.status === "failed"),
+        },
+      },
+    },
+  };
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await requireArea("admin");
-  return <AreaShell label="Admin" sections={navSections}>{children}</AreaShell>;
+  const session = await requireArea("admin");
+  const { panel, pendingOrders } = await loadPanelData();
+  return (
+    <NavShell area="admin" user={{ name: session.user.name ?? "Admin", roleLabel: ROLE_LABEL[session.user.role] ?? "Equipe" }} pendingOrders={pendingOrders} panelData={panel}>
+      {children}
+    </NavShell>
+  );
 }

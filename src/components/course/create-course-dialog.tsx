@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -37,6 +37,15 @@ export function CreateCourseDialog({ onCreated, openAfter }: { onCreated?: (cour
   const { success, error } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  // "+ Novo curso" do painel/folha de navegação abre este diálogo via ?novo=1.
+  useEffect(() => {
+    if (openAfter && searchParams.get("novo") === "1") {
+      setOpen(true);
+      router.replace(pathname, { scroll: false });
+    }
+  }, [openAfter, searchParams, pathname, router]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 

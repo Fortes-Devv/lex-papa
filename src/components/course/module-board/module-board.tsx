@@ -346,7 +346,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       </div>
 
       {/* ── Topbar (celular/tablet) ── */}
-      <div className="sticky top-0 z-30 -mx-6 flex items-center gap-2 border-b border-border bg-card px-3 py-2.5 lg:hidden">
+      <div className="sticky top-0 z-30 -mx-[18px] -mt-[18px] flex items-center gap-2 border-b border-border bg-card px-3 py-2.5 lg:hidden">
         <Link href={backHref} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-foreground-muted" aria-label="Voltar">
           <ChevronLeft className="h-5 w-5" />
         </Link>
@@ -435,7 +435,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
         <button
           type="button"
           onClick={openNewModule}
-          className="fixed bottom-[30px] right-[18px] z-40 flex h-[52px] items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(242,106,27,.45)] lg:hidden"
+          className="fixed bottom-[calc(96px+env(safe-area-inset-bottom))] right-[18px] z-30 flex h-[52px] items-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(242,106,27,.45)] lg:hidden"
         >
           <Plus className="h-5 w-5" /> Novo módulo
         </button>
