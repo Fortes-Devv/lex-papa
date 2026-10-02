@@ -39,7 +39,10 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
               lessons: {
                 where: isStaff ? undefined : { status: "published" },
                 orderBy: { order: "asc" },
-                include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+                include: {
+                  quiz: { include: { questions: { orderBy: { order: "asc" } } } },
+                  materials: { where: { type: "pdf" }, orderBy: { createdAt: "asc" }, select: { id: true, title: true } },
+                },
               },
             },
           },
@@ -81,6 +84,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         duration: l.duration,
         videoUrl: locked ? null : resolveLessonVideoUrl(l),
         hasPdf: !locked && !!l.pdfUrl,
+        materials: locked ? [] : l.materials,
         description: l.description,
         isFree: l.isFree,
         locked,

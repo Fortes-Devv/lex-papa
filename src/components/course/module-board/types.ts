@@ -18,6 +18,7 @@ export interface EditorLesson {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: string;
+  materials: { id: string; title: string }[]; // PDFs anexados (o aluno baixa embaixo do vídeo)
 }
 
 export interface EditorModule {

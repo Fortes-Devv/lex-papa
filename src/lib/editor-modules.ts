@@ -18,7 +18,7 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
       module: {
         include: {
           instructor: { select: { name: true, avatar: true } },
-          lessons: { orderBy: { order: "asc" } },
+          lessons: { orderBy: { order: "asc" }, include: { materials: { where: { type: "pdf" }, orderBy: { createdAt: "asc" }, select: { id: true, title: true } } } },
           courses: { where: { courseId: { not: courseId } }, select: { course: { select: { product: { select: { title: true } } } } } },
         },
       },
@@ -53,6 +53,7 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
       isFree: l.isFree,
       isPreview: l.isPreview,
       completionCriteria: l.completionCriteria,
+      materials: l.materials,
     })),
   }));
 }

@@ -11,6 +11,8 @@ import { MediaUploader } from "@/components/upload/media-uploader";
 import { QuizBuilder } from "@/components/course/quiz-builder";
 import { createLesson, updateLesson } from "@/lib/actions/courses";
 import type { LessonType, Lesson } from "@/lib/types";
+import { LessonMaterials, type MaterialItem } from "@/components/course/lesson-materials";
+import { addLessonMaterial } from "@/lib/actions/materials";
 
 type CompletionCriteria = Lesson["completionCriteria"];
 
@@ -43,11 +45,12 @@ export interface LessonFormValue {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: string;
+  materials?: MaterialItem[]; // PDFs anexados à aula
 }
 
 const EMPTY: LessonFormValue = {
   title: "", type: "video", description: "", videoUrl: "", videoPublicId: "", pdfUrl: "",
-  duration: "", isFree: false, isPreview: false, completionCriteria: "watch_100",
+  duration: "", isFree: false, isPreview: false, completionCriteria: "watch_100", materials: [],
 };
 
 interface LessonFormDialogProps {
@@ -84,7 +87,7 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
       };
       if (form.id) {
         // null limpa de verdade (ex: ao remover o vídeo/PDF)
-        await updateLesson(form.id, {
+        const result = await updateLesson(form.id, {
           ...base,
           videoUrl: form.videoUrl || null,
           videoProvider: form.videoPublicId ? "bunny" : null,
@@ -92,9 +95,10 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
           pdfUrl: form.pdfUrl || null,
           duration: form.duration ? Number(form.duration) : null,
         });
+        if (!result.success) { error(result.error); return; }
         success("Aula atualizada.");
       } else {
-        await createLesson(moduleId, {
+        const result = await createLesson(moduleId, {
           ...base,
           videoUrl: form.videoUrl || undefined,
           videoProvider: (form.videoPublicId ? "bunny" : undefined) as "bunny" | undefined,
@@ -102,6 +106,14 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
           pdfUrl: form.pdfUrl || undefined,
           duration: form.duration ? Number(form.duration) : undefined,
         });
+        if (!result.success) { error(result.error); return; }
+        // PDFs escolhidos antes de a aula existir: anexa agora.
+        for (const m of form.materials ?? []) {
+          if (!m.id && m.url) {
+            const added = await addLessonMaterial(result.lessonId, { title: m.title, url: m.url });
+            if (!added.success) error(`Não foi possível anexar "${m.title}": ${added.error}`);
+          }
+        }
         success("Aula criada.");
       }
       router.refresh();
@@ -153,6 +165,14 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
               onRemove={() => setForm((f) => ({ ...f, pdfUrl: "" }))}
             />
           </div>
+        )}
+
+        {form.type !== "pdf" && (
+          <LessonMaterials
+            lessonId={form.id}
+            items={form.materials ?? []}
+            onChange={(materials) => { setForm((f) => ({ ...f, materials })); if (form.id) router.refresh(); }}
+          />
         )}
 
         <div className="grid grid-cols-2 gap-3">

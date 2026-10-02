@@ -28,7 +28,10 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
             include: {
               lessons: {
                 orderBy: { order: "asc" },
-                include: { quiz: { include: { questions: { orderBy: { order: "asc" } } } } },
+                include: {
+                  quiz: { include: { questions: { orderBy: { order: "asc" } } } },
+                  materials: { where: { type: "pdf" }, orderBy: { createdAt: "asc" }, select: { id: true, title: true } },
+                },
               },
             },
           },
@@ -56,6 +59,7 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
       duration: l.duration,
       videoUrl: resolveLessonVideoUrl(l),
       hasPdf: !!l.pdfUrl,
+      materials: l.materials,
       description: l.description,
       isFree: l.isFree,
       locked: false,

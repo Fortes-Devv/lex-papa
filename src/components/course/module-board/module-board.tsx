@@ -250,6 +250,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
               id: l.id, title: l.title, type: l.type, description: l.description ?? "", videoUrl: l.videoUrl ?? "",
               videoPublicId: l.videoPublicId ?? "", pdfUrl: l.pdfUrl ?? "", duration: l.duration ? String(l.duration) : "",
               isFree: l.isFree, isPreview: l.isPreview, completionCriteria: l.completionCriteria,
+              materials: l.materials,
             },
           }),
         },
@@ -318,7 +319,8 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
   );
 
   return (
-    <div className="space-y-5">
+    // relative: elementos absolutos internos (ex.: aviso sr-only) ficam presos aqui e não esticam a página.
+    <div className="relative space-y-5">
       {/* ── Cabeçalho do curso (desktop) ── */}
       <div className="hidden items-center gap-4 lg:flex">
         <Link href={backHref} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-foreground-muted hover:bg-muted hover:text-foreground" aria-label="Voltar">

@@ -27,6 +27,7 @@ export interface PlayerLesson {
   duration: number | null;
   videoUrl: string | null;
   hasPdf: boolean;
+  materials: { id: string; title: string }[]; // PDFs anexados (vazio se bloqueada)
   description: string | null;
   isFree: boolean;
   locked: boolean;
@@ -346,23 +347,37 @@ export function PlayerClient({
               )}
             </div>
 
-            {/* Material em PDF anexado a uma aula de vídeo */}
-            {current.videoUrl && current.hasPdf && (
-              <a
-                href={pdfDownloadHref(current.id)}
-                download
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <FileText className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-foreground">Material da aula (PDF)</span>
-                  <span className="block text-xs text-foreground-muted">Clique para baixar</span>
-                </span>
-                <Download className="h-4 w-4 shrink-0 text-foreground-muted" />
-              </a>
-            )}
+            {/* Materiais da aula (PDFs): o PDF da própria aula de vídeo + os anexados */}
+            {(() => {
+              const files = [
+                ...(current.videoUrl && current.hasPdf ? [{ key: "lesson", title: "Material da aula", href: pdfDownloadHref(current.id) }] : []),
+                ...current.materials.map((m) => ({ key: m.id, title: m.title, href: `/api/materials/${m.id}` })),
+              ];
+              if (files.length === 0) return null;
+              return (
+                <div className="overflow-hidden rounded-xl border border-border bg-card">
+                  <p className="border-b border-border px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-foreground-muted">
+                    Materiais da aula · {files.length}
+                  </p>
+                  <ul className="divide-y divide-border">
+                    {files.map((f) => (
+                      <li key={f.key}>
+                        <a href={f.href} download className="flex min-h-[52px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            <FileText className="h-4 w-4" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground">{f.title}</span>
+                            <span className="block text-xs text-foreground-muted">PDF · clique para baixar</span>
+                          </span>
+                          <Download className="h-4 w-4 shrink-0 text-foreground-muted" />
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* Quiz de fixação da aula (vem depois do vídeo) */}
             {current.type !== "quiz" && current.quiz && (
