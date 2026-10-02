@@ -371,6 +371,34 @@ export async function moveModule(courseId: string, moduleId: string, direction: 
   return { success: true as const };
 }
 
+// Nova ordem dos módulos do curso (arrastar e soltar). `moduleIds` = todos, na ordem final.
+export async function reorderModules(courseId: string, moduleIds: string[]) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  const links = await db.courseModule.findMany({ where: { courseId }, select: { id: true, moduleId: true } });
+  const byModule = new Map(links.map((l) => [l.moduleId, l.id]));
+  if (moduleIds.length !== links.length || moduleIds.some((id) => !byModule.has(id))) {
+    return { success: false as const, error: "A lista de módulos mudou. Recarregue a página." };
+  }
+  await db.$transaction(moduleIds.map((moduleId, i) => db.courseModule.update({ where: { id: byModule.get(moduleId)! }, data: { order: i + 1 } })));
+  revalidateContent();
+  return { success: true as const };
+}
+
+// Troca a capa do módulo (url do Cloudinary) ou volta para a capa automática (null).
+export async function setModuleCover(moduleId: string, coverImage: string | null) {
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
+  if (coverImage && !coverImage.startsWith("https://res.cloudinary.com/")) {
+    return { success: false as const, error: "Capa inválida." };
+  }
+  const current = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
+  await db.module.update({ where: { id: moduleId }, data: { coverImage } });
+  if (current?.coverImage && current.coverImage !== coverImage) await deleteCloudinaryImageByUrl(current.coverImage);
+  revalidateContent();
+  return { success: true as const };
+}
+
 // ── Aulas (conteúdo do módulo: vale em todos os cursos que usam o módulo) ──
 
 export async function createLesson(moduleId: string, input: {

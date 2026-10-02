@@ -58,9 +58,14 @@ const PLAYBACK_TOKEN_TTL = 4 * 60 * 60; // 4h: cobre aulas longas com pausas
 // Só chame no servidor, depois de checar o acesso do usuário.
 // Sem BUNNY_STREAM_TOKEN_KEY, devolve a URL pública (antes de ativar o token no painel).
 export function signBunnyPlaybackUrl(videoId: string): string {
+  return signBunnyFileUrl(videoId, "playlist.m3u8");
+}
+
+// Assina qualquer arquivo do vídeo (playlist, thumbnail.jpg...) com o token do diretório /{videoId}/.
+function signBunnyFileUrl(videoId: string, file: string): string {
   const { cdnHostname } = cfg();
   const key = process.env.BUNNY_STREAM_TOKEN_KEY;
-  const path = `/${videoId}/playlist.m3u8`;
+  const path = `/${videoId}/${file}`;
   if (!key) return `https://${cdnHostname}${path}`;
 
   const tokenPath = `/${videoId}/`;
@@ -97,4 +102,12 @@ export async function getBunnyVideoStatus(videoId: string): Promise<{ status: nu
   if (!res.ok) throw new Error(`Falha ao consultar vídeo no Bunny (${res.status}).`);
   const data = (await res.json()) as { status: number; length: number };
   return { status: data.status, length: data.length };
+}
+
+// Miniatura do vídeo (gerada pelo Bunny), assinada como o vídeo. null se não for do Bunny.
+export function resolveLessonThumbUrl(lesson: { videoProvider: string | null; videoPublicId: string | null }): string | null {
+  if (lesson.videoProvider === "bunny" && lesson.videoPublicId && isBunnyConfigured()) {
+    return signBunnyFileUrl(lesson.videoPublicId, "thumbnail.jpg");
+  }
+  return null;
 }

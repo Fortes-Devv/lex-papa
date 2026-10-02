@@ -32,7 +32,8 @@ const EMPTY_FORM = {
   heroColor: "navy",
 };
 
-export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: string) => void }) {
+// `openAfter`: depois de criar, abre a área de módulos do curso (admin ou professor).
+export function CreateCourseDialog({ onCreated, openAfter }: { onCreated?: (courseId: string) => void; openAfter?: "admin" | "teacher" }) {
   const { success, error } = useToast();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -70,6 +71,8 @@ export function CreateCourseDialog({ onCreated }: { onCreated?: (courseId: strin
       close();
       router.refresh();
       onCreated?.(result.courseId);
+      if (openAfter === "admin") router.push(`/admin/courses/${result.courseId}`);
+      else if (openAfter === "teacher") router.push(`/teacher/content?courseId=${result.courseId}`);
     } catch {
       error("Erro ao criar curso. Tente novamente.");
     } finally {

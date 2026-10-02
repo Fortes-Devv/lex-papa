@@ -1,11 +1,11 @@
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
-import { resolveLessonVideoUrl } from "@/lib/bunny";
-import type { EditorModule } from "@/components/course/course-content-editor";
+import { resolveLessonThumbUrl, resolveLessonVideoUrl } from "@/lib/bunny";
+import type { EditorModule } from "@/components/course/module-board/types";
 
 type SessionUser = Pick<Session["user"], "id" | "role">;
 
-// Módulos de um curso no formato do editor (CourseContentEditor), na ordem do curso.
+// Módulos de um curso no formato da área de módulos (ModuleBoard), na ordem do curso.
 // - canEdit: pode editar o conteúdo do módulo (dono do módulo ou admin/moderador).
 // - usedIn: outros cursos que também usam o módulo (edição vale para todos).
 // - previewUrl: assinada (Bunny com token), para a prévia no editor funcionar.
@@ -46,6 +46,7 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
       // URL base (é o que o formulário devolve ao salvar — nunca gravar a assinada).
       videoUrl: l.videoUrl,
       previewUrl: resolveLessonVideoUrl(l),
+      thumbUrl: resolveLessonThumbUrl(l),
       videoPublicId: l.videoPublicId,
       pdfUrl: l.pdfUrl,
       description: l.description,

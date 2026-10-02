@@ -110,7 +110,7 @@ export function ProductsClient({ products }: { products: ProductDTO[] }) {
           <h1 className="text-xl font-semibold text-foreground">Produtos</h1>
           <p className="text-sm text-foreground-muted mt-0.5">{products.length} produtos cadastrados</p>
         </div>
-        <CreateCourseDialog />
+        <CreateCourseDialog openAfter="admin" />
       </div>
 
       <div className="flex flex-wrap gap-3">

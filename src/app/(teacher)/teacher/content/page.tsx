@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { BookOpen, ExternalLink, MonitorPlay } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { CourseContentEditor, type EditorModule } from "@/components/course/course-content-editor";
+import { ModuleBoard } from "@/components/course/module-board/module-board";
+import type { EditorModule } from "@/components/course/module-board/types";
 import { loadEditorModules } from "@/lib/editor-modules";
 
 export default async function TeacherContentPage(props: { searchParams: Promise<{ courseId?: string }> }) {
@@ -37,13 +38,9 @@ export default async function TeacherContentPage(props: { searchParams: Promise<
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-foreground">Editor de Conteúdo</h1>
-        <p className="text-sm text-foreground-muted mt-0.5">
-          {activeProduct ? activeProduct.title : "Selecione um curso para editar"}
-          {activeProduct && !isOwner && " · você gerencia apenas o seu módulo neste curso"}
-        </p>
-      </div>
+      {!isOwner && activeProduct && (
+        <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-foreground-muted">Você gerencia apenas os seus módulos neste curso.</p>
+      )}
 
       {products.length > 1 && (
         <div className="flex flex-wrap gap-2">
@@ -63,8 +60,17 @@ export default async function TeacherContentPage(props: { searchParams: Promise<
         </div>
       )}
 
-      {activeCourseId ? (
-        <CourseContentEditor courseId={activeCourseId} modules={editorModules} restricted={!isOwner} />
+      {activeProduct?.course ? (
+        <ModuleBoard
+          header={{ courseId: activeProduct.course.id, productId: activeProduct.id, title: activeProduct.title, thumbnail: activeProduct.thumbnail, status: activeProduct.status, price: Number(activeProduct.price), enrolledCount: activeProduct.enrolledCount }}
+          modules={editorModules}
+          restricted={!isOwner}
+          backHref="/teacher/courses"
+          courseMenu={[
+            { label: "Assistir como aluno", icon: <MonitorPlay className="h-3.5 w-3.5" />, href: `/preview/${activeProduct.course.id}` },
+            ...(activeProduct.status === "published" ? [{ label: "Ver página de venda", icon: <ExternalLink className="h-3.5 w-3.5" />, href: `/cursos/${activeProduct.slug}` }] : []),
+          ]}
+        />
       ) : (
         <div className="py-16 text-center text-sm text-foreground-muted border border-dashed border-border rounded-lg flex flex-col items-center gap-2">
           <BookOpen className="h-8 w-8 text-foreground-subtle" />

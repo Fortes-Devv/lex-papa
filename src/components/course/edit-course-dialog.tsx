@@ -35,10 +35,14 @@ export interface EditCourseInitial {
 
 const fmtNum = (n?: number) => (n && n > 0 ? String(n).replace(".", ",") : "");
 
-export function EditCourseDialog({ initial }: { initial: EditCourseInitial }) {
+// Sem `open`/`onOpenChange`: mostra o próprio botão "Editar". Com eles: controlado de fora (ex.: menu ⋯).
+export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { initial: EditCourseInitial; open?: boolean; onOpenChange?: (open: boolean) => void }) {
   const { success, error } = useToast();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [openState, setOpenState] = useState(false);
+  const controlled = openProp !== undefined;
+  const open = controlled ? openProp : openState;
+  const setOpen = (v: boolean) => (controlled ? onOpenChange?.(v) : setOpenState(v));
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: initial.title,
@@ -83,7 +87,7 @@ export function EditCourseDialog({ initial }: { initial: EditCourseInitial }) {
 
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)} leftIcon={<Pencil className="h-3.5 w-3.5" />}>Editar</Button>
+      {!controlled && <Button size="sm" variant="outline" onClick={() => setOpen(true)} leftIcon={<Pencil className="h-3.5 w-3.5" />}>Editar</Button>}
       <Dialog open={open} onClose={() => setOpen(false)} title="Editar curso" description="Atualize preço, título, descrição e capa." size="lg">
         <div className="space-y-4">
           <Input label="Título" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />

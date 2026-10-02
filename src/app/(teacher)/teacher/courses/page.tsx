@@ -46,7 +46,7 @@ export default async function TeacherCoursesPage() {
           <h1 className="text-xl font-semibold text-foreground">Meus Cursos</h1>
           <p className="text-sm text-foreground-muted mt-0.5">{products.length} cursos criados</p>
         </div>
-        <CreateCourseDialog />
+        <CreateCourseDialog openAfter="teacher" />
       </div>
 
       <div className="space-y-3">
