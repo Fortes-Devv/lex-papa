@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getUserXp, patenteForLevel } from "@/lib/gamification";
 import { formatCurrency, formatRelativeDate } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export default async function StudentDashboardPage() {
   const session = await auth();
@@ -85,7 +86,7 @@ export default async function StudentDashboardPage() {
       {/* Curso em destaque */}
       {heroProduct && (
         <div data-aos="fade-up" className="relative overflow-hidden rounded-2xl bg-neutral-950 text-white shadow-lg">
-          <img src={heroProduct.thumbnail} alt={heroProduct.title} className="absolute inset-0 h-full w-full object-cover opacity-30" />
+          <CdnImg width={1280} loading="eager" src={heroProduct.thumbnail} alt={heroProduct.title} className="absolute inset-0 h-full w-full object-cover opacity-30" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/30" />
 
           <div className="relative flex min-h-[240px] flex-col justify-center gap-3 p-6 sm:p-8 lg:max-w-[62%]">
@@ -222,7 +223,7 @@ export default async function StudentDashboardPage() {
           ) : (
             inProgress.map((enrollment) => (
               <div key={enrollment.id} className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30">
-                <img src={enrollment.product.thumbnail} className="h-14 w-24 shrink-0 rounded object-cover" alt={enrollment.product.title} />
+                <CdnImg width={96} src={enrollment.product.thumbnail} className="h-14 w-24 shrink-0 rounded object-cover" alt={enrollment.product.title} />
                 <div className="min-w-0 flex-1 space-y-2">
                   <p className="truncate text-sm font-medium text-foreground">{enrollment.product.title}</p>
                   <Progress value={enrollment.progress} size="sm" variant={enrollment.progress >= 80 ? "success" : "default"} showLabel label={`${enrollment.progress}% concluído`} />

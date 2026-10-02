@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatDuration } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function TeacherModulesPage() {
               <div key={m.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   {m.coverImage ? (
-                    <img src={m.coverImage} alt="" className="h-10 w-16 shrink-0 rounded object-cover" />
+                    <CdnImg width={64} src={m.coverImage} alt="" className="h-10 w-16 shrink-0 rounded object-cover" />
                   ) : (
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted">
                       <Layers className="h-4 w-4 text-primary" />

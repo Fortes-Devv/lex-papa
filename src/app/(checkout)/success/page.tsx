@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils/cn";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { SuccessPoller } from "@/components/checkout/success-poller";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export default async function CheckoutSuccessPage(props: { searchParams: Promise
         {mainItem && (
           <div className="rounded-lg border border-border bg-card p-4 text-left space-y-3">
             <div className="flex items-center gap-3">
-              <img src={mainItem.product.thumbnail} className="h-12 w-20 rounded object-cover" alt={mainItem.product.title} />
+              <CdnImg width={80} src={mainItem.product.thumbnail} className="h-12 w-20 rounded object-cover" alt={mainItem.product.title} />
               <div>
                 <p className="text-sm font-semibold text-foreground">{mainItem.product.title}</p>
                 <p className="text-xs text-foreground-muted">{formatCurrency(Number(order.total))} · Acesso vitalício</p>

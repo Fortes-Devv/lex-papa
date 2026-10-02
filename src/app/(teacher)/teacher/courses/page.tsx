@@ -8,6 +8,7 @@ import { CreateCourseDialog } from "@/components/course/create-course-dialog";
 import { formatCurrency } from "@/lib/utils/cn";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export default async function TeacherCoursesPage() {
   const session = await auth();
@@ -52,7 +53,7 @@ export default async function TeacherCoursesPage() {
         {products.map((product, i) => (
           <Card key={product.id} padding="none" className="overflow-hidden hover:border-primary/30 transition-all group">
             <div className="flex items-start gap-4 p-4">
-              <img src={product.thumbnail} className="h-20 w-32 rounded-lg object-cover shrink-0" alt={product.title} />
+              <CdnImg width={128} src={product.thumbnail} className="h-20 w-32 rounded-lg object-cover shrink-0" alt={product.title} />
               <div className="flex-1 min-w-0 space-y-2">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-foreground text-sm leading-snug">{product.title}</h3>

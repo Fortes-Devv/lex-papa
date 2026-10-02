@@ -5,6 +5,7 @@ import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { auth } from "@/lib/auth";
 import { getTeacherRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
 import { formatCurrency, formatNumber } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export default async function TeacherAnalyticsPage() {
   const session = await auth();
@@ -40,7 +41,7 @@ export default async function TeacherAnalyticsPage() {
         {courses.map((c, i) => (
           <Card key={c.productId} className="flex items-center gap-4">
             <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{i + 1}</div>
-            <img src={c.thumbnail} className="h-12 w-20 rounded object-cover shrink-0" alt={c.title} />
+            <CdnImg width={80} src={c.thumbnail} className="h-12 w-20 rounded object-cover shrink-0" alt={c.title} />
             <div className="flex-1 min-w-0 space-y-1">
               <p className="font-medium text-sm text-foreground truncate">{c.title}</p>
               <div className="flex items-center gap-4 text-xs text-foreground-muted flex-wrap">

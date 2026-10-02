@@ -261,6 +261,7 @@ model Product {
   favorites    Favorite[]
   posts        Post[]
 
+  @@index([status, type])
   @@map("products")
 }
 
@@ -521,6 +522,9 @@ model Order {
   enrollments Enrollment[]
 
   @@index([userId])
+  // Reconciliação de pendentes e relatórios (status + data).
+  @@index([status, createdAt])
+  @@index([status, paidAt])
   @@map("orders")
 }
 

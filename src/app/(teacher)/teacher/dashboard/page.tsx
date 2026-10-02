@@ -8,6 +8,7 @@ import { RevenueBarChart } from "@/components/charts/revenue-bar-chart";
 import { auth } from "@/lib/auth";
 import { getTeacherOverview, getTeacherRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export default async function TeacherDashboardPage() {
   const session = await auth();
@@ -68,7 +69,7 @@ export default async function TeacherDashboardPage() {
             {courses.map((c) => (
               <div key={c.productId} className="p-4 space-y-2">
                 <div className="flex items-center gap-2">
-                  <img src={c.thumbnail} className="h-8 w-12 rounded object-cover shrink-0" alt={c.title} />
+                  <CdnImg width={48} src={c.thumbnail} className="h-8 w-12 rounded object-cover shrink-0" alt={c.title} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{c.title}</p>
                     <p className="text-2xs text-foreground-muted">{c.enrollments} alunos · {formatCurrency(c.revenue)}</p>

@@ -1,4 +1,5 @@
 import { cn, getInitials } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 
 interface AvatarProps {
@@ -24,7 +25,8 @@ export function Avatar({ src, name, size = "md", className, status }: AvatarProp
   return (
     <div className={cn("relative shrink-0 inline-flex", className)}>
       {src ? (
-        <img
+        <CdnImg
+          width={64}
           src={src}
           alt={name ?? "Avatar"}
           className={cn("rounded-full object-cover border border-border", sizeMap[size])}

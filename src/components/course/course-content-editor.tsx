@@ -21,6 +21,7 @@ import {
 import { LessonFormDialog, type LessonFormValue } from "./lesson-form-dialog";
 import { VideoPlayer } from "@/components/player/video-player";
 import type { LessonType } from "@/lib/types";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 const typeIcons: Record<LessonType, React.ReactNode> = {
   video: <Video className="h-3.5 w-3.5" />,
@@ -250,7 +251,7 @@ export function CourseContentEditor({ courseId, modules, teachers = [], restrict
                 <ChevronRight className={`h-4 w-4 transition-transform duration-500 ${expanded.has(mod.id) ? "rotate-90" : ""}`} />
               </button>
               {mod.instructorName && mod.instructorAvatar ? (
-                <img src={mod.instructorAvatar} alt={mod.instructorName} className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                <CdnImg width={44} src={mod.instructorAvatar} alt={mod.instructorName} className="h-11 w-11 shrink-0 rounded-lg object-cover" />
               ) : mod.instructorName ? (
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#16233b] text-sm font-bold text-primary" title={mod.instructorName}>
                   {getInitials(mod.instructorName)}

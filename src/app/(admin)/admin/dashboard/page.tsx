@@ -11,6 +11,7 @@ import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { formatCurrency, formatRelativeDate } from "@/lib/utils/cn";
 import { db } from "@/lib/db";
 import { getDashboardMetrics, getRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 const metricIcons = [
   <DollarSign key="revenue" className="h-4 w-4" />,
@@ -81,7 +82,7 @@ export default async function AdminDashboardPage() {
             {topCourses.map((course) => (
               <div key={course.productId} className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <img src={course.thumbnail} className="h-8 w-8 rounded object-cover shrink-0" alt={course.title} />
+                  <CdnImg width={32} src={course.thumbnail} className="h-8 w-8 rounded object-cover shrink-0" alt={course.title} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{course.title}</p>
                     <p className="text-2xs text-foreground-muted">{course.enrollments} alunos</p>

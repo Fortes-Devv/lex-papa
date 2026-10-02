@@ -7,6 +7,7 @@ import { RevenueLineChart } from "@/components/charts/revenue-line-chart";
 import { RevenueBarChart } from "@/components/charts/revenue-bar-chart";
 import { formatCurrency, formatNumber } from "@/lib/utils/cn";
 import { getOverviewStats, getRevenueSeries, getCourseAnalyticsList } from "@/lib/analytics";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export default async function AdminAnalyticsPage() {
   const [overview, revenueSeries, courseAnalytics] = await Promise.all([
@@ -77,7 +78,7 @@ export default async function AdminAnalyticsPage() {
             {courseAnalytics.map((ca, i) => (
               <Card key={ca.productId} className="flex items-center gap-4">
                 <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">{i + 1}</div>
-                <img src={ca.thumbnail} className="h-12 w-20 rounded object-cover shrink-0" alt={ca.title} />
+                <CdnImg width={80} src={ca.thumbnail} className="h-12 w-20 rounded object-cover shrink-0" alt={ca.title} />
                 <div className="flex-1 min-w-0 space-y-1">
                   <p className="font-medium text-sm text-foreground truncate">{ca.title}</p>
                   <div className="flex items-center gap-4 text-xs text-foreground-muted flex-wrap">

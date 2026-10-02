@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatRelativeDate } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export interface LibraryEnrollment {
   id: string;
@@ -34,7 +35,7 @@ export function LibraryClient({ enrollments }: { enrollments: LibraryEnrollment[
     return (
       <div className="group rounded-lg border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
         <div className="relative aspect-video overflow-hidden bg-muted">
-          <img src={enrollment.thumbnail} alt={enrollment.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          <CdnImg width={400} src={enrollment.thumbnail} alt={enrollment.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           {isComplete && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50">
               <CheckCircle2 className="h-10 w-10 text-success" />

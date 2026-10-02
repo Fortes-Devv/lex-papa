@@ -17,6 +17,7 @@ import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { CourseCurriculum } from "@/components/course/course-curriculum";
 import { BackButton } from "@/components/ui/back-button";
 import { heroGradient } from "@/lib/constants/hero-themes";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 // Itens fixos de garantia da plataforma (o que todo curso inclui).
 const COURSE_INCLUDES = [
@@ -185,7 +186,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
         <div className="lg:col-start-3 lg:row-start-1 lg:-mt-[300px]">
           <div className="sticky top-6 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden">
             <div className="relative aspect-video bg-black group cursor-pointer">
-              <img src={product.thumbnail} className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100" alt={product.title} />
+              <CdnImg width={640} loading="eager" src={product.thumbnail} className="h-full w-full object-cover opacity-90 transition-opacity group-hover:opacity-100" alt={product.title} />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary shadow-xl transition-transform group-hover:scale-105">
                   <Play className="h-7 w-7 text-white ml-0.5 fill-white" />

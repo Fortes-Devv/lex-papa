@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toggleFavorite } from "@/lib/actions/favorites";
 import { cn } from "@/lib/utils/cn";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export interface ExploreProduct {
   id: string;
@@ -74,7 +75,7 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
           {filtered.map((product) => (
             <div key={product.id} className="group rounded-lg border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200 flex flex-col">
               <div className="relative aspect-video overflow-hidden bg-muted">
-                <img src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                <CdnImg width={400} src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                 {product.isFeatured && <Badge variant="warning" className="absolute top-2 left-2 text-2xs">Destaque</Badge>}
                 <button
                   onClick={() => handleFav(product.id)}

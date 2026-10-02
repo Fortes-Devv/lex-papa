@@ -11,6 +11,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreateCourseDialog } from "@/components/course/create-course-dialog";
 import { formatCurrency } from "@/lib/utils/cn";
 import type { ProductType, ProductStatus } from "@/lib/types";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 export interface ProductDTO {
   id: string;
@@ -45,7 +46,7 @@ function ProductCard({ product }: { product: ProductDTO }) {
   return (
     <div className="group rounded-lg border border-border bg-card overflow-hidden hover:border-primary/30 hover:shadow-md transition-all duration-200">
       <div className="relative aspect-video overflow-hidden bg-muted">
-        <img src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        <CdnImg width={400} src={product.thumbnail} alt={product.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
         <div className="absolute top-2 right-2 flex gap-1">
           <Badge variant={statusVariants[product.status]}>{statusLabels[product.status]}</Badge>
         </div>
@@ -146,7 +147,7 @@ export function ProductsClient({ products }: { products: ProductDTO[] }) {
           <div className="rounded-lg border border-border bg-card overflow-hidden">
             {filtered.map((p) => (
               <div key={p.id} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
-                <img src={p.thumbnail} className="h-10 w-16 rounded object-cover shrink-0" alt={p.title} />
+                <CdnImg width={64} src={p.thumbnail} className="h-10 w-16 rounded object-cover shrink-0" alt={p.title} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{p.title}</p>
                   <p className="text-xs text-foreground-muted">{typeLabels[p.type]} · {p.enrolledCount} alunos</p>

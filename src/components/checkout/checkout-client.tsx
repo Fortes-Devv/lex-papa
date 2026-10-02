@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { formatCurrency, cn } from "@/lib/utils/cn";
 import { applyCoupon } from "@/lib/actions/checkout";
+import { CdnImg } from "@/components/ui/cdn-img";
 
 interface MpInstance {
   createCardToken: (data: Record<string, string>) => Promise<{ id: string }>;
@@ -354,7 +355,7 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
 
         <div className="lg:col-span-2 space-y-4">
           <div className="rounded-lg border border-border bg-card overflow-hidden">
-            <img src={product.thumbnail} className="w-full aspect-video object-cover" alt={product.title} />
+            <CdnImg width={400} src={product.thumbnail} className="w-full aspect-video object-cover" alt={product.title} />
             <div className="p-4 space-y-2">
               <p className="text-sm font-semibold text-foreground">{product.title}</p>
               <div className="flex items-center gap-1 text-xs text-foreground-muted">
@@ -411,6 +412,7 @@ function PixDisplay({ pix, onCopy }: { pix: PixResult; onCopy: () => void }) {
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-5 text-center">
       <h2 className="text-sm font-semibold text-foreground">Pague com PIX</h2>
+      {/* eslint-disable-next-line @next/next/no-img-element -- QR Code em base64 gerado na hora */}
       {pix.qrCodeBase64 && <img src={`data:image/png;base64,${pix.qrCodeBase64}`} alt="QR Code PIX" className="mx-auto h-56 w-56 rounded-lg border border-border" />}
       <p className="text-xs text-foreground-muted">Abra o app do seu banco, escaneie o QR Code ou copie o código abaixo.</p>
       <div className="flex items-center gap-2 rounded-md border border-border bg-muted/40 px-3 py-2">
