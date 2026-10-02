@@ -29,7 +29,7 @@ export const titleFromFileName = (name: string) => name.replace(/(\.[a-z0-9]{2,4
 
 // Lista os vídeos de uma pasta pública (só o primeiro nível), ordenados pelo nome (01, 02, 10...).
 export async function listDriveFolderVideos(folderId: string): Promise<DriveVideo[]> {
-  const res = await fetch(`https://drive.google.com/embeddedfolderview?id=${folderId}`, { cache: "no-store" });
+  const res = await fetch(`https://drive.google.com/embeddedfolderview?id=${folderId}`, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error("Pasta não encontrada. Confira se ela está compartilhada como \"Qualquer pessoa com o link\".");
   const html = await res.text();
   const videos: DriveVideo[] = [];
@@ -44,7 +44,7 @@ export async function listDriveFolderVideos(folderId: string): Promise<DriveVide
 
 // Confere se o arquivo está público e é um vídeo (baixa só 1 byte). Devolve nome e tamanho.
 export async function checkDriveVideo(fileId: string): Promise<{ name: string | null; size: number | null }> {
-  const res = await fetch(driveDownloadUrl(fileId), { headers: { Range: "bytes=0-0" }, cache: "no-store" });
+  const res = await fetch(driveDownloadUrl(fileId), { headers: { Range: "bytes=0-0" }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
   const type = res.headers.get("content-type") ?? "";
   await res.body?.cancel().catch(() => {});
   if (res.status === 404) throw new Error("Arquivo não encontrado no Drive.");

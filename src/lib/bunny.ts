@@ -98,6 +98,7 @@ export async function getBunnyVideoStatus(videoId: string): Promise<{ status: nu
   const { libraryId, apiKey } = cfg();
   const res = await fetch(`${API_BASE}/library/${libraryId}/videos/${videoId}`, {
     headers: { AccessKey: apiKey, accept: "application/json" },
+    signal: AbortSignal.timeout(4_000),
   });
   if (!res.ok) throw new Error(`Falha ao consultar vídeo no Bunny (${res.status}).`);
   const data = (await res.json()) as { status: number; length: number };
@@ -150,17 +151,18 @@ export async function fetchBunnyVideoFromUrl(url: string, title: string): Promis
     if (!(err instanceof Error && err.name === "TimeoutError")) throw err;
   }
   if (id) {
-    await fetch(`${API_BASE}/library/${libraryId}/videos/${id}`, { method: "POST", headers, body: JSON.stringify({ title }) }).catch(() => {});
+    await fetch(`${API_BASE}/library/${libraryId}/videos/${id}`, { method: "POST", headers, body: JSON.stringify({ title }), signal: AbortSignal.timeout(5_000) }).catch(() => {});
     return { videoId: id };
   }
 
   for (let attempt = 0; attempt < 4; attempt++) {
     if (attempt) await new Promise((r) => setTimeout(r, 1000));
-    const list = await fetch(`${API_BASE}/library/${libraryId}/videos?page=1&itemsPerPage=5&search=${tag}`, { headers, cache: "no-store" });
+    const list = await fetch(`${API_BASE}/library/${libraryId}/videos?page=1&itemsPerPage=5&search=${tag}`, { headers, cache: "no-store", signal: AbortSignal.timeout(5_000) }).catch(() => null);
+    if (!list) continue;
     const data = (await list.json().catch(() => ({}))) as { items?: { guid: string; title: string }[] };
     const video = data.items?.find((v) => v.title === tag);
     if (video) {
-      await fetch(`${API_BASE}/library/${libraryId}/videos/${video.guid}`, { method: "POST", headers, body: JSON.stringify({ title }) }).catch(() => {});
+      await fetch(`${API_BASE}/library/${libraryId}/videos/${video.guid}`, { method: "POST", headers, body: JSON.stringify({ title }), signal: AbortSignal.timeout(5_000) }).catch(() => {});
       return { videoId: video.guid };
     }
   }

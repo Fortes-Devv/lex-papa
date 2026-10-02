@@ -52,8 +52,11 @@ export function DriveImportDialog({ open, onClose, moduleId, moduleTitle }: { op
       if (item.status === "ok") continue;
       setItems((list) => list!.map((it, j) => (j === idx ? { ...it, status: "running", error: undefined } : it)));
       // Erro de rede ou tempo esgotado no servidor não pode deixar a lista travada.
-      const res = await importDriveVideo(moduleId, { fileId: item.fileId, title: item.title }, publish)
-        .catch(() => ({ success: false as const, error: "Sem resposta do servidor. Recarregue a página e confira se a aula foi criada antes de tentar de novo." }));
+      const noAnswer = { success: false as const, error: "Sem resposta do servidor. Recarregue a página e confira se a aula foi criada antes de tentar de novo." };
+      const res = await Promise.race([
+        importDriveVideo(moduleId, { fileId: item.fileId, title: item.title }, publish).catch(() => noAnswer),
+        new Promise<typeof noAnswer>((r) => setTimeout(() => r(noAnswer), 75_000)),
+      ]);
       if (res.success) ok++;
       setItems((list) => list!.map((it, j) => (j === idx ? { ...it, status: res.success ? "ok" : "error", error: res.success ? undefined : res.error } : it)));
     }

@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { canEditModule, NOT_ALLOWED } from "@/lib/course-permissions";
@@ -45,9 +44,14 @@ export async function importDriveVideo(moduleId: string, item: DriveImportItem, 
   if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
   if (!FILE_ID.test(item.fileId)) return { success: false as const, error: "Arquivo inválido." };
   const title = item.title.trim().slice(0, 200) || "Aula";
+  // Cada etapa com nome: o erro mostra onde parou (e o tempo vai para os logs da Vercel).
+  const t0 = Date.now();
+  let step = "Drive";
   try {
     await checkDriveVideo(item.fileId);
+    step = "Bunny";
     const { videoId } = await fetchBunnyVideoFromUrl(driveDownloadUrl(item.fileId), title);
+    step = "Banco";
     const last = await db.lesson.findFirst({ where: { moduleId }, orderBy: { order: "desc" }, select: { order: true } });
     const lesson = await db.lesson.create({
       data: {
@@ -63,10 +67,13 @@ export async function importDriveVideo(moduleId: string, item: DriveImportItem, 
     });
     await recalcTotalsForModule(moduleId);
     await logAudit({ actorId: session.user.id, action: "lesson.imported_drive", resourceType: "lesson", resourceId: lesson.id, metadata: { title, driveFileId: item.fileId } });
-    revalidatePath("/admin/courses");
-    revalidatePath("/teacher/content");
+    // Sem revalidatePath aqui: recarregar o quadro a cada vídeo deixava a importação lenta; o diálogo dá refresh no fim.
+    console.log(`[drive-import] ok "${title}" em ${Date.now() - t0} ms`);
     return { success: true as const, lessonId: lesson.id };
   } catch (err) {
-    return { success: false as const, error: err instanceof Error ? err.message : "Falha ao importar." };
+    const timeout = err instanceof Error && err.name === "TimeoutError";
+    const msg = timeout ? "não respondeu a tempo" : err instanceof Error ? err.message : "falha desconhecida";
+    console.error(`[drive-import] erro em ${step} após ${Date.now() - t0} ms: ${msg}`);
+    return { success: false as const, error: `${step}: ${msg}` };
   }
 }
