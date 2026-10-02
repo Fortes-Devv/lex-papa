@@ -50,7 +50,8 @@ export function AreaShell({
 
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         <TopHeader onMenuToggle={() => setMobileOpen((o) => !o)} />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        {/* relative: elementos absolutos das páginas ficam presos aqui (senão esticam o documento e criam uma 2ª rolagem) */}
+        <main className="relative flex-1 overflow-y-auto p-6">{children}</main>
       </div>
     </div>
   );
