@@ -1,4 +1,4 @@
-import { LayoutDashboard, BookOpen, FileVideo, Layers, Users, BarChart2, Star } from "lucide-react";
+import { LayoutDashboard, BookOpen, FileVideo, Layers, Users, BarChart2 } from "lucide-react";
 import { AreaShell } from "@/components/layout/area-shell";
 import { requireArea } from "@/lib/auth-guards";
 
@@ -20,7 +20,6 @@ const navSections = [
     title: "Alunos",
     items: [
       { label: "Alunos", href: "/teacher/students", icon: <Users className="h-4 w-4" /> },
-      { label: "Avaliações", href: "/teacher/reviews", icon: <Star className="h-4 w-4" /> },
     ],
   },
   {

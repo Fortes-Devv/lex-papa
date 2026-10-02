@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import Image from "next/image";
+import Link from "next/link";
 import { Lock, Tag, AlertTriangle, CreditCard, QrCode, FileText, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/ui/back-button";
@@ -395,7 +396,11 @@ export function CheckoutClient({ product, payerEmail, payerName, mpPublicKey }: 
             </div>
           </div>
 
-          <p className="text-center text-xs text-foreground-muted">Ao concluir, você concorda com os Termos de Uso.</p>
+          <p className="text-center text-xs text-foreground-muted">
+            Ao concluir, você concorda com os{" "}
+            <Link href="/termos" target="_blank" className="text-primary hover:underline">Termos de Uso</Link> e a{" "}
+            <Link href="/privacidade" target="_blank" className="text-primary hover:underline">Política de Privacidade</Link>.
+          </p>
         </div>
       </div>
     </div>
