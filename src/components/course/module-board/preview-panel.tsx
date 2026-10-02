@@ -84,7 +84,9 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
   ].filter(Boolean).join(" · ");
 
   return (
-    <div className={cn("flex min-h-0 flex-col overflow-hidden rounded-2xl border border-border bg-card", className)}>
+    // O painel inteiro rola (vídeo, título e lista juntos): com a lista rolando sozinha
+    // num espaço fixo, ela ficava minúscula em telas baixas. Os botões ficam presos embaixo.
+    <div className={cn("flex min-h-0 flex-col overflow-y-auto overscroll-contain rounded-2xl border border-border bg-card", className)}>
       <div className="shrink-0 overflow-hidden rounded-t-2xl bg-black">
         <PreviewStage lesson={lesson} playing={playing} onPlay={onPlay} />
       </div>
@@ -100,7 +102,7 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
       </div>
 
       {/* Lista de aulas */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex-1">
         {mod.lessons.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
             <Video className="h-6 w-6 text-foreground-subtle" />
@@ -149,7 +151,7 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
       </div>
 
       {(onEditModule || onAddLesson) && mod.lessons.length > 0 && (
-        <div className="flex shrink-0 gap-2 border-t border-border p-3">
+        <div className="sticky bottom-0 z-10 flex shrink-0 gap-2 border-t border-border bg-card p-3">
           {onEditModule && <Button variant="outline" className="h-12 flex-1 rounded-xl lg:h-9 lg:rounded-lg" onClick={onEditModule} leftIcon={<Pencil className="h-3.5 w-3.5" />}>Editar módulo</Button>}
           {onAddLesson && <Button className="h-12 flex-1 rounded-xl bg-[#1f2b3a] text-white hover:bg-[#1f2b3a]/90 lg:h-9 lg:rounded-lg" onClick={onAddLesson} leftIcon={<Plus className="h-3.5 w-3.5" />}>Adicionar aula</Button>}
           {onImportDrive && <Button variant="outline" aria-label="Importar do Google Drive" title="Importar do Google Drive" className="h-12 shrink-0 rounded-xl px-3 lg:h-9 lg:rounded-lg" onClick={onImportDrive}><HardDrive className="h-4 w-4" /></Button>}
