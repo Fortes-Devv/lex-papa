@@ -10,13 +10,13 @@ import { cn } from "@/lib/utils/cn";
 import type { EditorModule } from "./types";
 import { coverLabel, moduleKind, moduleNumber } from "./utils";
 
-// Capa 16:10: imagem enviada ou capa automática (navy + iniciais do professor / número).
+// Capa 16:9 (ex.: 1672×941 ou 1920×1080): imagem enviada ou capa automática (navy + iniciais do professor / número).
 export function ModuleCover({ mod, index, size = "md", uploading = false }: { mod: EditorModule; index: number; size?: "sm" | "md"; uploading?: boolean }) {
   const draft = !mod.isPublished;
   return (
-    <div className={cn("relative aspect-[16/10] w-full overflow-hidden", draft ? "bg-[#3a4454]" : "bg-[#1f2b3a]")}>
+    <div className={cn("relative aspect-video w-full overflow-hidden", draft ? "bg-[#3a4454]" : "bg-[#1f2b3a]")}>
       {mod.coverImage ? (
-        <CdnImg src={mod.coverImage} width={size === "sm" ? 120 : 320} aspect="16:10" alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
+        <CdnImg src={mod.coverImage} width={size === "sm" ? 160 : 640} aspect="16:9" alt="" className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]" />
       ) : (
         <span
           className={cn(

@@ -517,7 +517,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
             />
           )}
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do módulo <span className="font-normal text-foreground-muted">(opcional, 16:10)</span></label>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do módulo <span className="font-normal text-foreground-muted">(opcional, 16:9 — ex.: 1672×941 ou 1920×1080)</span></label>
             <MediaUploader resourceType="image" folder="lms/module-covers" value={moduleForm.cover} onUploaded={(r) => setModuleForm((f) => ({ ...f, cover: r.url }))} onRemove={() => setModuleForm((f) => ({ ...f, cover: "" }))} />
             <p className="mt-1 text-xs text-foreground-muted">Sem capa, o módulo usa a capa automática com as iniciais do professor.</p>
           </div>

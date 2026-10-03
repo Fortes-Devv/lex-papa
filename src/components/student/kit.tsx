@@ -34,7 +34,7 @@ export function ModuleCover({ cover, instructorName, number, done, pdf, classNam
   return (
     <div className={cn("relative overflow-hidden bg-navy", className)}>
       {cover ? (
-        <CdnImg src={cover} width={size === "sm" ? 96 : 320} aspect="16:10" alt="" className="absolute inset-0 h-full w-full object-cover" />
+        <CdnImg src={cover} width={size === "sm" ? 128 : 640} aspect="16:9" alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
         <span className={cn("absolute bottom-2 left-3 font-extrabold leading-none text-brand", size === "sm" ? "bottom-1.5 left-2 text-base" : "text-[28px] lg:text-[34px]")}>{label}</span>
       )}
