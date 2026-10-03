@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
 import { financeRange, getFinanceData, getTeacherPayouts, type FinancePeriod } from "@/lib/financial";
-import { processPayouts } from "@/lib/actions/finance";
+import { processPayouts, toggleCoupon, deleteCoupon } from "@/lib/actions/finance";
+import { NewCouponDialog } from "./new-coupon-dialog";
 import { requireArea } from "@/lib/auth-guards";
 import { ActionButton } from "@/components/admin/action-button";
 import { MetricCard, PageHeader, SectionCard, Pill, ButtonLink, tableHeadClass } from "@/components/admin/page-kit";
@@ -96,21 +97,27 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
       </div>
 
       {visao === "cupons" ? (
-        <SectionCard title="Cupons" className="mt-4">
-          <div className={cn("grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_0.8fr] gap-3 border-y border-line-soft bg-[#faf8f5] px-[18px] py-2.5 dark:border-white/10 dark:bg-white/5", tableHeadClass)}>
-            <span>Código</span><span>Tipo</span><span>Desconto</span><span>Usos</span><span>Expira</span><span>Status</span>
+        <SectionCard title="Cupons" className="mt-4" action={<NewCouponDialog />}>
+          <div className="overflow-x-auto"><div className="min-w-[760px]">
+          <div className={cn("grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_0.8fr_1.4fr] gap-3 border-y border-line-soft bg-[#faf8f5] px-[18px] py-2.5 dark:border-white/10 dark:bg-white/5", tableHeadClass)}>
+            <span>Código</span><span>Tipo</span><span>Desconto</span><span>Usos</span><span>Expira</span><span>Status</span><span />
           </div>
           {coupons.map((c) => (
-            <div key={c.id} className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_0.8fr] items-center gap-3 border-b border-line-soft px-[18px] py-3 text-[13px] last:border-0 dark:border-white/10">
+            <div key={c.id} className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_0.8fr_1.4fr] items-center gap-3 border-b border-line-soft px-[18px] py-3 text-[13px] last:border-0 dark:border-white/10">
               <span className="font-mono font-semibold text-foreground">{c.code}</span>
               <span className="text-foreground-muted">{c.type === "percentage" ? "Percentual" : "Fixo"}</span>
               <span className="text-foreground">{c.type === "percentage" ? `${Number(c.value)}%` : formatCurrency(Number(c.value))}</span>
               <span className="text-foreground-muted">{c.usedCount}{c.maxUses ? `/${c.maxUses}` : ""}</span>
               <span className="text-foreground-muted">{c.expiresAt ? formatDate(c.expiresAt.toISOString()) : "—"}</span>
               <span><Pill tone={c.isActive ? "ok" : "gray"}>{c.isActive ? "Ativo" : "Inativo"}</Pill></span>
+              <span className="flex justify-end gap-2">
+                <ActionButton variant="ghost" action={toggleCoupon.bind(null, c.id)} className="h-8 px-3 text-xs">{c.isActive ? "Desativar" : "Ativar"}</ActionButton>
+                {c.usedCount === 0 && <ActionButton variant="ghost" action={deleteCoupon.bind(null, c.id)} confirmText={`Excluir o cupom ${c.code}?`} className="h-8 px-3 text-xs text-danger">Excluir</ActionButton>}
+              </span>
             </div>
           ))}
-          {coupons.length === 0 && <p className="py-10 text-center text-sm text-foreground-muted">Nenhum cupom cadastrado.</p>}
+          </div></div>
+          {coupons.length === 0 && <p className="py-10 text-center text-sm text-foreground-muted">Nenhum cupom cadastrado. Clique em “Novo cupom”.</p>}
         </SectionCard>
       ) : visao === "pagamentos" ? (
         <div className="mt-4">{methodsCard}</div>
