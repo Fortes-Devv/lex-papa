@@ -67,3 +67,12 @@ export async function changePassword(input: { current: string; next: string }) {
   await db.user.update({ where: { id: user.id }, data: { passwordHash } });
   return { success: true as const };
 }
+
+// Perfil › Notificações: marca todas como lidas.
+export async function markAllNotificationsRead() {
+  const session = await auth();
+  if (!session?.user) return { success: false as const, error: "Não autenticado." };
+  await db.notification.updateMany({ where: { userId: session.user.id, isRead: false }, data: { isRead: true } });
+  revalidatePath("/student", "layout");
+  return { success: true as const };
+}

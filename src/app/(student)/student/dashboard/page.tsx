@@ -1,265 +1,190 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { Flame, Zap, Play, Clock, CheckCircle2, Circle, BookOpen } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
+import { Play, FileText, ChevronRight, CalendarClock } from "lucide-react";
+import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
-import { getUserXp, patenteForLevel } from "@/lib/gamification";
-import { formatCurrency, formatRelativeDate } from "@/lib/utils/cn";
+import { getStudyStats, lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse, daysUntil } from "@/lib/student-area";
+import { Bar, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
+import { formatCurrency } from "@/lib/utils/cn";
 
-export default async function StudentDashboardPage() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
+function greeting() {
+  const hour = Number(new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Fortaleza" }).format(new Date()));
+  return hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
+}
+
+// Início (modelos 7a e 8a): "continuar de onde parei" em destaque, meta da semana, próximas aulas e módulos.
+export default async function StudentHomePage() {
+  const session = await requireArea("student");
   const userId = session.user.id;
+  const firstName = (session.user.name ?? "").split(" ")[0];
+  const { courses, current: course } = await resolveStudentCourse(userId);
+  const stats = await getStudyStats(userId);
 
-  const [user, enrollments, xp, notifications, favoritesCount, lessonProgressCount] = await Promise.all([
-    db.user.findUnique({ where: { id: userId }, select: { name: true, avatar: true, bio: true, phone: true, lastViewedProductId: true } }),
-    db.enrollment.findMany({
-      where: { userId },
-      orderBy: { lastAccessedAt: "desc" },
-      include: { product: { include: { course: true, category: true } } },
-    }),
-    getUserXp(userId),
-    db.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 4 }),
-    db.favorite.count({ where: { userId } }),
-    db.lessonProgress.count({ where: { userId } }),
-  ]);
-
-  // ── Curso em destaque = último curso aberto pelo aluno ──────────────────
-  let heroProduct =
-    user?.lastViewedProductId
-      ? await db.product.findFirst({
-          where: { id: user.lastViewedProductId, type: "course", status: "published" },
-          include: { course: true, category: true },
-        })
-      : null;
-  if (!heroProduct && enrollments[0]) heroProduct = enrollments[0].product;
-  if (!heroProduct) {
-    heroProduct = await db.product.findFirst({
+  if (!course) {
+    const featured = await db.product.findFirst({
       where: { type: "course", status: "published" },
       orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-      include: { course: true, category: true },
+      select: { id: true, title: true, slug: true, shortDescription: true, thumbnail: true, price: true },
     });
+    return (
+      <div className="space-y-5">
+        <h1 className="text-[26px] font-extrabold text-foreground">{greeting()}, {firstName}</h1>
+        <Panel className="p-6 text-center">
+          <p className="text-[15px] font-bold text-foreground">Você ainda não tem um curso</p>
+          <p className="mt-1 text-sm text-foreground-muted">Escolha um curso para começar a estudar. Ele aparece aqui com a próxima aula.</p>
+          <Link href="/student/explore" className="mt-4 inline-flex h-10 items-center rounded-lg bg-brand px-5 text-sm font-bold text-white hover:bg-brand-dark">Ver cursos</Link>
+        </Panel>
+        {featured && (
+          <Link href={`/cursos/${featured.slug}`} className="flex items-center gap-4 rounded-[14px] border border-border bg-card p-3 hover:shadow-md">
+            <CdnImg src={featured.thumbnail} width={160} alt="" className="h-20 w-32 shrink-0 rounded-lg object-cover" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-bold uppercase tracking-wider text-brand">Em destaque</span>
+              <span className="block truncate text-[15px] font-bold text-foreground">{featured.title}</span>
+              <span className="block truncate text-xs text-foreground-muted">{featured.shortDescription}</span>
+            </span>
+            <span className="shrink-0 text-sm font-bold text-foreground">{formatCurrency(Number(featured.price))}</span>
+          </Link>
+        )}
+      </div>
+    );
   }
-  const heroEnrollment = heroProduct ? enrollments.find((e) => e.productId === heroProduct!.id) : undefined;
 
-  // ── Saudação + data ─────────────────────────────────────────────────────
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
-  const firstName = (user?.name ?? session.user.name ?? "").split(" ")[0];
-  const dateLabel = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" }).toUpperCase();
+  const outline = (await loadCourseOutline(userId, course.courseId))!;
+  const { current, upcoming } = pickNextUp(outline, await lastWatchedLesson(userId, course.courseId));
+  const examIn = daysUntil(outline.examDate);
+  const goal = stats.goalMinutes * 60;
+  const missing = Math.max(0, goal - stats.weekSeconds);
+  const lessonPct = current?.duration ? Math.round((current.position / current.duration) * 100) : 0;
+  const remaining = current?.duration ? Math.max(0, current.duration - current.position) : 0;
 
-  const patente = patenteForLevel(xp.level);
-
-  // ── Missões de hoje (derivadas de dados reais) ──────────────────────────
-  const profileComplete = Boolean(user?.avatar && (user?.bio || user?.phone));
-  const missions = [
-    { label: "Assista sua primeira aula", xp: 20, done: lessonProgressCount > 0 },
-    { label: "Complete seu perfil", xp: 10, done: profileComplete },
-    { label: "Explore o catálogo", xp: 5, done: favoritesCount > 0 || Boolean(user?.lastViewedProductId) },
-  ];
-  const missionsDone = missions.filter((m) => m.done).length;
-
-  // ── Sequência da semana (seg → dom) ─────────────────────────────────────
-  const now = new Date();
-  const todayMid = new Date(now); todayMid.setHours(0, 0, 0, 0);
-  const dow = (now.getDay() + 6) % 7; // 0 = segunda ... 6 = domingo
-  const monday = new Date(todayMid); monday.setDate(todayMid.getDate() - dow);
-  const week = ["S", "T", "Q", "Q", "S", "S", "D"].map((letter, i) => {
-    const d = new Date(monday); d.setDate(monday.getDate() + i);
-    const daysAgo = Math.round((todayMid.getTime() - d.getTime()) / 86400000);
-    return { letter, isToday: d.getTime() === todayMid.getTime(), active: d <= todayMid && daysAgo < xp.streak };
-  });
-
-  const inProgress = enrollments.filter((e) => e.progress > 0 && e.progress < 100);
+  // Módulos: em andamento primeiro, depois na ordem do curso.
+  const modules = [...outline.modules]
+    .filter((m) => m.total > 0)
+    .sort((a, b) => Number(b.done > 0 && b.done < b.total) - Number(a.done > 0 && a.done < a.total) || a.number - b.number);
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Cabeçalho */}
-      <div data-aos="fade-up">
-        <p className="text-xs font-semibold uppercase tracking-wider text-foreground-subtle">{dateLabel}</p>
-        <h1 className="mt-1 font-sans text-3xl font-bold text-foreground">{greeting}, {firstName}.</h1>
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-[22px] font-extrabold text-foreground lg:text-[26px]">{greeting()}, {firstName}</h1>
+        <p className="mt-0.5 text-sm text-foreground-muted">
+          {examIn !== null ? `Faltam ${examIn} dia${examIn !== 1 ? "s" : ""} para a prova · ` : ""}você está {outline.progress}% do caminho
+          {courses.length > 1 && <> · <Link href="/student/library" className="font-semibold text-brand">trocar curso</Link></>}
+        </p>
       </div>
 
-      {/* Curso em destaque */}
-      {heroProduct && (
-        <div data-aos="fade-up" className="relative overflow-hidden rounded-2xl bg-neutral-950 text-white shadow-lg">
-          <CdnImg width={1280} loading="eager" src={heroProduct.thumbnail} alt={heroProduct.title} className="absolute inset-0 h-full w-full object-cover opacity-30" />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/75 to-black/30" />
-
-          <div className="relative flex min-h-[240px] flex-col justify-center gap-3 p-6 sm:p-8 lg:max-w-[62%]">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary px-3 py-1 text-2xs font-bold uppercase tracking-wider">Em destaque</span>
-              {heroProduct.category && (
-                <span className="text-2xs font-bold uppercase tracking-wider text-white/60">{heroProduct.category.name}</span>
-              )}
-            </div>
-            <h2 className="font-sans text-2xl sm:text-3xl font-extrabold leading-tight">{heroProduct.title}</h2>
-            {heroProduct.shortDescription && (
-              <p className="max-w-lg text-sm text-white/70">
-                {heroProduct.shortDescription}
-                {!heroEnrollment && " Comece hoje e ganhe seus primeiros +20 XP."}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Continuar assistindo */}
+        {current ? (
+          <Link href={playerHref(course.courseId, current.lessonId)} className="group flex flex-col overflow-hidden rounded-[14px] bg-navy text-white sm:flex-row">
+            <ModuleCover cover={outline.modules[current.moduleNumber - 1]?.coverImage ?? null} instructorName={current.instructorName} number={current.moduleNumber}
+              className="aspect-[16/10] w-full shrink-0 sm:aspect-auto sm:w-[38%]" />
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 p-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{current.position > 0 ? "Continuar assistindo" : "Próxima aula"}</p>
+              <p className="text-[19px] font-extrabold leading-snug">{current.lessonIndex}. {current.lessonTitle}</p>
+              <p className="text-[13px] text-white/60">
+                {current.moduleTitle}{current.instructorName ? ` · Prof. ${current.instructorName.split(" ")[0]}` : ""}
+                {remaining > 0 && current.position > 0 ? ` · faltam ${hours(remaining)}` : ""}
               </p>
-            )}
-            <div className="flex flex-wrap items-center gap-4 pt-1">
-              {heroEnrollment && heroProduct.course ? (
-                <Link href={`/student/player?courseId=${heroProduct.course.id}`}>
-                  <Button leftIcon={<Play className="h-4 w-4 fill-current" />}>Continuar</Button>
-                </Link>
-              ) : (
-                <>
-                  <Link href={`/checkout?productId=${heroProduct.id}`}>
-                    <Button leftIcon={<Play className="h-4 w-4 fill-current" />}>Começar agora</Button>
-                  </Link>
-                  <p className="text-sm">
-                    <span className="font-bold">{formatCurrency(Number(heroProduct.price))}</span>
-                    {heroProduct.comparePrice && (
-                      <span className="ml-2 text-white/50 line-through">{formatCurrency(Number(heroProduct.comparePrice))}</span>
-                    )}
-                  </p>
-                </>
-              )}
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <span className="inline-flex h-10 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-bold group-hover:bg-brand-dark">
+                  {current.isPdf ? <FileText className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+                  {current.isPdf ? "Abrir material" : current.position > 0 ? `Continuar · ${clock(current.position)}` : "Começar aula"}
+                </span>
+                {current.position > 0 && current.duration ? (
+                  <span className="text-xs text-white/60">{lessonPct}% da aula · aula {current.lessonIndex} de {current.moduleLessons} do módulo</span>
+                ) : null}
+              </div>
+              {current.position > 0 && current.duration ? <Bar value={lessonPct} tone="light" className="mt-1" /> : null}
             </div>
-          </div>
-
-          <Link
-            href={`/course?productId=${heroProduct.id}`}
-            aria-label="Ver curso"
-            className="absolute right-8 top-1/2 hidden -translate-y-1/2 sm:flex"
-          >
-            <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/90 shadow-xl transition-transform hover:scale-105">
-              <Play className="h-8 w-8 fill-white text-white ml-1" />
-            </span>
           </Link>
-        </div>
-      )}
+        ) : (
+          <Panel className="flex flex-col items-center justify-center p-8 text-center">
+            <p className="text-[15px] font-bold text-foreground">{outline.modules.length ? "Curso concluído! 🎉" : "As aulas ainda não foram publicadas"}</p>
+            <p className="mt-1 text-sm text-foreground-muted">{outline.modules.length ? "Você assistiu todas as aulas. Revise quando quiser em Meu curso." : "Assim que o professor publicar, elas aparecem aqui."}</p>
+          </Panel>
+        )}
 
-      {/* Cards de gamificação */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Nível / patente */}
-        <div data-aos="fade-up" className="rounded-xl border border-border bg-card p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="flex items-center gap-1.5 text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
-              <Zap className="h-3.5 w-3.5 text-primary" /> Nível
-            </p>
-            <span className="rounded-full border border-primary/30 bg-primary-muted px-2.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-primary">
-              {patente.current}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-foreground">{xp.level}</span>
-            <span className="text-xs text-foreground-muted">· {xp.currentLevelXp} / {xp.nextLevelXp} XP</span>
-          </div>
-          <div className="mt-2.5">
-            <Progress value={xp.currentLevelXp} max={xp.nextLevelXp} size="sm" />
-          </div>
-          {patente.next && (
-            <p className="mt-2 text-xs text-foreground-muted">Próxima patente: <span className="font-semibold text-foreground">{patente.next}</span></p>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1 lg:gap-4">
+          {/* Prova (celular) */}
+          {examIn !== null && (
+            <div className="rounded-[14px] border border-border bg-card p-4 lg:hidden">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Prova em</p>
+              <p className="mt-1 text-[26px] font-extrabold leading-none text-foreground">{examIn} <span className="text-sm font-semibold text-foreground-muted">dias</span></p>
+            </div>
           )}
-        </div>
-
-        {/* Sequência */}
-        <div data-aos="fade-up" data-aos-delay="100" className="rounded-xl border border-border bg-card p-5">
-          <p className="mb-3 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
-            <span className="flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-destructive" /> Sequência</span>
-          </p>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-3xl font-extrabold text-foreground">{xp.streak}</span>
-            <span className="text-sm text-foreground-muted">dias</span>
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            {week.map((d, i) => (
-              <div key={i} className="flex flex-col items-center gap-1.5">
-                <div className={[
-                  "flex h-7 w-7 items-center justify-center rounded-md text-2xs font-bold",
-                  d.active ? "bg-primary text-white" : "bg-muted text-foreground-subtle",
-                  d.isToday && !d.active ? "ring-2 ring-primary/50" : "",
-                ].join(" ")}>
-                  {d.active ? <Flame className="h-3.5 w-3.5" /> : ""}
-                </div>
-                <span className={`text-2xs ${d.isToday ? "font-bold text-primary" : "text-foreground-subtle"}`}>{d.letter}</span>
+          {/* Meta da semana */}
+          <div className={examIn === null ? "col-span-2 lg:col-span-1" : ""}>
+            <Panel className="h-full p-4 lg:p-[18px]">
+              <div className="flex items-baseline justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Meta da semana</p>
+                <span className="hidden text-[11px] text-foreground-muted lg:inline">seg – dom</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Missões de hoje */}
-        <div data-aos="fade-up" data-aos-delay="200" className="rounded-xl border border-border bg-card p-5">
-          <p className="mb-3 flex items-center justify-between text-2xs font-bold uppercase tracking-wider text-foreground-subtle">
-            <span>Missões de hoje</span>
-            <span className="text-foreground-muted">{missionsDone}/{missions.length}</span>
-          </p>
-          <div className="space-y-2.5">
-            {missions.map((m) => (
-              <div key={m.label} className="flex items-center gap-2.5">
-                {m.done ? <CheckCircle2 className="h-4 w-4 shrink-0 text-success" /> : <Circle className="h-4 w-4 shrink-0 text-border" />}
-                <span className={`flex-1 text-sm ${m.done ? "text-foreground-muted line-through" : "text-foreground"}`}>{m.label}</span>
-                <span className="text-xs font-bold text-primary">+{m.xp}</span>
-              </div>
-            ))}
+              <p className="mt-1 text-[26px] font-extrabold leading-none text-foreground">{hours(stats.weekSeconds)} <span className="text-sm font-semibold text-foreground-muted">de {hours(goal)}</span></p>
+              <Bar value={(stats.weekSeconds / goal) * 100} tone={missing === 0 ? "ok" : "brand"} className="mt-3" />
+              <p className="mt-2 hidden text-xs text-foreground-muted lg:block">
+                {missing === 0 ? "Meta batida! 💪" : `Faltam ${hours(missing)} para bater sua meta.`} Média de {hours(stats.avgPerDaySeconds)} por dia.
+              </p>
+            </Panel>
           </div>
         </div>
       </div>
 
-      {/* Continuar aprendendo + Atividade recente */}
-      <div data-aos="fade-up" className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-sans text-lg font-bold text-foreground">Continuar aprendendo</h2>
-            {inProgress.length > 0 && <Link href="/student/library" className="text-xs text-primary hover:underline">Ver todos</Link>}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Seus módulos */}
+        <div className="min-w-0 lg:order-1">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[17px] font-bold text-foreground">Seus módulos</h2>
+            <Link href="/student/course" className="text-[13px] font-semibold text-brand">Ver todos{outline.modules.length > 5 ? ` os ${outline.modules.length}` : ""} →</Link>
           </div>
-          {inProgress.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-border p-5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-muted">
-                <BookOpen className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Nenhum curso iniciado</p>
-                <p className="text-xs text-foreground-muted">Seu progresso e a próxima aula aparecerão aqui.</p>
-              </div>
-            </div>
-          ) : (
-            inProgress.map((enrollment) => (
-              <div key={enrollment.id} className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/30">
-                <CdnImg width={96} src={enrollment.product.thumbnail} className="h-14 w-24 shrink-0 rounded object-cover" alt={enrollment.product.title} />
-                <div className="min-w-0 flex-1 space-y-2">
-                  <p className="truncate text-sm font-medium text-foreground">{enrollment.product.title}</p>
-                  <Progress value={enrollment.progress} size="sm" variant={enrollment.progress >= 80 ? "success" : "default"} showLabel label={`${enrollment.progress}% concluído`} />
-                </div>
-                <Link href={enrollment.product.course ? `/student/player?courseId=${enrollment.product.course.id}` : "/student/library"}>
-                  <Button size="sm" variant="outline">Continuar</Button>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+            {modules.slice(0, 5).map((m, i) => {
+              const done = m.total > 0 && m.done === m.total;
+              return (
+                <Link key={m.id} href={`/student/course?modulo=${m.id}`} className={`min-w-0 overflow-hidden rounded-[12px] border border-border bg-card hover:shadow-md ${i >= 4 ? "hidden xl:block" : ""}`}>
+                  <ModuleCover cover={m.coverImage} instructorName={m.instructorName} number={m.number} done={done} pdf={m.kind === "pdf"} className="aspect-[16/10]" />
+                  <div className="p-2.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground-muted">Módulo {String(m.number).padStart(2, "0")}</p>
+                    <p className="truncate text-[13px] font-bold text-foreground">{m.title}</p>
+                    <p className="text-[11px] text-foreground-muted">
+                      {done ? "Concluído" : m.done === 0 ? (m.kind === "pdf" ? `${m.total} materia${m.total !== 1 ? "is" : "l"}` : "Não iniciado") : `${m.done} de ${m.total} aulas`}
+                    </p>
+                    {!done && m.done > 0 && <Bar value={(m.done / m.total) * 100} className="mt-1.5" />}
+                  </div>
                 </Link>
-              </div>
-            ))
-          )}
+              );
+            })}
+          </div>
         </div>
 
-        <div className="space-y-3">
-          <h2 className="font-sans text-lg font-bold text-foreground">Atividade recente</h2>
-          {notifications.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-xl border border-dashed border-border p-5">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                <Clock className="h-5 w-5 text-foreground-muted" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Sem novidades por enquanto</p>
-                <p className="text-xs text-foreground-muted">Aulas, XP e conquistas formarão sua linha do tempo.</p>
-              </div>
-            </div>
+        {/* Próximas */}
+        <Panel title="Próximas" className="lg:order-2">
+          {upcoming.length === 0 ? (
+            <p className="px-[18px] pb-5 pt-2 text-sm text-foreground-muted">Nada na fila por enquanto.</p>
           ) : (
-            <div className="space-y-2">
-              {notifications.map((n) => (
-                <div key={n.id} className={`rounded-xl border p-3 ${!n.isRead ? "border-primary/30 bg-primary/5" : "border-border bg-card"}`}>
-                  <p className="text-xs font-medium leading-snug text-foreground">{n.title}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs text-foreground-muted">{n.message}</p>
-                  <p className="mt-1 text-2xs text-foreground-subtle">{formatRelativeDate(n.createdAt.toISOString())}</p>
-                </div>
+            <ul className="divide-y divide-line-soft px-[18px] pb-2 pt-1 dark:divide-white/10">
+              {upcoming.map((u) => (
+                <li key={u.lessonId}>
+                  <Link href={playerHref(u.courseId, u.lessonId)} className="flex items-center gap-3 py-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand dark:bg-brand/15">
+                      {u.isPdf ? <FileText className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-semibold text-foreground">{u.lessonIndex}. {u.lessonTitle}</span>
+                      <span className="block truncate text-[11.5px] text-foreground-muted">{u.isPdf ? "PDF" : u.duration ? clock(u.duration) : "Vídeo"} · {u.moduleTitle}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-foreground-muted" />
+                  </Link>
+                </li>
               ))}
+            </ul>
+          )}
+          {examIn !== null && (
+            <div className="hidden items-center gap-2 border-t border-line-soft px-[18px] py-3 text-xs text-foreground-muted lg:flex dark:border-white/10">
+              <CalendarClock className="h-4 w-4 text-brand" /> Prova em {examIn} dia{examIn !== 1 ? "s" : ""} · {outline.examDate!.toLocaleDateString("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" })}
             </div>
           )}
-        </div>
+        </Panel>
       </div>
     </div>
   );

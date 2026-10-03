@@ -160,6 +160,7 @@ model User {
   updatedAt           DateTime   @updatedAt
   lastLoginAt         DateTime?
   lastViewedProductId String?
+  weeklyGoalMinutes   Int        @default(360) // meta de estudo da semana (área do aluno)
 
   payouts            Payout[]          @relation("TeacherPayouts")
   enrollments        Enrollment[]
@@ -172,6 +173,7 @@ model User {
   favorites          Favorite[]
   notifications      Notification[]
   lessonNotes        LessonNote[]
+  studyDays          StudyDay[]
   xp                 UserXP?
   achievements       UserAchievement[]
   posts              Post[]
@@ -252,6 +254,7 @@ model Product {
   reviewCount        Int           @default(0)
   publishedAt        DateTime?
   scheduledAt        DateTime?
+  examDate           DateTime? // data da prova do concurso (contagem regressiva do aluno)
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -459,19 +462,21 @@ model Enrollment {
 }
 
 model LessonProgress {
-  id             String    @id @default(cuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lessonId       String
-  lesson         Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId        String
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   // Progresso separado por curso (a mesma aula pode estar em vários cursos).
-  courseId       String
-  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  isCompleted    Boolean   @default(false)
-  watchedSeconds Int       @default(0)
-  totalSeconds   Int       @default(0)
-  completedAt    DateTime?
-  updatedAt      DateTime  @updatedAt
+  courseId        String
+  course          Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  isCompleted     Boolean   @default(false)
+  watchedSeconds  Int       @default(0)
+  totalSeconds    Int       @default(0)
+  // Onde o aluno parou (segundos), para "continuar de onde parei".
+  positionSeconds Int       @default(0)
+  completedAt     DateTime?
+  updatedAt       DateTime  @updatedAt
 
   @@unique([userId, courseId, lessonId])
   @@index([lessonId])
@@ -854,4 +859,17 @@ model DownloadEvent {
   @@index([lessonId, createdAt])
   @@index([createdAt])
   @@map("download_events")
+}
+
+// Tempo de estudo por dia (segundos de vídeo assistidos): meta da semana,
+// horas estudadas e recorde de sequência na área do aluno.
+model StudyDay {
+  id      String   @id @default(cuid())
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date    DateTime @db.Date
+  seconds Int      @default(0)
+
+  @@unique([userId, date])
+  @@map("study_days")
 }

@@ -45,6 +45,7 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
         level: p.level,
         thumbnail: p.thumbnail,
         heroColor: course.heroColor ?? "navy",
+        examDate: p.examDate ? p.examDate.toISOString().slice(0, 10) : undefined,
       }}
     />
   );

@@ -8,7 +8,7 @@ import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/li
  * - só quem tem acesso baixa (matriculado, aula grátis/preview ou equipe);
  * - força o download com nome legível e não expõe a URL do Cloudinary.
  */
-export async function GET(_request: Request, props: { params: Promise<{ lessonId: string }> }) {
+export async function GET(request: Request, props: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await props.params;
   const session = await auth();
   if (!session?.user) return new NextResponse("Faça login para baixar.", { status: 401 });
@@ -18,6 +18,8 @@ export async function GET(_request: Request, props: { params: Promise<{ lessonId
 
   const lesson = await db.lesson.findUnique({ where: { id: lessonId }, select: { pdfUrl: true, title: true } });
   if (!lesson?.pdfUrl) return new NextResponse("PDF não encontrado.", { status: 404 });
-  await recordDownload(session.user, lessonId);
-  return pdfDownloadResponse(lesson.pdfUrl, lesson.title);
+  // ?inline=1: abre na página (modo Vídeo + PDF); só o download conta em "PDFs baixados".
+  const inline = new URL(request.url).searchParams.get("inline") === "1";
+  if (!inline) await recordDownload(session.user, lessonId);
+  return pdfDownloadResponse(lesson.pdfUrl, lesson.title, inline);
 }

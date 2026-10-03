@@ -6,7 +6,7 @@ import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
 
-export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string }> }) {
+export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
   const searchParams = await props.searchParams;
   const session = await auth();
   if (!session?.user) redirect("/login");
@@ -36,6 +36,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         include: {
           module: {
             include: {
+              instructor: { select: { name: true } },
               lessons: {
                 where: isStaff ? undefined : { status: "published" },
                 orderBy: { order: "asc" },
@@ -63,16 +64,20 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
 
   const [progressRows, notes] = await Promise.all([
     // Progresso é por curso (o mesmo módulo pode estar em outros cursos).
-    db.lessonProgress.findMany({ where: { userId, courseId }, select: { lessonId: true, isCompleted: true } }),
+    db.lessonProgress.findMany({ where: { userId, courseId }, select: { lessonId: true, isCompleted: true, positionSeconds: true, updatedAt: true } }),
     db.lessonNote.findMany({ where: { userId, lesson: { module: { courses: { some: { courseId } } } } }, select: { lessonId: true, content: true } }),
   ]);
 
   const completedSet = new Set(progressRows.filter((p) => p.isCompleted).map((p) => p.lessonId));
+  const positions = new Map(progressRows.map((p) => [p.lessonId, p.positionSeconds]));
+  // Sem lessonId na URL: abre a última aula assistida (continuar de onde parou).
+  const lastWatched = [...progressRows].filter((p) => p.positionSeconds > 0 && !p.isCompleted).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0]?.lessonId;
   const notesMap = Object.fromEntries(notes.map((n) => [n.lessonId, n.content]));
 
   const modules: PlayerModule[] = course.modules.map(({ module: m }) => ({
     id: m.id,
     title: m.title,
+    instructorName: m.instructor?.name ?? null,
     lessons: m.lessons.map<PlayerLesson>((l) => {
       // Bloqueada se o aluno não está matriculado e a aula não é gratuita/preview.
       const locked = !isEnrolled && !l.isFree && !l.isPreview;
@@ -89,6 +94,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         isFree: l.isFree,
         locked,
         isCompleted: completedSet.has(l.id),
+        position: positions.get(l.id) ?? 0,
         note: notesMap[l.id] ?? "",
         quiz: locked ? null : toStudentQuiz(l.quiz),
       };
@@ -100,7 +106,8 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
       courseId={course.id}
       courseTitle={course.product.title}
       modules={modules}
-      initialLessonId={searchParams.lessonId}
+      initialLessonId={searchParams.lessonId ?? lastWatched}
+      initialTab={searchParams.aba === "duvidas" ? "duvidas" : undefined}
       isEnrolled={isEnrolled}
       buyHref={`/cursos/${course.product.slug}`}
     />

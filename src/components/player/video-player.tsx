@@ -13,18 +13,23 @@ interface VideoPlayerProps {
   className?: string;
   src?: string;
   autoPlay?: boolean;
+  startAt?: number; // segundos: retoma de onde o aluno parou
+  onTimeUpdate?: (time: number, duration: number) => void;
+  onPause?: (time: number, duration: number) => void;
+  seekRef?: React.MutableRefObject<((seconds: number) => void) | null>; // capítulos
 }
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
-export function VideoPlayer({ title, watermark, onComplete, className, src, autoPlay }: VideoPlayerProps) {
+export function VideoPlayer(props: VideoPlayerProps) {
+  const { watermark, onComplete, className, src } = props;
   if (src) {
-    return <RealVideoPlayer key={src} src={src} title={title} watermark={watermark} onComplete={onComplete} className={className} autoPlay={autoPlay} />;
+    return <RealVideoPlayer key={src} {...props} src={src} />;
   }
   return <MockVideoPlayer watermark={watermark} onComplete={onComplete} className={className} />;
 }
 
-function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: VideoPlayerProps & { src: string }) {
+function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, startAt, onTimeUpdate, onPause, seekRef }: VideoPlayerProps & { src: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -136,6 +141,18 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: Vi
     }
   }, [src]);
 
+  // Capítulos: o pai pede para pular para um tempo (e tocar).
+  useEffect(() => {
+    if (!seekRef) return;
+    seekRef.current = (seconds: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+      v.currentTime = Math.max(0, seconds);
+      v.play().catch(() => {});
+    };
+    return () => { seekRef.current = null; };
+  }, [seekRef]);
+
   // Fullscreen state sync
   useEffect(() => {
     const handler = () => setFullscreen(Boolean(document.fullscreenElement));
@@ -188,14 +205,20 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay }: Vi
         autoPlay={autoPlay}
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => {
+          const v = e.currentTarget;
+          setDuration(v.duration);
+          // Retoma de onde parou (se não estiver colado no início ou no fim).
+          if (startAt && startAt > 5 && (!v.duration || startAt < v.duration - 10)) v.currentTime = startAt;
+        }}
         onTimeUpdate={(e) => {
           setCurrentTime(e.currentTarget.currentTime);
+          onTimeUpdate?.(e.currentTarget.currentTime, e.currentTarget.duration || 0);
           const b = e.currentTarget.buffered;
           if (b.length) setBuffered(b.end(b.length - 1));
         }}
         onPlay={() => { setPlaying(true); setEnded(false); revealControls(); }}
-        onPause={() => { setPlaying(false); setShowControls(true); }}
+        onPause={(e) => { setPlaying(false); setShowControls(true); onPause?.(e.currentTarget.currentTime, e.currentTarget.duration || 0); }}
         onWaiting={() => setWaiting(true)}
         onPlaying={() => setWaiting(false)}
         onCanPlay={() => setWaiting(false)}

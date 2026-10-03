@@ -24,9 +24,9 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
   return enrollments.some(isEnrollmentActive) ? null : new NextResponse("Você não tem acesso a este material.", { status: 403 });
 }
 
-// Busca o PDF no armazenamento e devolve como download, com nome legível
-// (sem expor a URL do Cloudinary ao aluno).
-export async function pdfDownloadResponse(url: string, fileTitle: string): Promise<NextResponse> {
+// Busca o PDF no armazenamento e devolve como download (ou para abrir na página,
+// com inline), com nome legível e sem expor a URL do Cloudinary ao aluno.
+export async function pdfDownloadResponse(url: string, fileTitle: string, inline = false): Promise<NextResponse> {
   const upstream = await fetch(url);
   if (!upstream.ok || !upstream.body) {
     // 401 aqui = entrega de PDF bloqueada nas configurações do Cloudinary.
@@ -42,7 +42,7 @@ export async function pdfDownloadResponse(url: string, fileTitle: string): Promi
   return new NextResponse(upstream.body, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${safeName}.pdf"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });
