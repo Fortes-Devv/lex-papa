@@ -39,19 +39,22 @@ export default async function CheckoutPage(props: { searchParams: Promise<{ prod
     );
   }
 
+  const payer = await db.user.findUnique({ where: { id: session.user.id }, select: { phone: true } });
+
   return (
     <CheckoutClient
       product={{
         id: product.id,
         title: product.title,
+        slug: product.slug,
         thumbnail: product.thumbnail,
         price: Number(product.price),
-        rating: product.rating,
-        reviewCount: product.reviewCount,
-        enrolledCount: product.enrolledCount,
+        comparePrice: product.comparePrice ? Number(product.comparePrice) : null,
+        accessType: product.accessType,
       }}
       payerEmail={session.user.email ?? ""}
       payerName={session.user.name ?? ""}
+      payerPhone={payer?.phone ?? ""}
       mpPublicKey={process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ?? ""}
     />
   );

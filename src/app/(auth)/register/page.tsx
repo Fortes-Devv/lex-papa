@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
@@ -8,11 +8,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { registerUser } from "@/lib/actions/auth";
+import { safeCallbackUrl } from "@/lib/safe-redirect";
 
 export default function RegisterPage() {
   const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  // Mantém o retorno ao checkout ao trocar entre cadastro e login.
+  const [loginHref, setLoginHref] = useState("/login");
+  useEffect(() => {
+    const back = safeCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl"));
+    if (back) setLoginHref(`/login?callbackUrl=${encodeURIComponent(back)}`);
+  }, []);
 
   const strength = (() => {
     const p = form.password;
@@ -39,7 +46,8 @@ export default function RegisterPage() {
       }
       await signIn("credentials", { email: form.email, password: form.password, redirect: false });
       success("Conta criada com sucesso!");
-      window.location.href = "/student/dashboard";
+      // Veio de "Comprar"? Volta para o checkout.
+      window.location.href = safeCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl")) ?? "/student/dashboard";
     } catch {
       error("Erro ao criar conta. Tente novamente.");
     } finally {
@@ -103,7 +111,7 @@ export default function RegisterPage() {
 
       <p className="text-center text-sm text-foreground-muted">
         Já tem conta?{" "}
-        <Link href="/login" className="text-primary font-medium hover:underline">Entrar</Link>
+        <Link href={loginHref} className="text-primary font-medium hover:underline">Entrar</Link>
       </p>
     </div>
   );
