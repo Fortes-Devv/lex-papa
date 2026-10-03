@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive } from "@/lib/access";
-import { daysUntil } from "@/lib/student-area";
 import { ExploreClient, type ExploreProduct, type ExploreCategory } from "./explore-client";
 
 // Cursos (modelo 7f): vitrine com capas, filtros por categoria e compra; "você tem" fica marcado.
@@ -40,8 +39,7 @@ export default async function StudentExplorePage() {
     modules: p.course?._count.modules ?? 0,
     lessons: p.course?.totalLessons ?? 0,
     seconds: p.course?.totalDuration ?? 0,
-    examIn: daysUntil(p.examDate),
-    examDate: p.examDate?.toISOString() ?? null,
+    createdAt: p.createdAt.toISOString(),
     owned: owned.has(p.id),
     progress: owned.get(p.id) ?? 0,
   }));

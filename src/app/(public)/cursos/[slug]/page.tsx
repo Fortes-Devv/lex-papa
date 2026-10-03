@@ -24,7 +24,7 @@ const COURSE_INCLUDES = [
   { icon: InfinityIcon, text: "Acesso vitalício ao curso" },
   { icon: Users, text: "Suporte da comunidade" },
   { icon: Smartphone, text: "Estude pelo celular ou computador" },
-  { icon: RefreshCw, text: "Atualizações incluídas até a prova" },
+  { icon: RefreshCw, text: "Conteúdo sempre atualizado" },
 ];
 
 // Diferenciais exibidos em "O que está incluso" quando o curso ainda não

@@ -26,8 +26,7 @@ export interface ExploreProduct {
   modules: number;
   lessons: number;
   seconds: number;
-  examIn: number | null;
-  examDate: string | null;
+  createdAt: string;
   owned: boolean;
   progress: number;
 }
@@ -36,20 +35,19 @@ export interface ExploreCategory {
   name: string;
 }
 
-type Sort = "prova" | "populares" | "preco";
+type Sort = "populares" | "recentes" | "preco";
 const price = (n: number) => (n === 0 ? "Grátis" : formatCurrency(n));
-const examLabel = (iso: string) => new Date(iso).toLocaleDateString("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" });
 
 // Cursos (modelo 7f): destaque no topo, filtros por categoria, ordenação e "você tem" marcado.
 export function ExploreClient({ products, categories, loggedIn }: { products: ExploreProduct[]; categories: ExploreCategory[]; loggedIn: boolean }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
-  const [sort, setSort] = useState<Sort>("prova");
+  const [sort, setSort] = useState<Sort>("populares");
   const [favs, setFavs] = useState<Record<string, boolean>>(Object.fromEntries(products.map((p) => [p.id, p.isFavorite])));
 
-  // Destaque: curso marcado como destaque que o aluno ainda não tem (senão o de prova mais próxima).
-  const hero = products.find((p) => p.isFeatured && !p.owned) ?? [...products].filter((p) => !p.owned && p.examIn !== null).sort((a, b) => a.examIn! - b.examIn!)[0] ?? null;
+  // Destaque: curso marcado como destaque que o aluno ainda não tem.
+  const hero = products.find((p) => p.isFeatured && !p.owned) ?? null;
 
   const list = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -58,8 +56,8 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
     return filtered.sort((a, b) =>
       Number(b.owned) - Number(a.owned) ||
       (sort === "preco" ? a.price - b.price
-        : sort === "populares" ? b.enrolledCount - a.enrolledCount
-        : (a.examIn ?? 99999) - (b.examIn ?? 99999)));
+        : sort === "recentes" ? b.createdAt.localeCompare(a.createdAt)
+        : b.enrolledCount - a.enrolledCount));
   }, [products, search, category, sort]);
 
   async function handleFav(productId: string) {
@@ -80,8 +78,8 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
           <CdnImg src={hero.thumbnail} width={1200} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" />
           <div className="relative flex flex-col gap-3 p-5 lg:max-w-[62%] lg:p-7">
             <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wider">
-              <span className="rounded-full bg-brand px-2.5 py-1">{hero.isFeatured ? "Destaque" : "Prova se aproximando"}</span>
-              {hero.examIn !== null && hero.examDate && <span className="rounded-full bg-white/10 px-2.5 py-1">Prova em {examLabel(hero.examDate)}</span>}
+              <span className="rounded-full bg-brand px-2.5 py-1">Destaque</span>
+              {hero.categoryName && <span className="rounded-full bg-white/10 px-2.5 py-1">{hero.categoryName}</span>}
             </div>
             <h2 className="text-[22px] font-extrabold leading-tight lg:text-[28px]">{hero.title}</h2>
             <p className="text-sm text-white/70">
@@ -110,8 +108,8 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
           </label>
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Ordenar"
             className="h-9 rounded-lg border border-border bg-card px-2 text-[13px] font-semibold text-foreground">
-            <option value="prova">Prova mais próxima</option>
             <option value="populares">Mais populares</option>
+            <option value="recentes">Mais recentes</option>
             <option value="preco">Menor preço</option>
           </select>
         </div>
@@ -129,7 +127,6 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
                   <span className="absolute left-2 top-2 flex flex-wrap gap-1.5">
                     {p.owned && <span className="inline-flex items-center gap-1 rounded-full bg-ok px-2 py-0.5 text-[10.5px] font-bold text-white"><Check className="h-3 w-3" /> Você tem</span>}
                     {!p.owned && off > 0 && <span className="rounded-full bg-brand px-2 py-0.5 text-[10.5px] font-bold text-white">−{off}%</span>}
-                    {!p.owned && p.examIn !== null && <span className="rounded-full bg-navy/80 px-2 py-0.5 text-[10.5px] font-bold text-white">Prova em {p.examIn} dias</span>}
                   </span>
                 </Link>
                 <button type="button" onClick={() => handleFav(p.id)} aria-label={favs[p.id] ? "Remover dos favoritos" : "Favoritar"}
@@ -141,7 +138,7 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
                   {p.categoryName && <span className="text-[11px] font-bold uppercase tracking-wider text-brand">{p.categoryName}</span>}
                   <h3 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-snug text-foreground">{p.title}</h3>
                   <p className="mt-1 text-xs text-foreground-muted">
-                    {[p.modules ? `${p.modules} módulos` : null, p.seconds ? hours(p.seconds) : null, p.examDate ? `prova ${examLabel(p.examDate)}` : null].filter(Boolean).join(" · ") || " "}
+                    {[p.modules ? `${p.modules} módulos` : null, p.seconds ? hours(p.seconds) : null, p.lessons ? `${p.lessons} aulas` : null].filter(Boolean).join(" · ") || " "}
                   </p>
                   <div className="mt-auto pt-3">
                     {p.owned && p.courseId ? (

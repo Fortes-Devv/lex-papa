@@ -4,13 +4,13 @@ import { ChevronRight, CheckCircle2, Circle } from "lucide-react";
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { getUserXp, patenteForLevel } from "@/lib/gamification";
-import { daysUntil, getStudyStats, loadCourseOutline, resolveStudentCourse } from "@/lib/student-area";
+import { getStudyStats, loadCourseOutline, resolveStudentCourse } from "@/lib/student-area";
 import { Bar, ModuleCover, Panel, hours } from "@/components/student/kit";
 import { cn } from "@/lib/utils/cn";
 
 const WEEKDAY = ["S", "T", "Q", "Q", "S", "S", "D"];
 
-// Progresso (modelo 7d): contagem para a prova, constância e andamento por disciplina.
+// Progresso (modelo 7d): aulas concluídas, constância e andamento por disciplina.
 export default async function StudentProgressPage(props: { searchParams: Promise<{ courseId?: string }> }) {
   const { courseId } = await props.searchParams;
   const session = await requireArea("student");
@@ -20,7 +20,8 @@ export default async function StudentProgressPage(props: { searchParams: Promise
   const xp = await getUserXp(userId);
   const patente = patenteForLevel(xp.level);
   const outline = current ? await loadCourseOutline(userId, current.courseId) : null;
-  const examIn = daysUntil(outline?.examDate);
+  const totalLessons = outline?.modules.reduce((s, m) => s + m.total, 0) ?? 0;
+  const doneLessons = outline?.modules.reduce((s, m) => s + m.done, 0) ?? 0;
 
   // Missões (as mesmas do Início antigo, derivadas de dados reais).
   const user = await db.user.findUnique({ where: { id: userId }, select: { avatar: true, bio: true, phone: true, lastViewedProductId: true } });
@@ -49,15 +50,9 @@ export default async function StudentProgressPage(props: { searchParams: Promise
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         <div className="rounded-[14px] bg-navy p-4 text-white lg:p-[18px]">
-          <p className="text-[11px] font-bold uppercase tracking-wider text-white/60">Prova em</p>
-          {examIn !== null ? (
-            <>
-              <p className="mt-1 text-[30px] font-extrabold leading-none">{examIn} <span className="text-sm font-semibold text-white/60">dias</span></p>
-              <p className="mt-2 text-xs text-white/60">{outline!.examDate!.toLocaleDateString("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" })} · {outline!.title}</p>
-            </>
-          ) : (
-            <p className="mt-2 text-sm text-white/70">Data da prova ainda não definida.</p>
-          )}
+          <p className="text-[11px] font-bold uppercase tracking-wider text-white/60">Aulas concluídas</p>
+          <p className="mt-1 text-[30px] font-extrabold leading-none">{doneLessons} <span className="text-sm font-semibold text-white/60">de {totalLessons}</span></p>
+          <p className="mt-2 truncate text-xs text-white/60">{outline?.title ?? "Nenhum curso ainda"}</p>
         </div>
         <Stat label="Curso concluído" value={`${outline?.progress ?? 0}%`} hint={outline ? <Bar value={outline.progress} className="mt-1" /> : "sem curso"} />
         <Stat label="Horas estudadas" value={hours(stats.totalSeconds)}

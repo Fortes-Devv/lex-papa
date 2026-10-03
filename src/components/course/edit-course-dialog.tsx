@@ -31,7 +31,6 @@ export interface EditCourseInitial {
   level: ProductLevel;
   thumbnail: string;
   heroColor?: string;
-  examDate?: string; // AAAA-MM-DD
 }
 
 const fmtNum = (n?: number) => (n && n > 0 ? String(n).replace(".", ",") : "");
@@ -55,7 +54,6 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
     level: initial.level,
     thumbnail: initial.thumbnail,
     heroColor: initial.heroColor ?? "navy",
-    examDate: initial.examDate ?? "",
   });
 
   async function handleSubmit() {
@@ -75,8 +73,6 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
         level: form.level,
         thumbnail: form.thumbnail,
         heroColor: form.heroColor,
-        // Só manda a data se mudou (quem abre sem a data não apaga a existente).
-        ...(form.examDate !== (initial.examDate ?? "") ? { examDate: form.examDate || null } : {}),
       });
       if (!result.success) { error(result.error); return; }
       success("Curso atualizado.");
@@ -104,10 +100,6 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
           <div className="grid grid-cols-2 gap-3">
             <Input label="Categoria" value={form.categoryName} onChange={(e) => setForm((f) => ({ ...f, categoryName: e.target.value }))} />
             <Select label="Nível" options={LEVEL_OPTIONS} value={form.level} onChange={(e) => setForm((f) => ({ ...f, level: e.target.value as ProductLevel }))} />
-          </div>
-          <div>
-            <Input label="Data da prova (opcional)" type="date" value={form.examDate} onChange={(e) => setForm((f) => ({ ...f, examDate: e.target.value }))} />
-            <p className="mt-1 text-xs text-foreground-muted">Mostra a contagem regressiva para os alunos (Início, Progresso e vitrine).</p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do curso</label>

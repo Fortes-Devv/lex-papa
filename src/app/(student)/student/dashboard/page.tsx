@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { Play, FileText, ChevronRight, CalendarClock } from "lucide-react";
+import { Play, FileText, ChevronRight } from "lucide-react";
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
-import { getStudyStats, lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse, daysUntil } from "@/lib/student-area";
+import { getStudyStats, lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse } from "@/lib/student-area";
 import { Bar, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { formatCurrency } from "@/lib/utils/cn";
@@ -52,7 +52,6 @@ export default async function StudentHomePage() {
 
   const outline = (await loadCourseOutline(userId, course.courseId))!;
   const { current, upcoming } = pickNextUp(outline, await lastWatchedLesson(userId, course.courseId));
-  const examIn = daysUntil(outline.examDate);
   const goal = stats.goalMinutes * 60;
   const missing = Math.max(0, goal - stats.weekSeconds);
   const lessonPct = current?.duration ? Math.round((current.position / current.duration) * 100) : 0;
@@ -68,7 +67,7 @@ export default async function StudentHomePage() {
       <div>
         <h1 className="text-[22px] font-extrabold text-foreground lg:text-[26px]">{greeting()}, {firstName}</h1>
         <p className="mt-0.5 text-sm text-foreground-muted">
-          {examIn !== null ? `Faltam ${examIn} dia${examIn !== 1 ? "s" : ""} para a prova · ` : ""}você está {outline.progress}% do caminho
+          Você já concluiu {outline.progress}% do curso
           {courses.length > 1 && <> · <Link href="/student/library" className="font-semibold text-brand">trocar curso</Link></>}
         </p>
       </div>
@@ -105,29 +104,18 @@ export default async function StudentHomePage() {
           </Panel>
         )}
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1 lg:gap-4">
-          {/* Prova (celular) */}
-          {examIn !== null && (
-            <div className="rounded-[14px] border border-border bg-card p-4 lg:hidden">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Prova em</p>
-              <p className="mt-1 text-[26px] font-extrabold leading-none text-foreground">{examIn} <span className="text-sm font-semibold text-foreground-muted">dias</span></p>
-            </div>
-          )}
-          {/* Meta da semana */}
-          <div className={examIn === null ? "col-span-2 lg:col-span-1" : ""}>
-            <Panel className="h-full p-4 lg:p-[18px]">
-              <div className="flex items-baseline justify-between">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Meta da semana</p>
-                <span className="hidden text-[11px] text-foreground-muted lg:inline">seg – dom</span>
-              </div>
-              <p className="mt-1 text-[26px] font-extrabold leading-none text-foreground">{hours(stats.weekSeconds)} <span className="text-sm font-semibold text-foreground-muted">de {hours(goal)}</span></p>
-              <Bar value={(stats.weekSeconds / goal) * 100} tone={missing === 0 ? "ok" : "brand"} className="mt-3" />
-              <p className="mt-2 hidden text-xs text-foreground-muted lg:block">
-                {missing === 0 ? "Meta batida! 💪" : `Faltam ${hours(missing)} para bater sua meta.`} Média de {hours(stats.avgPerDaySeconds)} por dia.
-              </p>
-            </Panel>
+        {/* Meta da semana */}
+        <Panel className="h-full p-4 lg:p-[18px]">
+          <div className="flex items-baseline justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-foreground-muted">Meta da semana</p>
+            <span className="hidden text-[11px] text-foreground-muted lg:inline">seg – dom</span>
           </div>
-        </div>
+          <p className="mt-1 text-[26px] font-extrabold leading-none text-foreground">{hours(stats.weekSeconds)} <span className="text-sm font-semibold text-foreground-muted">de {hours(goal)}</span></p>
+          <Bar value={(stats.weekSeconds / goal) * 100} tone={missing === 0 ? "ok" : "brand"} className="mt-3" />
+          <p className="mt-2 text-xs text-foreground-muted">
+            {missing === 0 ? "Meta batida! 💪" : `Faltam ${hours(missing)} para bater sua meta.`} Média de {hours(stats.avgPerDaySeconds)} por dia.
+          </p>
+        </Panel>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -178,11 +166,6 @@ export default async function StudentHomePage() {
                 </li>
               ))}
             </ul>
-          )}
-          {examIn !== null && (
-            <div className="hidden items-center gap-2 border-t border-line-soft px-[18px] py-3 text-xs text-foreground-muted lg:flex dark:border-white/10">
-              <CalendarClock className="h-4 w-4 text-brand" /> Prova em {examIn} dia{examIn !== 1 ? "s" : ""} · {outline.examDate!.toLocaleDateString("pt-BR", { day: "numeric", month: "short", timeZone: "UTC" })}
-            </div>
           )}
         </Panel>
       </div>

@@ -17,12 +17,6 @@ export function weekStart(today = dayKey()): Date {
   return addDays(today, -((today.getUTCDay() + 6) % 7));
 }
 
-export function daysUntil(date: Date | null | undefined): number | null {
-  if (!date) return null;
-  const diff = Math.round((dayKey(date).getTime() - dayKey().getTime()) / 86400000);
-  return diff >= 0 ? diff : null;
-}
-
 // ── Curso do aluno ─────────────────────────────────────────────────────────
 
 export interface OutlineLesson {
@@ -64,7 +58,6 @@ export interface CourseOutline {
   title: string;
   slug: string;
   thumbnail: string;
-  examDate: Date | null;
   enrolled: boolean;
   progress: number;
   modules: OutlineModule[];
@@ -82,7 +75,7 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
   const course = await db.course.findUnique({
     where: { id: courseId },
     include: {
-      product: { select: { id: true, title: true, slug: true, thumbnail: true, examDate: true } },
+      product: { select: { id: true, title: true, slug: true, thumbnail: true } },
       modules: {
         where: { isPublished: true },
         orderBy: { order: "asc" },
@@ -161,7 +154,6 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
     title: course.product.title,
     slug: course.product.slug,
     thumbnail: course.product.thumbnail,
-    examDate: course.product.examDate,
     enrolled: isEnrollmentActive(enrollment),
     progress: total ? Math.round((done / total) * 100) : 0,
     modules,
@@ -174,11 +166,11 @@ export async function getStudentCourses(userId: string) {
   const enrollments = await db.enrollment.findMany({
     where: { userId },
     orderBy: [{ lastAccessedAt: { sort: "desc", nulls: "last" } }, { enrolledAt: "desc" }],
-    include: { product: { select: { id: true, title: true, thumbnail: true, slug: true, examDate: true, course: { select: { id: true } } } } },
+    include: { product: { select: { id: true, title: true, thumbnail: true, slug: true, course: { select: { id: true } } } } },
   });
   return enrollments
     .filter((e) => isEnrollmentActive(e) && e.product.course)
-    .map((e) => ({ courseId: e.product.course!.id, productId: e.productId, title: e.product.title, thumbnail: e.product.thumbnail, slug: e.product.slug, progress: e.progress, examDate: e.product.examDate }));
+    .map((e) => ({ courseId: e.product.course!.id, productId: e.productId, title: e.product.title, thumbnail: e.product.thumbnail, slug: e.product.slug, progress: e.progress }));
 }
 
 // Escolhe o curso pedido (se o aluno tem acesso) ou o último acessado.

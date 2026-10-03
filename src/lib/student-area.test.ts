@@ -31,7 +31,7 @@ const lesson = (id: string, done = false, position = 0): OutlineLesson => ({
   id, title: id, type: "video", duration: 600, isCompleted: done, position, hasVideo: true, isPdf: false, materials: 0, downloaded: false,
 });
 const outline = (lessons: OutlineLesson[][]): CourseOutline => ({
-  courseId: "c", productId: "p", title: "Curso", slug: "curso", thumbnail: "", examDate: null, enrolled: true, progress: 0, disciplines: [],
+  courseId: "c", productId: "p", title: "Curso", slug: "curso", thumbnail: "", enrolled: true, progress: 0, disciplines: [],
   modules: lessons.map((ls, i) => ({ id: `m${i}`, number: i + 1, title: `M${i}`, coverImage: null, instructorName: null, kind: "aula", lessons: ls, done: 0, total: ls.length })),
 });
 

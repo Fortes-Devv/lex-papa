@@ -85,11 +85,9 @@ export async function updateCourseDetails(productId: string, input: {
   level: ProductLevel;
   thumbnail: string;
   heroColor?: string;
-  examDate?: string | null; // AAAA-MM-DD; null limpa; ausente mantém
 }) {
   const session = await requireStaff();
   if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
-  if (input.examDate && !/^\d{4}-\d{2}-\d{2}$/.test(input.examDate)) return { success: false as const, error: "Data da prova inválida." };
   if (!input.title.trim()) return { success: false as const, error: "Título obrigatório." };
   if (!Number.isFinite(input.price) || input.price <= 0) {
     return { success: false as const, error: "Informe um preço válido maior que zero (ex: 297,00)." };
@@ -117,8 +115,6 @@ export async function updateCourseDetails(productId: string, input: {
       categoryId: category.id,
       ...(input.thumbnail ? { thumbnail: input.thumbnail } : {}),
       ...(input.heroColor ? { course: { update: { heroColor: input.heroColor } } } : {}),
-      // Meio-dia UTC: a data não "volta um dia" no fuso de Fortaleza.
-      ...(input.examDate !== undefined ? { examDate: input.examDate ? new Date(`${input.examDate}T12:00:00Z`) : null } : {}),
     },
   });
 
