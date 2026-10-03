@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getStudyStats, lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse } from "@/lib/student-area";
 import { Bar, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
+import { InstallBanner } from "@/components/pwa/install-banner";
 import { formatCurrency } from "@/lib/utils/cn";
 
 function greeting() {
@@ -64,6 +65,7 @@ export default async function StudentHomePage() {
 
   return (
     <div className="space-y-5">
+      <InstallBanner />
       <div>
         <h1 className="text-[22px] font-extrabold text-foreground lg:text-[26px]">{greeting()}, {firstName}</h1>
         <p className="mt-0.5 text-sm text-foreground-muted">

@@ -9,6 +9,8 @@ import { Home, BookOpen, BarChart3, LayoutGrid, User, Search, Flame } from "luci
 import { Avatar } from "@/components/ui/avatar";
 import { Dropdown } from "@/components/ui/dropdown";
 import { AosProvider } from "@/components/providers/aos-provider";
+import { useInstallApp } from "@/components/pwa/pwa";
+import { InstallHelp } from "@/components/pwa/install-banner";
 import { useCurrentUser } from "@/lib/store/hooks";
 import { cn } from "@/lib/utils/cn";
 
@@ -37,6 +39,8 @@ export function StudentShell({ streak, unread, children }: { streak: number; unr
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
+  const { mode: installMode, install } = useInstallApp();
+  const [iosHelp, setIosHelp] = useState(false);
   useEffect(() => setMounted(true), []);
   const dark = mounted && theme === "dark";
 
@@ -47,6 +51,7 @@ export function StudentShell({ streak, unread, children }: { streak: number; unr
     { label: "Comunidade", href: "/student/community" },
     { label: unread > 0 ? `Notificações (${unread})` : "Notificações", href: "/student/profile?secao=notificacoes" },
     { label: dark ? "Tema claro" : "Tema escuro", onClick: () => setTheme(dark ? "light" : "dark") },
+    ...(installMode ? [{ label: "Instalar app", onClick: () => (installMode === "android" ? void install() : setIosHelp(true)) }] : []),
     { separator: true as const },
     { label: "Sair", onClick: () => signOut({ callbackUrl: "/login" }), variant: "destructive" as const },
   ];
@@ -72,6 +77,7 @@ export function StudentShell({ streak, unread, children }: { streak: number; unr
   return (
     <div className="min-h-screen bg-background">
       <AosProvider />
+      <InstallHelp open={iosHelp} onClose={() => setIosHelp(false)} />
 
       {/* Topo */}
       <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
