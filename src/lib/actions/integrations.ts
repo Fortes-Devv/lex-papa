@@ -5,6 +5,9 @@ import { db } from "@/lib/db";
 import { cloudinary } from "@/lib/cloudinary";
 import { getBunnyStorageBytes, isBunnyConfigured } from "@/lib/bunny";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
+import { paymentConfirmedEmailHtml } from "@/lib/email-templates";
+import { siteUrl } from "@/lib/site-url";
+import { formatCurrency } from "@/lib/utils/cn";
 import { reconcilePendingOrders, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { getMpOrderClient } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
@@ -35,8 +38,25 @@ export async function testIntegration(id: string): Promise<Test> {
         if (!isEmailConfigured()) return { success: false, error: "RESEND_API_KEY / EMAIL_FROM não configurados." };
         const to = session.user.email;
         if (!to) return { success: false, error: "Sua conta não tem e-mail." };
-        const r = await sendEmail({ to, subject: "Teste de e-mail — LEX Concursos", html: "<p>Se você recebeu esta mensagem, o envio de e-mails da plataforma está funcionando.</p>" });
-        return "sent" in r && r.sent === false ? { success: false, error: r.reason } : { success: true, message: `E-mail de teste enviado para ${to}.` };
+        // Manda o e-mail real de "Pagamento confirmado" (com o último pedido pago, ou um exemplo) para quem clicou.
+        const base = siteUrl() ?? "";
+        const last = await db.order.findFirst({
+          where: { status: "paid" },
+          orderBy: { paidAt: "desc" },
+          select: { id: true, total: true, paymentMethod: true, items: { take: 1, select: { product: { select: { title: true, course: { select: { id: true } } } } } } },
+        });
+        const product = last?.items[0]?.product;
+        const html = paymentConfirmedEmailHtml({
+          name: session.user.name ?? "Admin",
+          courseTitle: product?.title ?? "Curso de exemplo",
+          total: last ? (Number(last.total) === 0 ? "Grátis (cupom)" : formatCurrency(Number(last.total))) : formatCurrency(277),
+          method: last?.paymentMethod ? ({ pix: "Pix", credit_card: "Cartão de crédito", debit_card: "Cartão de débito", boleto: "Boleto" } as Record<string, string>)[last.paymentMethod] ?? null : "Pix",
+          orderCode: last ? last.id.slice(-6).toUpperCase() : "EXEMPLO",
+          courseUrl: product?.course ? `${base}/student/course?courseId=${product.course.id}` : `${base}/student/dashboard`,
+          receiptUrl: last ? `${base}/student/orders/${last.id}` : null,
+        });
+        const r = await sendEmail({ to, subject: `[Teste] Pagamento confirmado — ${product?.title ?? "seu curso"} liberado`, html });
+        return "sent" in r && r.sent === false ? { success: false, error: r.reason } : { success: true, message: `Exemplo do e-mail "Pagamento confirmado" enviado para ${to}.` };
       }
       case "db": {
         await db.$queryRaw`SELECT 1`;
