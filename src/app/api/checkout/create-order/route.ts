@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { computeOrderTotal } from "@/lib/pricing";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFreeOrder, fulfillFromMpOrder } from "@/lib/order-fulfillment";
+import { isEnrollmentActive } from "@/lib/access";
 
 const cpf = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 11, "CPF deve ter 11 dígitos.");
 const basePayer = {
@@ -63,7 +64,8 @@ export async function POST(request: Request) {
   const already = await db.enrollment.findUnique({
     where: { userId_productId: { userId: session.user.id, productId: body.productId } },
   });
-  if (already) return NextResponse.json({ error: "Você já tem acesso a este curso." }, { status: 400 });
+  // Só bloqueia quem tem acesso válido: expirada/cancelada (reembolso) pode recomprar (a matrícula é reativada).
+  if (isEnrollmentActive(already)) return NextResponse.json({ error: "Você já tem acesso a este curso." }, { status: 400 });
 
   // Cupom de 100% (total R$ 0): pedido pago e matrícula na hora, sem Mercado Pago.
   if (priced.total === 0) {

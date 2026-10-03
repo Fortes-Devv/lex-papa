@@ -3,6 +3,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CheckoutClient } from "@/components/checkout/checkout-client";
+import { isEnrollmentActive } from "@/lib/access";
 
 export default async function CheckoutPage(props: { searchParams: Promise<{ productId?: string }> }) {
   const searchParams = await props.searchParams;
@@ -26,12 +27,13 @@ export default async function CheckoutPage(props: { searchParams: Promise<{ prod
     where: { userId_productId: { userId: session.user.id, productId: product.id } },
   });
 
-  if (existingEnrollment) {
+  // Matrícula expirada ou cancelada (ex.: reembolso) pode comprar de novo.
+  if (isEnrollmentActive(existingEnrollment)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="max-w-sm text-center space-y-3">
           <p className="text-lg font-semibold text-foreground">Você já tem acesso a este curso!</p>
-          <Link href="/student/library" className="text-primary font-medium hover:underline">Ir para minha biblioteca</Link>
+          <Link href="/student/course" className="text-primary font-medium hover:underline">Ir para o curso</Link>
         </div>
       </div>
     );
