@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 export default function ErrorPage({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    // Erro com digest já foi registrado no servidor; os outros (só no navegador) são enviados aos Logs.
+    if (!error.digest) fetch("/api/client-error", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: error.message, path: window.location.pathname }), keepalive: true }).catch(() => {});
   }, [error]);
 
   return (
