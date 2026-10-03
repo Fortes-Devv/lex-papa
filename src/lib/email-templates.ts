@@ -116,3 +116,34 @@ export function passwordResetEmailHtml(resetLink: string): string {
     },
   });
 }
+
+const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Enviado quando o pagamento é confirmado e o acesso ao curso é liberado.
+export function paymentConfirmedEmailHtml(opts: {
+  name: string; courseTitle: string; total: string; method: string | null; orderCode: string; courseUrl: string; receiptUrl: string | null;
+}): string {
+  const first = escapeHtml(opts.name.split(" ")[0] || "aluno");
+  const course = escapeHtml(opts.courseTitle);
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:6px 0;color:#9ca3af;font-size:13px;text-align:left;">${label}</td><td style="padding:6px 0;color:#374151;font-size:13px;font-weight:700;text-align:right;">${value}</td></tr>`;
+  return renderBrandedEmail({
+    preheader: `Pagamento confirmado: seu acesso a ${course} está liberado.`,
+    icon: "✅",
+    heading: "Pagamento confirmado!",
+    bodyHtml: `Olá, ${first}! Recebemos seu pagamento e o seu acesso ao curso<br><strong style="color:#1f2937;">${course}</strong><br>já está liberado. Bons estudos! 📚
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0 0;border-top:1px solid #eeeeee;border-bottom:1px solid #eeeeee;">
+        ${row("Pedido", `#${escapeHtml(opts.orderCode)}`)}
+        ${row("Valor", escapeHtml(opts.total))}
+        ${opts.method ? row("Forma de pagamento", escapeHtml(opts.method)) : ""}
+      </table>
+      ${opts.receiptUrl ? `<p style="margin:14px 0 0;font-size:13px;"><a href="${opts.receiptUrl}" style="color:${ORANGE};font-weight:700;">Ver recibo</a></p>` : ""}`,
+    ctaText: "Começar a estudar",
+    ctaUrl: opts.courseUrl,
+    ctaIcon: "▶",
+    security: {
+      title: "Guarde este e-mail",
+      lines: ["Ele é o comprovante da sua compra.", "Dúvidas? Fale com o nosso suporte."],
+    },
+  });
+}

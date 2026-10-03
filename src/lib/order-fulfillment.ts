@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { sendPaymentConfirmedEmail } from "@/lib/payment-email";
 
 // Mapeia o status da Order do Mercado Pago para o OrderStatus do nosso schema.
 export function mapMpOrderStatus(mpStatus?: string): OrderStatus {
@@ -94,12 +95,12 @@ type OrderWithItems = { id: string; userId: string; couponCode: string | null; i
 // chamar ao mesmo tempo para o mesmo pedido.
 async function markPaidAndEnroll(order: OrderWithItems, data: Prisma.OrderUpdateManyMutationInput) {
   const notPaid = { id: order.id, status: { not: "paid" as const } };
-  await db.$transaction(async (tx) => {
+  const claimed = await db.$transaction(async (tx) => {
     // "Claim" atômico: só a chamada que efetivamente muda o pedido para pago
     // segue com matrícula e contadores. As concorrentes esperam o lock da
     // linha e, depois do commit, encontram status = paid (count 0).
-    const claimed = await tx.order.updateMany({ where: notPaid, data });
-    if (claimed.count !== 1) return;
+    const claim = await tx.order.updateMany({ where: notPaid, data });
+    if (claim.count !== 1) return false;
 
     for (const item of order.items) {
       const where = { userId_productId: { userId: order.userId, productId: item.productId } };
@@ -118,7 +119,10 @@ async function markPaidAndEnroll(order: OrderWithItems, data: Prisma.OrderUpdate
       // updateMany não lança se o cupom foi apagado (um erro abortaria a transação).
       await tx.coupon.updateMany({ where: { code: order.couponCode }, data: { usedCount: { increment: 1 } } });
     }
+    return true;
   });
+  // Só quem efetivamente liberou o acesso avisa o aluno (um e-mail por pedido).
+  if (claimed) await sendPaymentConfirmedEmail(order.id);
 }
 
 // Re-consulta no Mercado Pago os pedidos ainda pendentes/processando (com mpOrderId)
