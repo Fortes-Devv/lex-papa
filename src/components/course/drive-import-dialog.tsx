@@ -20,13 +20,13 @@ export function DriveImportDialog({ open, onClose, moduleId, moduleTitle }: { op
   const [link, setLink] = useState("");
   const [items, setItems] = useState<ItemState[] | null>(null);
   const [truncated, setTruncated] = useState(false);
-  const [publish, setPublish] = useState(false);
+  const [publish, setPublish] = useState(true);
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const finished = items?.length && items.every((i) => i.status === "ok" || i.status === "error");
 
   function reset() {
-    setLink(""); setItems(null); setTruncated(false); setPublish(false);
+    setLink(""); setItems(null); setTruncated(false); setPublish(true);
   }
   function close() {
     if (running) return; // não interrompe no meio
@@ -124,7 +124,7 @@ export function DriveImportDialog({ open, onClose, moduleId, moduleTitle }: { op
             ))}
           </ul>
           {!finished && (
-            <Switch checked={publish} onChange={setPublish} label="Publicar as aulas para os alunos" description="Desligado: as aulas entram como rascunho para você revisar antes." />
+            <Switch checked={publish} onChange={setPublish} label="Publicar as aulas para os alunos" description="Desligue para as aulas entrarem como rascunho (ocultas para o aluno)." />
           )}
           <p className={cn("text-xs", running ? "font-semibold text-brand" : "text-foreground-muted")}>
             {running

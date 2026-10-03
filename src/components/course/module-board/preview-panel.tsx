@@ -18,6 +18,7 @@ interface PreviewPanelProps {
   onEditModule?: () => void;
   onAddLesson?: () => void;
   onImportDrive?: () => void;
+  onPublishAll?: () => void;
   lessonMenu: (lesson: EditorLesson, index: number) => DropdownItem[];
   headerMenu?: React.ReactNode; // ⋯ do módulo (folha do celular)
   className?: string;
@@ -75,7 +76,7 @@ function PreviewStage({ lesson, playing, onPlay }: { lesson: EditorLesson | null
   );
 }
 
-export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onEditModule, onAddLesson, onImportDrive, lessonMenu, headerMenu, className }: PreviewPanelProps) {
+export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onEditModule, onAddLesson, onImportDrive, onPublishAll, lessonMenu, headerMenu, className }: PreviewPanelProps) {
   const hint = mod.usedIn.length > 0;
   const meta = [
     mod.instructorName ? `Prof. ${mod.instructorName.split(" ")[0]}` : null,
@@ -100,6 +101,17 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
         </div>
         {headerMenu}
       </div>
+
+      {/* Aulas em rascunho: o aluno não vê até publicar */}
+      {onPublishAll && mod.lessons.some((l) => l.status !== "published") && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-border bg-brand-soft/60 px-4 py-2.5 dark:bg-brand/10">
+          <EyeOff className="h-4 w-4 shrink-0 text-brand" />
+          <p className="min-w-0 flex-1 text-xs text-foreground">
+            {(() => { const n = mod.lessons.filter((l) => l.status !== "published").length; return `${n} aula${n !== 1 ? "s" : ""} oculta${n !== 1 ? "s" : ""} para o aluno`; })()}
+          </p>
+          <Button size="sm" onClick={onPublishAll}>Publicar todas</Button>
+        </div>
+      )}
 
       {/* Lista de aulas */}
       <div className="flex-1">

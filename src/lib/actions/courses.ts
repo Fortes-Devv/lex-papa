@@ -494,6 +494,16 @@ export async function updateLessonStatus(lessonId: string, status: "draft" | "pu
   return { success: true as const };
 }
 
+// "Publicar todas as aulas" do módulo (ex.: depois de importar do Drive como rascunho).
+export async function publishAllLessons(moduleId: string) {
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
+  const { count } = await db.lesson.updateMany({ where: { moduleId, status: "draft" }, data: { status: "published" } });
+  await recalcTotalsForModule(moduleId);
+  revalidateContent();
+  return { success: true as const, count };
+}
+
 export async function deleteLesson(lessonId: string) {
   const session = await requireStaff();
   if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;

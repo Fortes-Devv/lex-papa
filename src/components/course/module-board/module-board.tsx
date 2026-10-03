@@ -24,7 +24,7 @@ import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
   createModule, renameModule, deleteModule, moveModule, toggleModulePublished, setModulePublished,
   deleteLesson, moveLesson, updateLessonStatus, detachModule, attachModule, listAttachableModules,
-  reorderModules, setModuleCover,
+  reorderModules, setModuleCover, publishAllLessons,
 } from "@/lib/actions/courses";
 import { ModuleCard, ModuleCover } from "./module-card";
 import { PreviewPanel } from "./preview-panel";
@@ -231,6 +231,10 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Editar módulo", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => openEditModule(m) });
       items.push({ label: "Adicionar aula", icon: <Plus className="h-3.5 w-3.5" />, onClick: () => openNewLesson(m) });
       items.push({ label: "Importar do Google Drive", icon: <HardDrive className="h-3.5 w-3.5" />, onClick: () => setDriveFor(m) });
+      const drafts = m.lessons.filter((l) => l.status !== "published").length;
+      if (drafts > 0) {
+        items.push({ label: `Publicar todas as aulas (${drafts})`, icon: <Eye className="h-3.5 w-3.5" />, onClick: async () => report(await publishAllLessons(m.id), `${drafts} aula${drafts !== 1 ? "s" : ""} publicada${drafts !== 1 ? "s" : ""}.`) });
+      }
     }
     if (!restricted) {
       items.push({ label: "Mover para cima", icon: <ArrowUp className="h-3.5 w-3.5" />, disabled: index === 0, onClick: async () => report(await moveModule(header.courseId, m.id, "up")) });
@@ -312,6 +316,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       onEditModule={selected.canEdit ? () => openEditModule(selected) : undefined}
       onAddLesson={selected.canEdit ? () => openNewLesson(selected) : undefined}
       onImportDrive={selected.canEdit ? () => setDriveFor(selected) : undefined}
+      onPublishAll={selected.canEdit ? async () => report(await publishAllLessons(selected.id), "Aulas publicadas.") : undefined}
       lessonMenu={lessonMenu(selected)}
       className={isDesktop ? "max-h-[calc(100vh-120px)]" : "min-h-0 flex-1 rounded-none border-0"}
       headerMenu={!isDesktop ? (
