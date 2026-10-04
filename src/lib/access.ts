@@ -1,6 +1,7 @@
 import type { Enrollment } from "@prisma/client";
 
-export const STAFF_ROLES = ["admin", "moderator", "teacher"] as const;
+// Professor não entra mais na plataforma (só crédito nos módulos): não é equipe.
+export const STAFF_ROLES = ["admin", "moderator"] as const;
 
 export function isStaffRole(role: string | undefined | null): boolean {
   return !!role && (STAFF_ROLES as readonly string[]).includes(role);

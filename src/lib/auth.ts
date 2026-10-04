@@ -9,6 +9,10 @@ import { clientIpFrom, hitRateLimit, normalizeEmail } from "@/lib/rate-limit";
 class TooManyAttempts extends CredentialsSignin {
   code = "rate_limited";
 }
+// Professor é só crédito nos módulos: não entra na plataforma.
+class NoAccess extends CredentialsSignin {
+  code = "no_access";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -37,6 +41,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) return null;
+        if (user.role === "teacher") throw new NoAccess();
 
         await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 

@@ -50,11 +50,14 @@ export const ADMIN_SECTIONS: NavSection[] = [
     search: { placeholder: "Buscar usuário..." },
     filters: [
       { label: "Todos", param: "papel", countKey: "all" },
-      { label: "Alunos", param: "papel", value: "student", countKey: "student" },
-      { label: "Professores", param: "papel", value: "teacher", countKey: "teacher" },
-      { label: "Admins", param: "papel", value: "admin", countKey: "admin" },
+      { label: "Alunos (com curso)", param: "papel", value: "aluno", countKey: "aluno" },
+      { label: "Cadastrados (sem compra)", param: "papel", value: "cadastrado", countKey: "cadastrado" },
+      { label: "Assinantes", param: "papel", value: "assinante", countKey: "assinante" },
+      { label: "Acesso encerrado", param: "papel", value: "encerrado", countKey: "encerrado" },
+      { label: "Professores", param: "papel", value: "professor", countKey: "professor" },
+      { label: "Equipe (admin)", param: "papel", value: "equipe", countKey: "equipe" },
     ],
-    filtersTitle: "Tipo",
+    filtersTitle: "Quem é",
     filterGroups: [{
       title: "Status",
       filters: [

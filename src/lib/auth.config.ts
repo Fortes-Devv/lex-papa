@@ -3,7 +3,7 @@ import type { NextAuthConfig } from "next-auth";
 const ROLE_HOME: Record<string, string> = {
   admin: "/admin/dashboard",
   moderator: "/admin/dashboard",
-  teacher: "/teacher/dashboard",
+  teacher: "/sem-acesso", // professor não tem acesso (só crédito nos módulos)
   student: "/student/dashboard",
 };
 
@@ -47,7 +47,7 @@ export const authConfig = {
       if (areaMatch) {
         if (!isLoggedIn) return false; // NextAuth redireciona para pages.signIn
         const area = areaMatch[1];
-        const allowed = area === "admin" ? role === "admin" || role === "moderator" : role === area;
+        const allowed = area === "admin" ? role === "admin" || role === "moderator" : area !== "teacher" && role === area;
         if (!allowed) {
           return Response.redirect(new URL(ROLE_HOME[role ?? "student"] ?? "/login", request.nextUrl));
         }

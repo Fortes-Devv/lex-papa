@@ -10,7 +10,7 @@ import { safeCallbackUrl } from "@/lib/safe-redirect";
 const ROLE_HOME: Record<string, string> = {
   admin: "/admin/dashboard",
   moderator: "/admin/dashboard",
-  teacher: "/teacher/dashboard",
+  teacher: "/sem-acesso",
   student: "/student/dashboard",
 };
 const inputCls = "h-12 w-full rounded-xl border border-border bg-card px-4 text-[15px] text-foreground outline-none placeholder:text-foreground-muted focus:border-brand focus:ring-2 focus:ring-brand/20";
@@ -33,7 +33,9 @@ export default function LoginPage() {
     try {
       const result = await signIn("credentials", { email: form.email, password: form.password, redirect: false });
       if (result?.error) {
-        error(result.code === "rate_limited" ? "Muitas tentativas de login. Aguarde 15 minutos e tente novamente." : "E-mail ou senha inválidos.");
+        error(result.code === "rate_limited" ? "Muitas tentativas de login. Aguarde 15 minutos e tente novamente."
+          : result.code === "no_access" ? "Esta conta não tem acesso à plataforma. Fale com o administrador."
+          : "E-mail ou senha inválidos.");
         setLoading(false);
         return;
       }

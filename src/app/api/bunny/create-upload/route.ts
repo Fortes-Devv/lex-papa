@@ -4,7 +4,7 @@ import { createBunnyVideo, buildUploadCredentials, isBunnyConfigured } from "@/l
 
 export async function POST(request: Request) {
   const session = await auth();
-  if (!session?.user || !["admin", "moderator", "teacher"].includes(session.user.role)) {
+  if (!session?.user || !["admin", "moderator"].includes(session.user.role)) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 403 });
   }
   if (!isBunnyConfigured()) {

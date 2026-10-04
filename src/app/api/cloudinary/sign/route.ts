@@ -7,7 +7,7 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
-  const isStaff = ["admin", "moderator", "teacher"].includes(session.user.role);
+  const isStaff = ["admin", "moderator"].includes(session.user.role);
 
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
     return NextResponse.json(

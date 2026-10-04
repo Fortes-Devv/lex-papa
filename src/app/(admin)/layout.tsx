@@ -2,6 +2,7 @@ import { NavShell, type PanelData } from "@/components/layout/nav-shell/nav-shel
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { getBunnyStorageBytes } from "@/lib/bunny";
+import { classifyUser, type EnrollmentLite, type UserKind } from "@/lib/user-kinds";
 
 const ROLE_LABEL: Record<string, string> = { admin: "Administrador", moderator: "Moderador" };
 
@@ -18,6 +19,13 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
   });
   const userRoles = await db.user.groupBy({ by: ["role"], _count: true });
   const userStatus = await db.user.groupBy({ by: ["status"], _count: true });
+  // Contas de aluno por situação (cadastrado / aluno / assinante / encerrado).
+  const studentEnrollments = await db.enrollment.findMany({ select: { userId: true, status: true, expiresAt: true, product: { select: { id: true, title: true, type: true } } } });
+  const byUser = new Map<string, EnrollmentLite[]>();
+  for (const e of studentEnrollments) byUser.set(e.userId, [...(byUser.get(e.userId) ?? []), e]);
+  const studentIds = await db.user.findMany({ where: { role: "student" }, select: { id: true } });
+  const kinds: Record<UserKind, number> = { cadastrado: 0, aluno: 0, assinante: 0, encerrado: 0, professor: 0, equipe: 0 };
+  for (const u of studentIds) kinds[classifyUser("student", byUser.get(u.id) ?? []).kind]++;
   const orderStatus = await db.order.groupBy({ by: ["status"], _count: true });
   const storage = await getBunnyStorageBytes();
 
@@ -54,9 +62,12 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
       users: {
         counts: {
           all: count(userRoles, () => true),
-          student: count(userRoles, (r) => r.role === "student"),
-          teacher: count(userRoles, (r) => r.role === "teacher"),
-          admin: count(userRoles, (r) => r.role === "admin" || r.role === "moderator"),
+          cadastrado: kinds.cadastrado,
+          aluno: kinds.aluno,
+          assinante: kinds.assinante,
+          encerrado: kinds.encerrado,
+          professor: count(userRoles, (r) => r.role === "teacher"),
+          equipe: count(userRoles, (r) => r.role === "admin" || r.role === "moderator"),
           active: count(userStatus, (r) => r.status === "active"),
           inactive: count(userStatus, (r) => r.status === "inactive"),
           banned: count(userStatus, (r) => r.status === "banned"),

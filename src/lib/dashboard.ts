@@ -86,7 +86,7 @@ export async function getDashboardData(period: DashboardPeriod) {
 
   const activity = [
     ...paidOrders.map((o) => ({ kind: "paid" as const, at: o.paidAt!, title: `Pedido #${o.id.slice(-6).toUpperCase()} pago`, detail: `${o.user.name.split(" ")[0]} · ${o.items[0]?.product.title ?? "Produto"}`, href: `/admin/orders?q=${o.id}` })),
-    ...students.map((s) => ({ kind: "student" as const, at: s.createdAt, title: "Novo aluno cadastrado", detail: s.name, href: "/admin/users?papel=student" })),
+    ...students.map((s) => ({ kind: "student" as const, at: s.createdAt, title: "Nova conta cadastrada", detail: s.name, href: "/admin/users" })),
     ...failures.map((f) => ({ kind: "error" as const, at: f.createdAt, title: f.action === "system.server_error" ? "Erro no sistema" : "Webhook de pagamento falhou", detail: f.action === "system.server_error" ? "Logs" : "Integrações", href: "/admin/logs?nivel=erro" })),
   ].sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 6);
 

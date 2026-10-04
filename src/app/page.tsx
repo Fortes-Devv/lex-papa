@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 const ROLE_HOME: Record<string, string> = {
   admin: "/admin/dashboard",
   moderator: "/admin/dashboard",
-  teacher: "/teacher/dashboard",
+  teacher: "/sem-acesso",
   student: "/student/dashboard",
 };
 

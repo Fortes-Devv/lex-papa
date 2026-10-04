@@ -10,7 +10,7 @@ export async function requireUser() {
   return session;
 }
 
-/** admin, moderator ou teacher. */
+/** admin ou moderator (professor não tem mais acesso). */
 export async function requireStaff() {
   const session = await auth();
   if (!session?.user || !isStaffRole(session.user.role)) throw new Error("Não autorizado.");
@@ -38,7 +38,7 @@ export async function requireAdmin() {
 const ROLE_HOME: Record<string, string> = {
   admin: "/admin/dashboard",
   moderator: "/admin/dashboard",
-  teacher: "/teacher/dashboard",
+  teacher: "/sem-acesso",
   student: "/student/dashboard",
 };
 

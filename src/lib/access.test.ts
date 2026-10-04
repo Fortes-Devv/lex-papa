@@ -20,7 +20,8 @@ describe("isEnrollmentActive", () => {
 
 describe("isStaffRole", () => {
   it("admin, moderador e professor são equipe; aluno não", () => {
-    expect(["admin", "moderator", "teacher"].every(isStaffRole)).toBe(true);
+    expect(["admin", "moderator"].every(isStaffRole)).toBe(true);
+    expect(isStaffRole("teacher")).toBe(false);
     expect(isStaffRole("student")).toBe(false);
     expect(isStaffRole(undefined)).toBe(false);
   });

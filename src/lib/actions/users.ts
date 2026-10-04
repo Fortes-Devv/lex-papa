@@ -8,6 +8,7 @@ import { requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import type { UserRole, UserStatus } from "@/lib/types";
+import { NO_LOGIN_EMAIL_DOMAIN } from "@/lib/user-kinds";
 
 const roleSchema = z.enum(["admin", "moderator", "teacher", "student"]);
 const statusSchema = z.enum(["active", "inactive", "banned", "pending"]);
@@ -131,4 +132,52 @@ export async function importUsersCsv(csvText: string) {
   await logAudit({ actorId: session.user.id, action: "user.imported", resourceType: "user", metadata: { created, errors: results.length - created } });
   revalidatePath("/admin/users");
   return { success: true as const, created, results };
+}
+
+// ── Professores (só para créditos) ──────────────────────────────────────────
+// Professor não entra na plataforma: é um nome (com foto e minibio opcionais)
+// que o admin associa aos módulos. O login de quem tem papel "professor" é recusado.
+
+// E-mail interno (o banco exige um e-mail único); nunca é usado para login.
+const teacherPlaceholderEmail = () => `professor-${crypto.randomBytes(6).toString("hex")}${NO_LOGIN_EMAIL_DOMAIN}`;
+
+const teacherSchema = z.object({
+  name: z.string().trim().min(2, "Informe o nome do professor.").max(120),
+  bio: z.string().trim().max(500).optional(),
+  avatar: z.string().trim().url().or(z.literal("")).optional(),
+});
+
+export async function createTeacherProfile(input: { name: string; bio?: string; avatar?: string }) {
+  const session = await requireModerator();
+  const parsed = teacherSchema.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const created = await db.user.create({
+    data: {
+      name: parsed.data.name,
+      bio: parsed.data.bio || null,
+      avatar: parsed.data.avatar || null,
+      email: teacherPlaceholderEmail(),
+      // Senha aleatória descartada: ninguém a conhece (e o login de professor é recusado).
+      passwordHash: await bcrypt.hash(crypto.randomBytes(24).toString("base64url"), 10),
+      role: "teacher",
+      status: "active",
+    },
+  });
+  await logAudit({ actorId: session.user.id, action: "user.created", resourceType: "user", resourceId: created.id, metadata: { role: "teacher", name: created.name } });
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/courses");
+  return { success: true as const, id: created.id };
+}
+
+export async function updateTeacherProfile(userId: string, input: { name: string; bio?: string; avatar?: string }) {
+  const session = await requireModerator();
+  const parsed = teacherSchema.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (target?.role !== "teacher") return { success: false as const, error: "Este usuário não é professor." };
+  await db.user.update({ where: { id: userId }, data: { name: parsed.data.name, bio: parsed.data.bio || null, avatar: parsed.data.avatar || null } });
+  await logAudit({ actorId: session.user.id, action: "user.updated", resourceType: "user", resourceId: userId, metadata: { name: parsed.data.name } });
+  revalidatePath("/admin/users");
+  revalidatePath("/admin/courses");
+  return { success: true as const };
 }
