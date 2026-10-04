@@ -224,41 +224,53 @@ export function NavShell({ area, user, pendingOrders = 0, panelData = {}, childr
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ── Trilho (desktop) ── */}
+      {/* ── Trilho (desktop): passa o mouse e ele abre por cima do conteúdo mostrando os nomes ── */}
       <nav aria-label="Principal" data-rail onKeyDown={railKeys}
-        className="fixed inset-y-0 left-0 z-40 hidden w-16 flex-col items-center gap-1.5 bg-navy py-4 lg:flex">
-        <Link href={sections[0].href} className="mb-3.5 grid h-10 w-10 place-items-center rounded-xl bg-brand text-[11px] font-extrabold text-white" aria-label="Início">LEX</Link>
+        className="group/rail fixed inset-y-0 left-0 z-40 hidden w-16 flex-col gap-1.5 overflow-hidden bg-navy px-2.5 py-4 transition-[width,box-shadow] duration-200 ease-out hover:w-56 hover:shadow-[8px_0_32px_rgba(15,22,32,.35)] hover:delay-150 has-[:focus-visible]:w-56 motion-reduce:transition-none lg:flex">
+        <Link href={sections[0].href} className="mb-3.5 flex items-center gap-3 rounded-xl text-white" aria-label="Início">
+          <span className="ml-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand text-[11px] font-extrabold">LEX</span>
+          <span className="whitespace-nowrap text-[14px] font-extrabold opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100 group-hover/rail:delay-100 group-has-[:focus-visible]/rail:opacity-100 motion-reduce:transition-none">Lex Concursos</span>
+        </Link>
         {sections.map((s, i) => {
           const active = s.id === current.id;
           const Icon = s.icon;
           const dividerBefore = i > 0 && s.group !== sections[i - 1].group && (s.group === "Sistema" || s.group === "Alunos");
           return (
             <div key={s.id} className="contents">
-              {dividerBefore && <span className="my-2 h-px w-7 bg-white/10" aria-hidden />}
-              <Link href={s.href} data-rail-item aria-label={s.label} title={s.label} aria-current={active ? "page" : undefined}
+              {dividerBefore && <span className="mx-2 my-2 h-px bg-white/10" aria-hidden />}
+              <Link href={s.href} data-rail-item aria-label={s.label} aria-current={active ? "page" : undefined}
                 onClick={() => { if (wide) setPanel(true); else setOverlayOpen(true); }}
-                className={cn("relative grid h-11 w-11 place-items-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-navy",
+                className={cn("relative flex h-11 w-full shrink-0 items-center rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-navy",
                   active ? "bg-brand text-white" : "text-white/60 hover:bg-white/10 hover:text-white")}>
                 {active && <span className="absolute -left-2.5 top-2.5 h-6 w-[3px] rounded-r bg-white" aria-hidden />}
-                <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                {s.id === "orders" && pendingOrders > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-navy" aria-label={`${pendingOrders} pedidos pendentes`} />}
+                <span className="relative grid h-11 w-11 shrink-0 place-items-center">
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                  {s.id === "orders" && pendingOrders > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand ring-2 ring-navy" aria-label={`${pendingOrders} pedidos pendentes`} />}
+                </span>
+                <span className="whitespace-nowrap text-[13.5px] font-semibold opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100 group-hover/rail:delay-100 group-has-[:focus-visible]/rail:opacity-100 motion-reduce:transition-none">{s.label}</span>
+                {s.id === "orders" && pendingOrders > 0 && <span className="ml-auto mr-3 rounded-full bg-brand px-1.5 text-[10.5px] font-bold text-white opacity-0 transition-opacity group-hover/rail:opacity-100 group-has-[:focus-visible]/rail:opacity-100">{pendingOrders}</span>}
               </Link>
             </div>
           );
         })}
         <div className="flex-1" />
         {!showPanel && (
-          <button type="button" onClick={() => (wide ? setPanel(true) : setOverlayOpen(true))} aria-label="Abrir painel" title="Abrir painel"
-            className="grid h-11 w-11 place-items-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white">
-            <ChevronRight className="h-[18px] w-[18px]" />
+          <button type="button" onClick={() => (wide ? setPanel(true) : setOverlayOpen(true))} aria-label="Abrir painel"
+            className="flex h-11 w-full shrink-0 items-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white">
+            <span className="grid h-11 w-11 shrink-0 place-items-center"><ChevronRight className="h-[18px] w-[18px]" /></span>
+            <span className="whitespace-nowrap text-[13.5px] font-semibold opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100 group-hover/rail:delay-100 group-has-[:focus-visible]/rail:opacity-100 motion-reduce:transition-none">Abrir painel</span>
           </button>
         )}
-        <button type="button" onClick={() => setTheme(dark ? "light" : "dark")} aria-label="Alternar tema" title="Tema claro/escuro"
-          className="grid h-11 w-11 place-items-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white">
-          {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+        <button type="button" onClick={() => setTheme(dark ? "light" : "dark")} aria-label="Alternar tema"
+          className="flex h-11 w-full shrink-0 items-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white">
+          <span className="grid h-11 w-11 shrink-0 place-items-center">{dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}</span>
+          <span className="whitespace-nowrap text-[13.5px] font-semibold opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100 group-hover/rail:delay-100 group-has-[:focus-visible]/rail:opacity-100 motion-reduce:transition-none">{dark ? "Tema claro" : "Tema escuro"}</span>
         </button>
         <Dropdown align="left" className="mt-1.5" items={accountMenu}
-          trigger={<span role="button" aria-label="Conta" title={user.name} className="grid h-[34px] w-[34px] cursor-pointer place-items-center rounded-full bg-brand text-xs font-extrabold text-white">{initial}</span>} />
+          trigger={<span role="button" aria-label="Conta" className="flex cursor-pointer items-center text-white">
+            <span className="grid h-11 w-11 shrink-0 place-items-center"><span className="grid h-[34px] w-[34px] place-items-center rounded-full bg-brand text-xs font-extrabold">{initial}</span></span>
+            <span className="whitespace-nowrap text-[13.5px] font-semibold opacity-0 transition-opacity duration-150 group-hover/rail:opacity-100 group-hover/rail:delay-100 group-has-[:focus-visible]/rail:opacity-100 motion-reduce:transition-none">{user.name.split(" ")[0]}</span>
+          </span>} />
       </nav>
 
       {/* ── Painel contextual (desktop) ── */}
