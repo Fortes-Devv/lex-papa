@@ -163,16 +163,14 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
       {/* Topo */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-14 max-w-[1180px] items-center gap-3 px-4 lg:px-8">
-          {session?.user && (
-            <Link href="/student/explore" className="inline-flex items-center gap-1 text-sm font-semibold text-foreground-muted hover:text-foreground">
-              <ChevronLeft className="h-4 w-4" /> Cursos
-            </Link>
-          )}
-          <Link href={session?.user ? "/student/dashboard" : `/cursos/${product.slug}`} className={`flex items-center gap-2 ${session?.user ? "ml-auto" : ""}`} aria-label="LEX Concursos">
+          <Link href={session?.user ? "/student/explore" : "/#cursos"} className="inline-flex items-center gap-1 text-sm font-semibold text-foreground-muted hover:text-foreground">
+            <ChevronLeft className="h-4 w-4" /> Cursos
+          </Link>
+          <Link href={session?.user ? "/student/dashboard" : "/"} className="ml-auto flex items-center gap-2" aria-label="LEX Concursos">
             <span className="grid h-8 w-8 place-items-center rounded-lg bg-navy"><Image src="/logo.png" alt="" width={22} height={19} className="object-contain" /></span>
             <span className="hidden text-sm font-extrabold text-foreground sm:inline">Lex Concursos</span>
           </Link>
-          {!session?.user && <Link href={`/login?callbackUrl=/cursos/${product.slug}`} className="ml-auto text-sm font-semibold text-brand">Entrar</Link>}
+          {!session?.user && <Link href={`/login?callbackUrl=/cursos/${product.slug}`} className="text-sm font-semibold text-brand">Entrar</Link>}
         </div>
       </header>
 

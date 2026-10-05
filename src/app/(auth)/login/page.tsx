@@ -59,7 +59,7 @@ export default function LoginPage() {
       <div>
         <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">Entrar</h1>
         <p className="mt-1 text-sm text-foreground-muted">
-          {callback?.startsWith("/checkout") ? "Entre para finalizar sua compra." : <>Ainda não tem conta? <Link href="/course" className="font-semibold text-brand">Veja os cursos</Link></>}
+          {callback?.startsWith("/checkout") ? "Entre para finalizar sua compra." : <>Ainda não tem conta? <Link href="/#cursos" className="font-semibold text-brand">Veja os cursos</Link></>}
         </p>
       </div>
 
