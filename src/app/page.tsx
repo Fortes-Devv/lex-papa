@@ -9,6 +9,7 @@ import { getSettings, DEFAULT_SETTINGS } from "@/lib/settings";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { disciplineName, subjectInitials } from "@/lib/discipline";
 import { formatCurrency } from "@/lib/utils/cn";
+import { HomeHero } from "@/components/sales/home-hero";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -71,98 +72,17 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navbar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1180px] items-center gap-3 px-4 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="LEX Concursos">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-white shadow-sm ring-1 ring-border"><Image src="/logo.png" alt="" width={30} height={26} className="object-contain" priority /></span>
-            <span className="text-[16px] font-extrabold text-foreground">LEX Concursos</span>
-          </Link>
-          <nav className="ml-auto flex items-center gap-1 sm:gap-2">
-            <a href="#preparacoes" className="hidden h-10 items-center px-3 text-sm font-semibold text-foreground-muted hover:text-foreground sm:inline-flex">Preparações</a>
-            <a href="#como-funciona" className="hidden h-10 items-center px-3 text-sm font-semibold text-foreground-muted hover:text-foreground md:inline-flex">Como funciona</a>
-            <Link href="/login" className="inline-flex h-10 items-center rounded-xl border border-line-strong px-4 text-sm font-bold text-foreground hover:bg-background dark:border-white/10">Entrar</Link>
-          </nav>
+      {/* Navbar escura e enxuta: o logo grande fica no hero */}
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b111a]/90 backdrop-blur">
+        <div className="mx-auto flex h-14 max-w-[1240px] items-center justify-end gap-1 px-4 sm:gap-2 lg:px-10">
+          <a href="#preparacoes" className="hidden h-10 items-center px-3 text-sm font-semibold text-white/70 hover:text-white sm:inline-flex">Preparações</a>
+          <a href="#como-funciona" className="hidden h-10 items-center px-3 text-sm font-semibold text-white/70 hover:text-white md:inline-flex">Como funciona</a>
+          <Link href="/login" className="inline-flex h-9 items-center rounded-xl border border-white/25 px-4 text-sm font-bold text-white hover:bg-white/10">Entrar</Link>
         </div>
       </header>
 
-      {/* 1. Hero: proposta à esquerda, prévia da plataforma (dados reais) à direita */}
-      <section className="brand-gradient relative overflow-hidden text-white">
-        <div aria-hidden className="absolute inset-0 bg-grid opacity-[0.05]" />
-        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,transparent,rgba(0,0,0,0.35))]" />
-        <div className="relative mx-auto grid max-w-[1180px] items-center gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:px-8 lg:py-24">
-          <div>
-            {/* Logo em destaque: caixa branca (a estátua do logo é escura e sumiria no fundo) */}
-            <div className="relative mb-7 inline-block">
-              <span aria-hidden className="absolute -inset-4 rounded-[36px] bg-primary/30 blur-2xl" />
-              <span className="relative grid h-32 w-32 place-items-center rounded-[28px] bg-white shadow-[0_20px_50px_rgba(0,0,0,.35)] ring-4 ring-white/15 sm:h-40 sm:w-40 lg:h-44 lg:w-44">
-                <Image src="/icons/icon-512.png" alt="LEX Concursos" width={176} height={176} className="h-[94%] w-[94%] object-contain" priority />
-              </span>
-            </div>
-            <br />
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-white/90 ring-1 ring-white/15">
-              <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Preparação para concursos públicos
-            </p>
-            <h1 className="mt-5 text-[38px] font-extrabold leading-[1.04] tracking-tight sm:text-[52px] xl:text-[60px]">
-              Seu próximo concurso.<br /><span className="text-primary">Sua preparação começa aqui.</span>
-            </h1>
-            <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-white/80 sm:text-lg">
-              Tenha aulas, materiais de apoio e uma plataforma feita para você estudar com mais organização, praticidade e foco — de onde estiver.
-            </p>
-            <p className="mt-2 max-w-xl text-[15px] text-white/60">Escolha sua preparação, acesse o conteúdo e comece a estudar no seu ritmo.</p>
-            <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-4">
-              <a href="#preparacoes" className={ctaPrimary}>Quero começar a estudar <ArrowRight className="h-4 w-4" /></a>
-              <Link href="/login" className="inline-flex items-center gap-1.5 text-[15px] font-bold text-white/90 hover:text-white">Já sou aluno <ArrowRight className="h-4 w-4" /></Link>
-            </div>
-            <ul className="mt-9 grid max-w-lg grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-white/85">
-              {TRUST.map((t) => <li key={t} className="flex items-center gap-2"><span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary/20"><Check className="h-3 w-3 text-primary" /></span>{t}</li>)}
-            </ul>
-          </div>
-
-          {featured && (
-            <div className="relative mx-auto w-full max-w-[460px] lg:mx-0 lg:justify-self-end" aria-hidden>
-              <div className="rotate-[1.5deg] overflow-hidden rounded-[20px] bg-card text-foreground shadow-[0_30px_80px_rgba(0,0,0,.45)] ring-1 ring-white/10 transition-transform duration-500 hover:rotate-0">
-                <div className="relative bg-navy">
-                  <CdnImg src={featured.thumbnail} width={720} loading="eager" alt="" className="block h-auto w-full" />
-                </div>
-                <div className="p-4">
-                  <p className="text-[10.5px] font-bold uppercase tracking-wider text-brand">Continuar assistindo</p>
-                  <p className="mt-0.5 truncate text-[15px] font-extrabold">{featured.title}</p>
-                  <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line"><div className="h-full w-[62%] rounded-full bg-brand" /></div>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {subjectsOf(featured).slice(0, 6).map((name) => (
-                      <span key={name} className="grid h-8 min-w-8 place-items-center rounded-lg bg-navy px-1.5 text-[11px] font-extrabold text-brand" title={name}>{subjectInitials(name)}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="absolute -bottom-4 -right-2 hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-navy shadow-xl sm:flex">
-                <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-soft text-brand"><FileText className="h-4 w-4" /></span>
-                <p className="text-[12px] font-bold leading-tight">PDF de cada aula<br /><span className="font-semibold text-foreground-muted">para baixar e revisar</span></p>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Números reais */}
-      {(totalLessons > 0 || totalSubjects > 0) && (
-        <section className="border-b border-border bg-card">
-          <dl className="mx-auto grid max-w-[1180px] grid-cols-2 gap-y-6 px-4 py-8 sm:grid-cols-4 lg:px-8">
-            {[
-              { v: products.length, l: products.length === 1 ? "preparação disponível" : "preparações disponíveis" },
-              { v: totalLessons, l: "aulas em vídeo" },
-              { v: `${totalHours}h`, l: "de conteúdo" },
-              { v: totalSubjects, l: "disciplinas" },
-            ].map((s) => (
-              <div key={s.l} className="text-center sm:border-r sm:border-line-soft sm:last:border-0 dark:sm:border-white/10">
-                <dd className="text-[30px] font-extrabold leading-none text-foreground lg:text-[36px]">{s.v}</dd>
-                <dt className="mt-1.5 text-[13px] text-foreground-muted">{s.l}</dt>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
+      {/* 1. Hero (modelo do dono) + faixa de confiança */}
+      <HomeHero lessons={totalLessons} hours={totalHours} />
 
       {/* 2. Preparações */}
       <section id="preparacoes" className="mx-auto max-w-[1180px] scroll-mt-20 px-4 py-16 lg:px-8 lg:py-24">
