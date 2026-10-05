@@ -122,9 +122,8 @@ export default async function HomePage() {
           {featured && (
             <div className="relative mx-auto w-full max-w-[460px] lg:mx-0 lg:justify-self-end" aria-hidden>
               <div className="rotate-[1.5deg] overflow-hidden rounded-[20px] bg-card text-foreground shadow-[0_30px_80px_rgba(0,0,0,.45)] ring-1 ring-white/10 transition-transform duration-500 hover:rotate-0">
-                <div className="relative aspect-video bg-navy">
-                  <CdnImg src={featured.thumbnail} width={640} aspect="16:9" loading="eager" alt="" className="h-full w-full object-cover" />
-                  <span className="absolute left-1/2 top-1/2 grid h-14 w-14 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand shadow-xl"><PlayCircle className="h-7 w-7 text-white" /></span>
+                <div className="relative bg-navy">
+                  <CdnImg src={featured.thumbnail} width={720} loading="eager" alt="" className="block h-auto w-full" />
                 </div>
                 <div className="p-4">
                   <p className="text-[10.5px] font-bold uppercase tracking-wider text-brand">Continuar assistindo</p>
@@ -189,8 +188,9 @@ export default async function HomePage() {
                   className={`group grid overflow-hidden rounded-[20px] border border-border bg-card shadow-[0_6px_24px_rgba(31,43,58,.06)] transition-shadow hover:shadow-[0_16px_40px_rgba(31,43,58,.14)] ${wide ? "lg:grid-cols-[1.15fr_1fr]" : ""}`}>
                   {/* Capa sempre 16:9 e inteira (no card largo fica emoldurada e centralizada) */}
                   <div className={wide ? "bg-navy p-3 lg:flex lg:items-center lg:p-5" : ""}>
-                    <div className={`relative aspect-video w-full overflow-hidden bg-navy ${wide ? "rounded-[14px]" : ""}`}>
-                      <CdnImg src={p.thumbnail} width={wide ? 960 : 640} aspect="16:9" alt="" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                    {/* Capa inteira: no card largo na proporção original; na grade, dentro de 16:9 sem cortar */}
+                    <div className={`relative w-full overflow-hidden bg-navy ${wide ? "rounded-[14px]" : "aspect-video"}`}>
+                      <CdnImg src={p.thumbnail} width={wide ? 1000 : 640} alt="" className={`transition-transform duration-500 group-hover:scale-[1.02] ${wide ? "block h-auto w-full" : "h-full w-full object-contain"}`} />
                       {off > 0 && <span className="absolute left-3 top-3 rounded-full bg-brand px-3 py-1 text-[12px] font-bold text-white shadow">−{off}%</span>}
                     </div>
                   </div>
