@@ -92,6 +92,14 @@ export default async function HomePage() {
         <div aria-hidden className="absolute inset-0 bg-[radial-gradient(120%_90%_at_50%_0%,transparent,rgba(0,0,0,0.35))]" />
         <div className="relative mx-auto grid max-w-[1180px] items-center gap-12 px-4 py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:px-8 lg:py-24">
           <div>
+            {/* Logo em destaque: caixa branca (a estátua do logo é escura e sumiria no fundo) */}
+            <div className="relative mb-7 inline-block">
+              <span aria-hidden className="absolute -inset-4 rounded-[36px] bg-primary/30 blur-2xl" />
+              <span className="relative grid h-32 w-32 place-items-center rounded-[28px] bg-white shadow-[0_20px_50px_rgba(0,0,0,.35)] ring-4 ring-white/15 sm:h-40 sm:w-40 lg:h-44 lg:w-44">
+                <Image src="/icons/icon-512.png" alt="LEX Concursos" width={176} height={176} className="h-[94%] w-[94%] object-contain" priority />
+              </span>
+            </div>
+            <br />
             <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[11.5px] font-bold uppercase tracking-[0.14em] text-white/90 ring-1 ring-white/15">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Preparação para concursos públicos
             </p>
