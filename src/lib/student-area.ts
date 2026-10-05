@@ -1,5 +1,8 @@
 import { db } from "@/lib/db";
 import { isEnrollmentActive } from "@/lib/access";
+import { disciplineName } from "@/lib/discipline";
+
+export { disciplineName };
 
 // Dados da área do aluno (modelos 7 e 8): curso com progresso, disciplinas,
 // "continuar assistindo" e estatísticas de estudo. Consultas em sequência (Neon).
@@ -64,11 +67,6 @@ export interface CourseOutline {
   disciplines: Discipline[];
 }
 
-// Nome da disciplina a partir do módulo: "Língua Portuguesa Aulas" e
-// "Língua Portuguesa PDFs" viram a mesma disciplina.
-export function disciplineName(title: string) {
-  return title.replace(/[\s\-–—·:]+(aulas?|pdfs?|v[ií]deos?|materia(is|l)|apostilas?)$/i, "").trim() || title;
-}
 const disciplineKey = (name: string) => name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ");
 
 export async function loadCourseOutline(userId: string, courseId: string): Promise<CourseOutline | null> {

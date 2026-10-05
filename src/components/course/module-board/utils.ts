@@ -1,4 +1,5 @@
 import type { EditorLesson, EditorModule } from "./types";
+import { subjectInitials } from "@/lib/discipline";
 
 export type ModuleKind = "aula" | "pdf";
 
@@ -11,14 +12,9 @@ export function moduleKind(m: EditorModule): ModuleKind {
 
 export const hasPlayableVideo = (m: EditorModule) => m.lessons.some((l) => !!l.previewUrl);
 
-// Capa automática: iniciais do professor (máx. 2) ou o número do módulo com 2 dígitos.
+// Capa automática: sigla da matéria (Língua Portuguesa = LP) ou o número do módulo.
 export function coverLabel(m: EditorModule, index: number): string {
-  const name = m.instructorName?.trim();
-  if (name) {
-    const parts = name.split(/\s+/).filter(Boolean);
-    return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
-  }
-  return String(index + 1).padStart(2, "0");
+  return subjectInitials(m.title) || String(index + 1).padStart(2, "0");
 }
 
 export const moduleNumber = (index: number) => `MÓDULO ${String(index + 1).padStart(2, "0")}`;

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, FileText } from "lucide-react";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cn } from "@/lib/utils/cn";
+import { subjectInitials } from "@/lib/discipline";
 
 // Peças visuais da área do aluno (mesma linguagem do admin: capas navy, laranja, cards).
 
@@ -26,11 +27,11 @@ export function initials(name: string | null | undefined) {
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 
-// Capa do módulo: imagem enviada ou navy com as iniciais do professor (ou o número).
-export function ModuleCover({ cover, instructorName, number, done, pdf, className, size = "md" }: {
-  cover: string | null; instructorName: string | null; number: number; done?: boolean; pdf?: boolean; className?: string; size?: "sm" | "md";
+// Capa do módulo: imagem enviada ou navy com a sigla da matéria (ou o número).
+export function ModuleCover({ cover, title, number, done, pdf, className, size = "md" }: {
+  cover: string | null; title: string; number: number; done?: boolean; pdf?: boolean; className?: string; size?: "sm" | "md";
 }) {
-  const label = initials(instructorName) || String(number).padStart(2, "0");
+  const label = subjectInitials(title) || String(number).padStart(2, "0");
   return (
     <div className={cn("relative overflow-hidden bg-navy", className)}>
       {cover ? (

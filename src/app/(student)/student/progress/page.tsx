@@ -69,7 +69,7 @@ export default async function StudentProgressPage(props: { searchParams: Promise
               {started.map((d) => (
                 <li key={d.key}>
                   <Link href={`${base}&disciplina=${encodeURIComponent(d.key)}`} className="flex items-center gap-3">
-                    <ModuleCover cover={d.modules[0].coverImage} instructorName={d.instructorName} number={d.modules[0].number} size="sm" className="h-9 w-9 shrink-0 rounded-lg" />
+                    <ModuleCover cover={d.modules[0].coverImage} title={d.name} number={d.modules[0].number} size="sm" className="h-9 w-9 shrink-0 rounded-lg" />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
                         <span className="truncate text-sm font-semibold text-foreground">{d.name}</span>

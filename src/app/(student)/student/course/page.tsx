@@ -119,7 +119,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
                     <li key={d.key}>
                       <Link href={`${base}&disciplina=${encodeURIComponent(d.key)}`} scroll={false}
                         className={cn("flex items-center gap-3 px-[18px] py-3 lg:py-2.5", active ? "lg:bg-brand-soft lg:dark:bg-brand/10" : "hover:bg-background")}>
-                        <ModuleCover cover={first.coverImage} instructorName={d.instructorName} number={first.number} size="sm" done={d.total > 0 && d.done === d.total}
+                        <ModuleCover cover={first.coverImage} title={d.name} number={first.number} size="sm" done={d.total > 0 && d.done === d.total}
                           className="h-11 w-11 shrink-0 rounded-lg lg:hidden" />
                         <span className="min-w-0 flex-1">
                           <span className={cn("block truncate text-sm text-foreground", active ? "font-bold" : "font-semibold")}>{d.name}</span>
@@ -199,7 +199,7 @@ function ModuleBlock({ m, courseId }: { m: OutlineModule; courseId: string }) {
   return (
     <Panel className="overflow-hidden">
       <div className="flex items-center gap-3 border-b border-line-soft px-[18px] py-3 dark:border-white/10">
-        <ModuleCover cover={m.coverImage} instructorName={m.instructorName} number={m.number} size="sm" className="h-10 w-10 shrink-0 rounded-lg" />
+        <ModuleCover cover={m.coverImage} title={m.title} number={m.number} size="sm" className="h-10 w-10 shrink-0 rounded-lg" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[14px] font-bold text-foreground">{pdf ? "Material em PDF" : "Aulas em vídeo"} <span className="font-medium text-foreground-muted">· {m.title}</span></p>
           <p className="text-xs text-foreground-muted">

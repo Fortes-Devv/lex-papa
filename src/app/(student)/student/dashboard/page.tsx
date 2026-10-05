@@ -78,7 +78,7 @@ export default async function StudentHomePage() {
         {/* Continuar assistindo */}
         {current ? (
           <Link href={playerHref(course.courseId, current.lessonId)} className="group flex flex-col overflow-hidden rounded-[14px] bg-navy text-white sm:flex-row">
-            <ModuleCover cover={outline.modules[current.moduleNumber - 1]?.coverImage ?? null} instructorName={current.instructorName} number={current.moduleNumber}
+            <ModuleCover cover={outline.modules[current.moduleNumber - 1]?.coverImage ?? null} title={current.moduleTitle} number={current.moduleNumber}
               className="aspect-video w-full shrink-0 sm:aspect-auto sm:w-[38%]" />
             <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 p-5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{current.position > 0 ? "Continuar assistindo" : "Próxima aula"}</p>
@@ -132,7 +132,7 @@ export default async function StudentHomePage() {
               const done = m.total > 0 && m.done === m.total;
               return (
                 <Link key={m.id} href={`/student/course?modulo=${m.id}`} className={`min-w-0 overflow-hidden rounded-[12px] border border-border bg-card hover:shadow-md ${i >= 4 ? "hidden xl:block" : ""}`}>
-                  <ModuleCover cover={m.coverImage} instructorName={m.instructorName} number={m.number} done={done} pdf={m.kind === "pdf"} className="aspect-video" />
+                  <ModuleCover cover={m.coverImage} title={m.title} number={m.number} done={done} pdf={m.kind === "pdf"} className="aspect-video" />
                   <div className="p-2.5">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-foreground-muted">Módulo {String(m.number).padStart(2, "0")}</p>
                     <p className="truncate text-[13px] font-bold text-foreground">{m.title}</p>

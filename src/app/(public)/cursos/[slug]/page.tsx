@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive } from "@/lib/access";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
-import { disciplineName } from "@/lib/student-area";
+import { disciplineName, subjectInitials } from "@/lib/discipline";
 import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { heroGradient } from "@/lib/constants/hero-themes";
 import { FreePreview, type FreeLesson } from "@/components/sales/free-preview";
@@ -100,7 +100,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
   for (const m of modules) {
     const name = disciplineName(m.title);
     const key = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-    const g = groups.get(key) ?? { key, name, instructorName: m.instructor?.name ?? null, initials: initials(m.instructor?.name ?? name), lessons: [], seconds: 0, pdfs: 0 };
+    const g = groups.get(key) ?? { key, name, instructorName: m.instructor?.name ?? null, initials: subjectInitials(name), lessons: [], seconds: 0, pdfs: 0 };
     for (const l of m.lessons) {
       const hasVideo = Boolean(l.videoUrl || l.videoPublicId);
       const isPdf = l.type === "pdf" || (!hasVideo && !!l.pdfUrl);
