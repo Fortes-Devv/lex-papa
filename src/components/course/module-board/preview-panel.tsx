@@ -81,7 +81,6 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
   const meta = [
     mod.instructorName ? `Prof. ${mod.instructorName.split(" ")[0]}` : null,
     lesson?.duration ? formatClock(lesson.duration) : null,
-    lesson?.isFree ? "Grátis" : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -142,7 +141,6 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
                       <span className={cn("block truncate text-[13px] font-semibold", draft || (!l.previewUrl && !pdf) ? "text-foreground-muted" : "text-foreground")}>{l.title}</span>
                       <span className="flex flex-wrap items-center gap-x-1.5 text-[11px] text-foreground-muted">
                         {pdf ? "PDF" : l.duration ? formatClock(l.duration) : l.previewUrl ? "Vídeo" : "Sem vídeo"}
-                        {l.isFree && <span>· Grátis</span>}
                         {l.materials.length > 0 && <span className="inline-flex items-center gap-0.5">· <FileText className="h-3 w-3" /> {l.materials.length} PDF{l.materials.length !== 1 ? "s" : ""}</span>}
                         {draft && <span className="inline-flex items-center gap-0.5">· <EyeOff className="h-3 w-3" /> oculta para o aluno</span>}
                       </span>

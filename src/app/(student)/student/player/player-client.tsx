@@ -263,7 +263,6 @@ export function PlayerClient({
                     <span className={cn("block text-[11px]", isCurrent ? "font-semibold text-brand" : "text-foreground-muted")}>
                       {isCurrent ? "Assistindo" : done ? "Concluída" : lesson === nextLesson ? "Próxima" : lesson.videoUrl || lesson.type === "video" ? "Vídeo" : lesson.type === "quiz" ? "Quiz" : "PDF"}
                       {lesson.duration ? ` · ${formatDuration(lesson.duration)}` : ""}
-                      {lesson.isFree && !isEnrolled ? " · Grátis" : ""}
                     </span>
                   </span>
                 </button>

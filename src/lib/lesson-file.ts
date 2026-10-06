@@ -5,7 +5,7 @@ import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 
 // Quem pode baixar um arquivo de uma aula (PDF da aula ou material anexado):
 // equipe sempre; aluno se a aula está publicada num módulo publicado em algum curso
-// e ele tem matrícula válida nesse curso (ou a aula é grátis/preview).
+// e ele tem matrícula válida nesse curso. Não existe aula grátis: sem compra, sem acesso.
 // Retorna null se pode; senão, a resposta de erro já pronta.
 export async function lessonFileAccessError(user: Session["user"], lessonId: string): Promise<NextResponse | null> {
   const lesson = await db.lesson.findUnique({
@@ -17,7 +17,6 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
 
   const productIds = lesson.module.courses.map((c) => c.course.productId);
   if (lesson.status !== "published" || productIds.length === 0) return new NextResponse("Arquivo não encontrado.", { status: 404 });
-  if (lesson.isFree || lesson.isPreview) return null;
 
   // Basta matrícula válida em qualquer curso que use o módulo.
   const enrollments = await db.enrollment.findMany({ where: { userId: user.id, productId: { in: productIds } } });

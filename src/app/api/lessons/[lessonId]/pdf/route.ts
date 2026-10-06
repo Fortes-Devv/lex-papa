@@ -5,13 +5,13 @@ import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/li
 
 /**
  * Baixa o PDF principal da aula pelo nosso servidor:
- * - só quem tem acesso baixa (matriculado, aula grátis/preview ou equipe);
+ * - só quem tem acesso baixa (aluno matriculado ou equipe);
  * - força o download com nome legível e não expõe a URL do Cloudinary.
  */
 export async function GET(request: Request, props: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await props.params;
   const session = await auth();
-  // Sem login (ex.: PDF grátis na página de venda): entra e volta para baixar.
+  // Sem login: entra e volta para baixar.
   if (!session?.user) {
     const back = new URL(request.url).pathname;
     return NextResponse.redirect(new URL(`/login?callbackUrl=${encodeURIComponent(back)}`, request.url));

@@ -430,8 +430,9 @@ export async function createLesson(moduleId: string, input: {
       videoPublicId: input.videoPublicId,
       pdfUrl: input.pdfUrl,
       duration: input.duration,
-      isFree: input.isFree,
-      isPreview: input.isPreview,
+      // Não existe aula grátis na LEX (decisão do dono): sempre falso.
+      isFree: false,
+      isPreview: false,
       completionCriteria: input.completionCriteria,
     },
   });
@@ -475,8 +476,8 @@ export async function updateLesson(lessonId: string, input: {
       videoPublicId: input.videoPublicId ?? null,
       pdfUrl: input.pdfUrl ?? null,
       duration: input.duration ?? null,
-      isFree: input.isFree,
-      isPreview: input.isPreview,
+      isFree: false,
+      isPreview: false,
       completionCriteria: input.completionCriteria,
     },
   });

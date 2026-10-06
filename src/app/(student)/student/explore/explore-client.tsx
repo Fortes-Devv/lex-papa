@@ -88,7 +88,7 @@ export function ExploreClient({ products, categories, loggedIn }: { products: Ex
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Link href={`/checkout?productId=${hero.id}`} className="inline-flex h-10 items-center rounded-lg bg-brand px-4 text-sm font-bold hover:bg-brand-dark">Comprar · {price(hero.price)}</Link>
-              <Link href={`/cursos/${hero.slug}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-bold hover:bg-white/20"><Play className="h-4 w-4 fill-current" /> Ver aula grátis</Link>
+              <Link href={`/cursos/${hero.slug}`} className="inline-flex h-10 items-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-bold hover:bg-white/20"><Play className="h-4 w-4 fill-current" /> Ver conteúdo</Link>
             </div>
           </div>
         </div>

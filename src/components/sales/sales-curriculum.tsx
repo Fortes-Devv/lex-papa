@@ -1,15 +1,14 @@
 "use client";
 import { useState } from "react";
-import { ChevronDown, Lock, Play, FileText } from "lucide-react";
+import { ChevronDown, Lock, FileText } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils/cn";
-import { PLAY_FREE_EVENT } from "./free-preview";
 
-export interface SalesLesson { id: string; title: string; duration: number | null; isPdf: boolean; free: boolean; playable: boolean }
+export interface SalesLesson { id: string; title: string; duration: number | null; isPdf: boolean }
 export interface SalesDiscipline { key: string; name: string; instructorName: string | null; initials: string; lessons: SalesLesson[]; seconds: number; pdfs: number }
 
 const PREVIEW = 3; // aulas mostradas antes de "+ N aulas"
 
-// Conteúdo da página de venda, por disciplina (aulas e PDFs juntos), com aulas grátis tocáveis.
+// Conteúdo da página de venda, por disciplina (aulas e PDFs juntos). Tudo é exclusivo para alunos.
 export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[] }) {
   const [open, setOpen] = useState<string[]>(disciplines[0] ? [disciplines[0].key] : []);
   const [full, setFull] = useState<string[]>([]);
@@ -29,11 +28,9 @@ export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[
         {disciplines.map((d) => {
           const isOpen = open.includes(d.key);
           const showAll = full.includes(d.key);
-          // Fechado: aulas grátis primeiro (o selo GRÁTIS precisa mostrar onde ela está). Numeração original.
           const numbered = d.lessons.map((l, n) => ({ ...l, n: n + 1 }));
-          const lessons = showAll ? numbered : [...numbered.filter((l) => l.free), ...numbered.filter((l) => !l.free)].slice(0, PREVIEW);
+          const lessons = showAll ? numbered : numbered.slice(0, PREVIEW);
           const videos = d.lessons.length - d.pdfs;
-          const hasFree = d.lessons.some((l) => l.free);
           return (
             <div key={d.key} className="border-b border-line-soft last:border-0 dark:border-white/10">
               <button type="button" aria-expanded={isOpen} onClick={() => setOpen((o) => (isOpen ? o.filter((k) => k !== d.key) : [...o, d.key]))}
@@ -42,7 +39,6 @@ export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
                     <span className="truncate text-[15px] font-bold text-foreground">{d.name}</span>
-                    {hasFree && <span className="shrink-0 rounded bg-ok-soft px-1.5 py-0.5 text-[10px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">GRÁTIS</span>}
                   </span>
                   <span className="block truncate text-xs text-foreground-muted">
                     {[d.instructorName ? `Prof. ${d.instructorName.split(" ")[0]}` : null, videos ? `${videos} aula${videos !== 1 ? "s" : ""}` : null,
@@ -57,16 +53,7 @@ export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[
                     <li key={l.id} className="flex items-center gap-3 px-4 py-2.5 pl-[68px] text-sm">
                       <span className="min-w-0 flex-1 truncate text-foreground">{l.n}. {l.title}</span>
                       {l.duration ? <span className="shrink-0 text-xs text-foreground-muted">{formatDuration(l.duration)}</span> : null}
-                      {l.free && l.playable ? (
-                        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent(PLAY_FREE_EVENT, { detail: l.id }))}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ok-soft px-2 py-1 text-[11px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">
-                          <Play className="h-3 w-3 fill-current" /> Assistir
-                        </button>
-                      ) : l.free && l.isPdf ? (
-                        <a href={`/api/lessons/${l.id}/pdf`} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ok-soft px-2 py-1 text-[11px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">
-                          <FileText className="h-3 w-3" /> Baixar grátis
-                        </a>
-                      ) : l.isPdf ? (
+                      {l.isPdf ? (
                         <FileText className="h-4 w-4 shrink-0 text-foreground-muted" aria-label="PDF" />
                       ) : (
                         <Lock className="h-3.5 w-3.5 shrink-0 text-foreground-muted" aria-label="Exclusivo para alunos" />

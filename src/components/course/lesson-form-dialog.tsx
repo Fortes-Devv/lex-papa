@@ -185,17 +185,6 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
           />
         </div>
 
-        <div className="flex items-center gap-6 text-sm">
-          <label className="flex items-center gap-2 cursor-pointer text-foreground-muted">
-            <input type="checkbox" className="rounded border-border" checked={form.isFree} onChange={(e) => setForm((f) => ({ ...f, isFree: e.target.checked }))} />
-            Aula gratuita
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer text-foreground-muted">
-            <input type="checkbox" className="rounded border-border" checked={form.isPreview} onChange={(e) => setForm((f) => ({ ...f, isPreview: e.target.checked }))} />
-            Preview público
-          </label>
-        </div>
-
         {/* Quiz opcional — funciona em qualquer tipo de aula, sem trocar o tipo */}
         {form.id ? (
           <QuizBuilder lessonId={form.id} />

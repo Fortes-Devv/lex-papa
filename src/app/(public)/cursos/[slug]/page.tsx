@@ -9,11 +9,10 @@ import { Check, ChevronLeft, Lock, ShieldCheck, Star, Users, Clock, BookOpen, Sp
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive } from "@/lib/access";
-import { resolveLessonVideoUrl } from "@/lib/bunny";
 import { disciplineName, subjectInitials } from "@/lib/discipline";
 import { formatCurrency, formatDuration } from "@/lib/utils/cn";
 import { heroGradient } from "@/lib/constants/hero-themes";
-import { FreePreview, type FreeLesson } from "@/components/sales/free-preview";
+import { CdnImg } from "@/components/ui/cdn-img";
 import { SalesCurriculum, type SalesDiscipline } from "@/components/sales/sales-curriculum";
 
 // Curso publicado pelo slug. `cache` evita consultar duas vezes (metadata + página).
@@ -35,7 +34,7 @@ const getCourseProduct = cache(async (slug: string) =>
                   lessons: {
                     orderBy: { order: "asc" },
                     where: { status: "published" },
-                    select: { id: true, title: true, type: true, duration: true, isFree: true, isPreview: true, videoUrl: true, videoProvider: true, videoPublicId: true, pdfUrl: true, _count: { select: { materials: true } } },
+                    select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoProvider: true, videoPublicId: true, pdfUrl: true, _count: { select: { materials: true } } },
                   },
                 },
               },
@@ -73,7 +72,7 @@ const initials = (name: string) => {
   return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase();
 };
 
-// Página do curso / venda (modelo 7g): aula grátis, conteúdo por disciplina e caixa de compra fixa.
+// Página do curso / venda (modelo 7g): capa, conteúdo por disciplina e caixa de compra fixa. Sem aula grátis.
 export default async function PublicCoursePage(props: { params: Promise<{ slug: string }> }) {
   const { slug } = await props.params;
   const product = await getCourseProduct(slug);
@@ -96,7 +95,6 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
 
   // Disciplinas: módulos "X Aulas" + "X PDFs" juntos.
   const groups = new Map<string, SalesDiscipline>();
-  const free: FreeLesson[] = [];
   for (const m of modules) {
     const name = disciplineName(m.title);
     const key = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -104,10 +102,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
     for (const l of m.lessons) {
       const hasVideo = Boolean(l.videoUrl || l.videoPublicId);
       const isPdf = l.type === "pdf" || (!hasVideo && !!l.pdfUrl);
-      const isFree = l.isFree || l.isPreview;
-      const src = isFree && hasVideo ? resolveLessonVideoUrl(l) : null;
-      if (src) free.push({ id: l.id, title: l.title, discipline: name, duration: l.duration, src });
-      g.lessons.push({ id: l.id, title: l.title, duration: l.duration, isPdf, free: isFree, playable: Boolean(src) });
+      g.lessons.push({ id: l.id, title: l.title, duration: l.duration, isPdf });
       g.seconds += l.duration ?? 0;
       if (isPdf) g.pdfs += 1;
     }
@@ -193,7 +188,10 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
             </div>
           </section>
 
-          <FreePreview cover={product.thumbnail} title={product.title} lessons={free} />
+          {/* Capa inteira, na proporção original (sem recorte) */}
+          <div className="overflow-hidden rounded-[14px] bg-navy">
+            <CdnImg src={product.thumbnail} width={1200} loading="eager" alt={product.title} className="block h-auto w-full" />
+          </div>
 
           {/* O que você recebe */}
           <section className="rounded-[14px] border border-border bg-card p-5">

@@ -80,7 +80,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
     instructorName: m.instructor?.name ?? null,
     lessons: m.lessons.map<PlayerLesson>((l) => {
       // Bloqueada se o aluno não está matriculado e a aula não é gratuita/preview.
-      const locked = !isEnrolled && !l.isFree && !l.isPreview;
+      const locked = !isEnrolled; // não existe aula grátis
       // Aula bloqueada não leva nenhum conteúdo pago para o navegador.
       return {
         id: l.id,
