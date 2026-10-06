@@ -201,7 +201,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, star
     >
       <video
         ref={videoRef}
-        className={cn("bg-black object-contain", fullscreen ? "max-h-full max-w-full" : "aspect-video w-full")}
+        className={cn("bg-black object-contain", fullscreen ? "h-full w-full" : "aspect-video w-full")}
         autoPlay={autoPlay}
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
