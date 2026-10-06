@@ -5,7 +5,7 @@ import { AosProvider } from "@/components/providers/aos-provider";
 const FEATURES = [
   "Videoaulas com professores especialistas em concursos",
   "Suporte e comunidade de estudos ativa",
-  "Acesso vitalício ao conteúdo que você comprar",
+  "Acesso por 1 ano ao conteúdo que você comprar",
   "Estude no seu ritmo, de onde e quando quiser",
 ];
 

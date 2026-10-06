@@ -255,7 +255,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
         <CdnImg src={product.thumbnail} width={96} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-navy object-cover" />
         <div className="min-w-0">
           <p className="truncate text-sm font-bold text-foreground">{product.title}</p>
-          <p className="text-xs text-foreground-muted">Curso completo{product.accessType === "lifetime" ? " · acesso vitalício" : ""}</p>
+          <p className="text-xs text-foreground-muted">Curso completo · acesso por 1 ano</p>
         </div>
       </div>
 

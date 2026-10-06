@@ -65,7 +65,7 @@ export default async function CheckoutSuccessPage(props: { searchParams: Promise
               <CdnImg width={80} src={mainItem.product.thumbnail} className="h-12 w-20 rounded object-cover" alt={mainItem.product.title} />
               <div>
                 <p className="text-sm font-semibold text-foreground">{mainItem.product.title}</p>
-                <p className="text-xs text-foreground-muted">{formatCurrency(Number(order.total))} · Acesso vitalício</p>
+                <p className="text-xs text-foreground-muted">{formatCurrency(Number(order.total))} · Acesso por 1 ano</p>
               </div>
             </div>
             <p className="text-xs text-foreground-muted">

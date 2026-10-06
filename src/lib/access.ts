@@ -14,3 +14,7 @@ export function isEnrollmentActive(enrollment: Pick<Enrollment, "status" | "expi
   if (enrollment.expiresAt && enrollment.expiresAt.getTime() < Date.now()) return false;
   return true;
 }
+
+// Acesso ao curso: 1 ano a partir da compra (decisão do dono, 2026-10-05).
+export const ACCESS_DAYS = 365;
+export const accessExpiresAt = (from = new Date()) => new Date(from.getTime() + ACCESS_DAYS * 24 * 60 * 60 * 1000);

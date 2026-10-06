@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { accessExpiresAt } from "@/lib/access";
 import { sendPaymentConfirmedEmail } from "@/lib/payment-email";
 
 // Mapeia o status da Order do Mercado Pago para o OrderStatus do nosso schema.
@@ -105,11 +106,13 @@ async function markPaidAndEnroll(order: OrderWithItems, data: Prisma.OrderUpdate
     for (const item of order.items) {
       const where = { userId_productId: { userId: order.userId, productId: item.productId } };
       const existing = await tx.enrollment.findUnique({ where, select: { id: true } });
-      // upsert: reativa matrícula antiga (expirada/cancelada) em caso de recompra.
+      // Acesso por 1 ano a partir da confirmação. upsert: recompra reativa a matrícula antiga
+      // (expirada/cancelada) com mais 1 ano e mantém o progresso.
+      const expiresAt = accessExpiresAt();
       await tx.enrollment.upsert({
         where,
-        create: { userId: order.userId, productId: item.productId, status: "active", accessType: "lifetime", orderId: order.id },
-        update: { status: "active", accessType: "lifetime", expiresAt: null, orderId: order.id },
+        create: { userId: order.userId, productId: item.productId, status: "active", accessType: "timed", expiresAt, orderId: order.id },
+        update: { status: "active", accessType: "timed", expiresAt, orderId: order.id },
       });
       if (!existing) {
         await tx.product.update({ where: { id: item.productId }, data: { enrolledCount: { increment: 1 } } });

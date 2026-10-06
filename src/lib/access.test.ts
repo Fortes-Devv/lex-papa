@@ -26,3 +26,13 @@ describe("isStaffRole", () => {
     expect(isStaffRole(undefined)).toBe(false);
   });
 });
+
+describe("accessExpiresAt", () => {
+  it("vale 1 ano (365 dias) a partir da compra", async () => {
+    const { accessExpiresAt, isEnrollmentActive } = await import("./access");
+    const bought = new Date("2026-10-05T12:00:00Z");
+    expect(accessExpiresAt(bought).toISOString()).toBe("2027-10-05T12:00:00.000Z");
+    expect(isEnrollmentActive({ status: "active", expiresAt: accessExpiresAt() })).toBe(true);
+    expect(isEnrollmentActive({ status: "active", expiresAt: new Date(Date.now() - 1000) })).toBe(false);
+  });
+});

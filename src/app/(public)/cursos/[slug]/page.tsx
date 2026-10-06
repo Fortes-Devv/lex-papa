@@ -121,7 +121,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
     pdfCount ? `${pdfCount} PDF${pdfCount !== 1 ? "s" : ""} para baixar e estudar` : null,
     "Dúvidas com os professores na própria aula",
     "Anotações e progresso salvos em cada aula",
-    product.accessType === "lifetime" ? "Acesso vitalício" : product.accessDuration ? `Acesso por ${product.accessDuration} dias` : null,
+    "Acesso por 1 ano a partir da compra",
     "Estude no celular ou no computador",
   ].filter(Boolean) as string[];
 
@@ -258,7 +258,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
             <ul className="space-y-2 border-t border-line-soft pt-4 text-[13px] text-foreground dark:border-white/10">
               <li className="flex items-center gap-2"><Check className="h-4 w-4 text-ok" /> Garantia de 7 dias — devolução total</li>
               <li className="flex items-center gap-2"><Check className="h-4 w-4 text-ok" /> Acesso imediato após o pagamento</li>
-              {product.accessType === "lifetime" && <li className="flex items-center gap-2"><Check className="h-4 w-4 text-ok" /> Acesso vitalício</li>}
+              <li className="flex items-center gap-2"><Check className="h-4 w-4 text-ok" /> Acesso por 1 ano</li>
             </ul>
             <p className="flex items-center justify-center gap-1.5 text-xs text-foreground-muted">
               Pix · Cartão · Boleto · <Lock className="h-3 w-3" /> pagamento seguro
