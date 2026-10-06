@@ -29,7 +29,9 @@ export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[
         {disciplines.map((d) => {
           const isOpen = open.includes(d.key);
           const showAll = full.includes(d.key);
-          const lessons = showAll ? d.lessons : d.lessons.slice(0, PREVIEW);
+          // Fechado: aulas grátis primeiro (o selo GRÁTIS precisa mostrar onde ela está). Numeração original.
+          const numbered = d.lessons.map((l, n) => ({ ...l, n: n + 1 }));
+          const lessons = showAll ? numbered : [...numbered.filter((l) => l.free), ...numbered.filter((l) => !l.free)].slice(0, PREVIEW);
           const videos = d.lessons.length - d.pdfs;
           const hasFree = d.lessons.some((l) => l.free);
           return (
@@ -51,15 +53,19 @@ export function SalesCurriculum({ disciplines }: { disciplines: SalesDiscipline[
               </button>
               {isOpen && (
                 <ul className="border-t border-line-soft bg-background/50 dark:border-white/10">
-                  {lessons.map((l, i) => (
+                  {lessons.map((l) => (
                     <li key={l.id} className="flex items-center gap-3 px-4 py-2.5 pl-[68px] text-sm">
-                      <span className="min-w-0 flex-1 truncate text-foreground">{i + 1}. {l.title}</span>
+                      <span className="min-w-0 flex-1 truncate text-foreground">{l.n}. {l.title}</span>
                       {l.duration ? <span className="shrink-0 text-xs text-foreground-muted">{formatDuration(l.duration)}</span> : null}
                       {l.free && l.playable ? (
                         <button type="button" onClick={() => window.dispatchEvent(new CustomEvent(PLAY_FREE_EVENT, { detail: l.id }))}
                           className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ok-soft px-2 py-1 text-[11px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">
                           <Play className="h-3 w-3 fill-current" /> Assistir
                         </button>
+                      ) : l.free && l.isPdf ? (
+                        <a href={`/api/lessons/${l.id}/pdf`} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-ok-soft px-2 py-1 text-[11px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">
+                          <FileText className="h-3 w-3" /> Baixar grátis
+                        </a>
                       ) : l.isPdf ? (
                         <FileText className="h-4 w-4 shrink-0 text-foreground-muted" aria-label="PDF" />
                       ) : (

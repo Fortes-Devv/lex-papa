@@ -11,7 +11,11 @@ import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/li
 export async function GET(request: Request, props: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await props.params;
   const session = await auth();
-  if (!session?.user) return new NextResponse("Faça login para baixar.", { status: 401 });
+  // Sem login (ex.: PDF grátis na página de venda): entra e volta para baixar.
+  if (!session?.user) {
+    const back = new URL(request.url).pathname;
+    return NextResponse.redirect(new URL(`/login?callbackUrl=${encodeURIComponent(back)}`, request.url));
+  }
 
   const denied = await lessonFileAccessError(session.user, lessonId);
   if (denied) return denied;
