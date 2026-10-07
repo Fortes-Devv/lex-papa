@@ -18,7 +18,7 @@ const SECTIONS = {
   aluno: { title: "Área do aluno", subtitle: "Pontos (XP), conquistas e sequência de estudos" },
   integracoes: { title: "Integrações", subtitle: "Ferramentas externas configuradas pelo painel" },
   empresa: { title: "Empresa", subtitle: "Dados legais usados nos Termos de Uso e na Política de Privacidade" },
-  pagamentos: { title: "Pagamentos", subtitle: "Taxas e comissões usadas no Financeiro" },
+  pagamentos: { title: "Pagamentos", subtitle: "Taxa usada no Financeiro" },
   equipe: { title: "Equipe", subtitle: "Quem administra e ensina na plataforma" },
   seguranca: { title: "Segurança", subtitle: "Acessos da equipe e ações sensíveis recentes" },
 } as const;
@@ -32,6 +32,7 @@ const EVENT_LABEL: Record<string, string> = {
   "user.updated": "Usuário alterado", "user.created": "Usuário criado", "user.imported": "Usuários importados", "settings.updated": "Configurações salvas",
   "order.refunded": "Pedido reembolsado", "order.manual_release": "Acesso liberado manualmente", "order.cancelled": "Pedido cancelado",
   "payout.processed": "Repasses processados", "product.deleted": "Produto excluído",
+  "user.password_reset_by_admin": "Senha temporária gerada", "user.purchases_transferred": "Cursos movidos entre contas", "user.deleted": "Conta excluída",
 };
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
@@ -144,11 +145,10 @@ export function SettingsClient({ settings: initial, staff, events }: { settings:
 
       {section === "pagamentos" && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Taxas e comissões">
+          <Panel title="Taxa do Mercado Pago">
             <Input label="Taxa média do gateway (%)" type="number" min="0" max="100" step="0.01" value={String(fin.gatewayFeePercent)} onChange={(e) => set("finance", { gatewayFeePercent: pct(e.target.value) })} />
-            <Input label="Comissão dos professores (%)" type="number" min="0" max="100" step="0.5" value={String(fin.teacherCommissionPercent)} onChange={(e) => set("finance", { teacherCommissionPercent: pct(e.target.value) })} />
             <p className="text-xs text-foreground-muted">
-              Usadas para estimar taxas e repasses em <Link href="/admin/financial" className="text-brand underline">Financeiro</Link>. Repasses já processados não mudam.
+              Usada para estimar a taxa em <Link href="/admin/financial" className="text-brand underline">Financeiro</Link>. Confira o valor real no painel do Mercado Pago.
             </p>
           </Panel>
           <Panel title="Gateway">

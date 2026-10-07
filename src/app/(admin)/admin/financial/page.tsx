@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 import { db } from "@/lib/db";
-import { financeRange, getFinanceData, getTeacherPayouts, type FinancePeriod } from "@/lib/financial";
-import { processPayouts, toggleCoupon, deleteCoupon } from "@/lib/actions/finance";
+import { financeRange, getFinanceData, type FinancePeriod } from "@/lib/financial";
+import { toggleCoupon, deleteCoupon } from "@/lib/actions/finance";
 import { NewCouponDialog } from "./new-coupon-dialog";
 import { requireArea } from "@/lib/auth-guards";
 import { ActionButton } from "@/components/admin/action-button";
@@ -41,14 +41,22 @@ function CumulativeChart({ current, previous }: { current: { label: string; valu
 }
 
 export default async function AdminFinancialPage(props: { searchParams: Promise<{ mes?: string; visao?: string }> }) {
-  const session = await requireArea("admin");
+  await requireArea("admin");
   const { mes, visao } = await props.searchParams;
   const period: FinancePeriod = PERIODS.includes(mes as FinancePeriod) ? (mes as FinancePeriod) : "atual";
   const d = await getFinanceData(period);
   const range = financeRange(period);
-  const payouts = await getTeacherPayouts(range.start, range.end);
-  const isAdmin = session.user.role === "admin";
-  const initials = (n: string) => n.split(/s+/).filter(Boolean).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+  // Vendas do período (pagas e reembolsadas): quem comprou, o quê e quanto.
+  const sales = await db.order.findMany({
+    where: { OR: [{ status: "paid", paidAt: { gte: range.start, lt: range.end } }, { status: { in: ["refunded", "chargeback"] }, updatedAt: { gte: range.start, lt: range.end } }] },
+    orderBy: [{ paidAt: { sort: "desc", nulls: "last" } }, { updatedAt: "desc" }],
+    take: 200,
+    select: { id: true, status: true, total: true, paidAt: true, updatedAt: true, paymentMethod: true, couponCode: true,
+      user: { select: { name: true, email: true } }, items: { take: 1, select: { product: { select: { title: true } } } } },
+  });
+  const courtesies = sales.filter((o) => o.status === "paid" && Number(o.total) === 0).length;
+  const refundCount = sales.filter((o) => o.status !== "paid").length;
+  const METHOD: Record<string, string> = { pix: "Pix", credit_card: "Cartão", debit_card: "Débito", boleto: "Boleto" };
   const coupons = visao === "cupons" ? await db.coupon.findMany({ orderBy: { createdAt: "desc" } }) : [];
 
   const methodsCard = (
@@ -84,16 +92,19 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
 
   return (
     <div>
-      <PageHeader title={d.label} subtitle="Receita bruta, taxas e líquido do período"
+      <PageHeader title={d.label} subtitle="Quanto vendeu, quanto saiu em taxa e reembolso, e quanto sobra"
         actions={<ButtonLink href={`/api/admin/export?tipo=financeiro&mes=${period}`} download>Exportar relatório</ButtonLink>} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:gap-4">
-        <MetricCard label="Receita bruta" value={formatCurrency(d.gross)}
-          hint={d.grossChange === null ? `${d.salesCount} venda${d.salesCount !== 1 ? "s" : ""}` : `${d.grossChange >= 0 ? "▲" : "▼"} ${Math.abs(d.grossChange)}% vs ${d.prevLabel}`}
-          hintTone={d.grossChange !== null && d.grossChange < 0 ? "down" : d.grossChange === null ? "muted" : "up"} />
-        <MetricCard label="Taxas + reembolsos" value={`− ${formatCurrency(d.fees + d.refunded)}`} valueTone={d.fees + d.refunded > 0 ? "danger" : undefined}
-          hint={`${d.deductionsShare.toString().replace(".", ",")}% da receita · taxa estimada ${d.feePercent.toString().replace(".", ",")}%`} />
-        <MetricCard label="Líquido" value={formatCurrency(d.net)} hint={payouts.totalDue > 0 ? `${formatCurrency(payouts.totalDue)} a repassar` : "sem repasses pendentes"} hintTone={payouts.totalDue > 0 ? "brand" : "muted"} />
+      {/* 4 números, cada um uma coisa só */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <MetricCard label="Vendas" value={formatCurrency(d.gross)}
+          hint={`${d.salesCount} venda${d.salesCount !== 1 ? "s" : ""}${courtesies ? ` · ${courtesies} cortesia${courtesies !== 1 ? "s" : ""}` : ""}${d.grossChange !== null ? ` · ${d.grossChange >= 0 ? "▲" : "▼"} ${Math.abs(d.grossChange)}% vs ${d.prevLabel}` : ""}`}
+          hintTone={d.grossChange !== null && d.grossChange < 0 ? "down" : "muted"} />
+        <MetricCard label="Taxa do Mercado Pago" value={d.fees > 0 ? `− ${formatCurrency(d.fees)}` : formatCurrency(0)}
+          hint={`estimada em ${d.feePercent.toString().replace(".", ",")}% das vendas`} />
+        <MetricCard label="Reembolsos" value={d.refunded > 0 ? `− ${formatCurrency(d.refunded)}` : formatCurrency(0)} valueTone={d.refunded > 0 ? "danger" : undefined}
+          hint={refundCount ? `${refundCount} pedido${refundCount !== 1 ? "s" : ""} devolvido${refundCount !== 1 ? "s" : ""} ao aluno` : "nenhum dinheiro devolvido"} />
+        <MetricCard dark label="Você recebe" value={formatCurrency(d.net)} hint="vendas − taxa − reembolsos" hintTone="brand" />
       </div>
 
       {visao === "cupons" ? (
@@ -122,47 +133,49 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
       ) : visao === "pagamentos" ? (
         <div className="mt-4">{methodsCard}</div>
       ) : (
-        <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-          <SectionCard title="Receita acumulada"
-            action={<span className="flex items-center gap-3 text-[11px] text-foreground-muted">
-              <span className="flex items-center gap-1"><span className="h-0.5 w-4 bg-brand" /> {d.label}</span>
-              <span className="flex items-center gap-1"><span className="h-0.5 w-4 border-t-2 border-dashed border-line-strong dark:border-white/30" /> {d.prevLabel}</span>
-            </span>}>
-            {d.gross === 0 && d.previous.every((p) => p.value === 0) ? (
-              <p className="px-[18px] pb-10 pt-6 text-center text-sm text-foreground-muted">Nenhuma venda no período.</p>
+        <div className="mt-4 space-y-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <SectionCard title="Vendas acumuladas"
+              action={<span className="flex items-center gap-3 text-[11px] text-foreground-muted">
+                <span className="flex items-center gap-1"><span className="h-0.5 w-4 bg-brand" /> {d.label}</span>
+                <span className="flex items-center gap-1"><span className="h-0.5 w-4 border-t-2 border-dashed border-line-strong dark:border-white/30" /> {d.prevLabel}</span>
+              </span>}>
+              {d.gross === 0 && d.previous.every((p) => p.value === 0) ? (
+                <p className="px-[18px] pb-10 pt-6 text-center text-sm text-foreground-muted">Nenhuma venda no período.</p>
+              ) : (
+                <CumulativeChart current={d.current} previous={d.previous} />
+              )}
+            </SectionCard>
+            {methodsCard}
+          </div>
+
+          <SectionCard title={`Vendas do período · ${sales.length}`} action={<ButtonLink href="/admin/orders">Todos os pedidos</ButtonLink>}>
+            {sales.length === 0 ? (
+              <p className="px-[18px] pb-8 pt-2 text-center text-sm text-foreground-muted">Nenhuma venda no período.</p>
             ) : (
-              <CumulativeChart current={d.current} previous={d.previous} />
-            )}
-          </SectionCard>
-          <SectionCard title="Repasses pendentes" action={<span className="text-[11px] text-foreground-muted">comissão {payouts.rate}%</span>}>
-            {payouts.rows.length === 0 ? (
-              <p className="px-[18px] pb-8 pt-2 text-center text-sm text-foreground-muted">Nenhuma venda com módulo de professor no período.</p>
-            ) : (
-              <ul className="divide-y divide-line-soft px-[18px] dark:divide-white/10">
-                {payouts.rows.map((t) => (
-                  <li key={t.teacherId} className="flex items-center gap-3 py-3">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-navy text-[11px] font-extrabold text-brand">{initials(t.name)}</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-semibold text-foreground">Prof. {t.name.split(" ")[0]}</span>
-                      <span className="block text-[11px] text-foreground-muted">{t.modules} módulo{t.modules !== 1 ? "s" : ""}{t.paid > 0 ? ` · já pago ${formatCurrency(t.paid)}` : ""}</span>
-                    </span>
-                    <span className={cn("text-[13.5px] font-bold", t.due > 0 ? "text-foreground" : "text-foreground-muted")}>{formatCurrency(t.due)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {isAdmin && payouts.totalDue > 0 && (
-              <div className="p-[18px] pt-2">
-                <ActionButton action={processPayouts.bind(null, period)} okText="Repasses registrados como pagos." className="w-full"
-                  confirmText={`Registrar ${formatCurrency(payouts.totalDue)} como pagos aos professores (${d.label})? Faça o PIX/transferência fora da plataforma.`}>
-                  Processar repasses · {formatCurrency(payouts.totalDue)}
-                </ActionButton>
-              </div>
+              <div className="overflow-x-auto"><div className="min-w-[720px]">
+                <div className={cn("grid grid-cols-[90px_minmax(0,1.4fr)_minmax(0,1.2fr)_90px_110px_110px] gap-3 border-y border-line-soft bg-[#faf8f5] px-[18px] py-2.5 dark:border-white/10 dark:bg-white/5", tableHeadClass)}>
+                  <span>Data</span><span>Aluno</span><span>Curso</span><span>Forma</span><span>Situação</span><span className="text-right">Valor</span>
+                </div>
+                {sales.map((o) => {
+                  const total = Number(o.total);
+                  const refunded = o.status !== "paid";
+                  return (
+                    <div key={o.id} className="grid grid-cols-[90px_minmax(0,1.4fr)_minmax(0,1.2fr)_90px_110px_110px] items-center gap-3 border-b border-line-soft px-[18px] py-2.5 text-[13px] last:border-0 dark:border-white/10">
+                      <span className="text-foreground-muted">{formatDate((o.paidAt ?? o.updatedAt).toISOString())}</span>
+                      <span className="min-w-0"><span className="block truncate font-semibold text-foreground">{o.user.name}</span><span className="block truncate text-[11px] text-foreground-muted">{o.user.email}</span></span>
+                      <span className="truncate text-foreground">{o.items[0]?.product.title ?? "—"}</span>
+                      <span className="text-foreground-muted">{total === 0 ? "—" : o.paymentMethod ? METHOD[o.paymentMethod] ?? o.paymentMethod : "—"}</span>
+                      <span>{refunded ? <Pill tone="danger">Reembolsado</Pill> : total === 0 ? <Pill tone="gray">Cortesia{o.couponCode ? ` · ${o.couponCode}` : ""}</Pill> : <Pill tone="ok">Pago{o.couponCode ? " · cupom" : ""}</Pill>}</span>
+                      <span className={cn("text-right font-bold", refunded ? "text-danger line-through" : "text-foreground")}>{formatCurrency(total)}</span>
+                    </div>
+                  );
+                })}
+              </div></div>
             )}
           </SectionCard>
         </div>
       )}
-      {!visao && <div className="mt-4">{methodsCard}</div>}
     </div>
   );
 }

@@ -62,10 +62,11 @@ export async function getFinanceData(period: FinancePeriod) {
   const refunded = sum(refunds);
 
   // Formas de pagamento (só pagos no período).
-  const METHOD: Record<string, string> = { pix: "PIX", credit_card: "Cartão de crédito", debit_card: "Cartão de débito", boleto: "Boleto", paypal: "PayPal" };
+  const METHOD: Record<string, string> = { pix: "PIX", credit_card: "Cartão de crédito", debit_card: "Cartão de débito", boleto: "Boleto", paypal: "PayPal", cortesia: "Cortesia (cupom 100%)" };
   const byMethod = new Map<string, { label: string; total: number; count: number }>();
   for (const o of paid) {
-    const k = o.paymentMethod ?? "outro";
+    // Pedido de R$ 0 (cupom de 100%) é cortesia, não forma de pagamento.
+    const k = Number(o.total) === 0 ? "cortesia" : o.paymentMethod ?? "outro";
     const cur = byMethod.get(k) ?? { label: METHOD[k] ?? "Outro", total: 0, count: 0 };
     cur.total += Number(o.total); cur.count++;
     byMethod.set(k, cur);
@@ -92,40 +93,4 @@ export async function getFinanceData(period: FinancePeriod) {
     previous: previousFull.slice(0, Math.max(current.length, 1)),
     methods: Array.from(byMethod.values()).sort((a, b) => b.total - a.total),
   };
-}
-
-// ── Repasses a professores ────────────────────────────────────────────────
-// Para cada venda paga no período: comissão% do valor, dividida entre os donos
-// dos módulos do curso na proporção de quantos módulos cada um tem nele.
-// Módulos sem professor ficam com a plataforma. Desconta o que já foi pago no período.
-export async function getTeacherPayouts(start: Date, end: Date) {
-  const settings = await getSettings();
-  const rate = settings.finance.teacherCommissionPercent / 100;
-  const items = await db.orderItem.findMany({
-    where: { order: { status: "paid", paidAt: { gte: start, lt: end } } },
-    select: { totalPrice: true, discount: true, product: { select: { course: { select: { modules: { select: { module: { select: { instructorId: true } } } } } } } } },
-  });
-  const owed = new Map<string, number>();
-  for (const it of items) {
-    const mods = it.product.course?.modules ?? [];
-    if (mods.length === 0) continue;
-    const value = Number(it.totalPrice) - Number(it.discount);
-    for (const { module: m } of mods) {
-      if (!m.instructorId) continue;
-      owed.set(m.instructorId, (owed.get(m.instructorId) ?? 0) + (value * rate) / mods.length);
-    }
-  }
-  const teacherIds = Array.from(owed.keys());
-  if (teacherIds.length === 0) return { rows: [], totalDue: 0, rate: settings.finance.teacherCommissionPercent };
-  const teachers = await db.user.findMany({ where: { id: { in: teacherIds } }, select: { id: true, name: true, instructedModules: { select: { id: true } } } });
-  let paid: { teacherId: string; amount: unknown }[] = [];
-  try {
-    paid = await db.payout.findMany({ where: { periodStart: start, periodEnd: end }, select: { teacherId: true, amount: true } });
-  } catch { /* migration ainda não aplicada */ }
-  const rows = teachers.map((t) => {
-    const total = Math.round((owed.get(t.id) ?? 0) * 100) / 100;
-    const alreadyPaid = paid.filter((p) => p.teacherId === t.id).reduce((s, p) => s + Number(p.amount), 0);
-    return { teacherId: t.id, name: t.name, modules: t.instructedModules.length, total, paid: alreadyPaid, due: Math.max(0, Math.round((total - alreadyPaid) * 100) / 100) };
-  }).sort((a, b) => b.due - a.due);
-  return { rows, totalDue: rows.reduce((s, r) => s + r.due, 0), rate: settings.finance.teacherCommissionPercent };
 }

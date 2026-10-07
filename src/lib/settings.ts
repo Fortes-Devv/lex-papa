@@ -33,7 +33,6 @@ export interface PlatformSettingsData {
   // Financeiro: estimativa de taxas e comissão de repasse aos professores.
   finance: {
     gatewayFeePercent: number; // % médio cobrado pelo Mercado Pago
-    teacherCommissionPercent: number; // % da venda repassado aos donos dos módulos
   };
 }
 
@@ -42,7 +41,7 @@ export const DEFAULT_SETTINGS: PlatformSettingsData = {
   gamification: { xpEnabled: true, achievementsEnabled: true, rankingEnabled: true, streakEnabled: true, xpPerLesson: 50, xpPerCourse: 1000 },
   integrations: { googleAnalyticsId: "", metaPixelId: "", whatsappNumber: "" },
   company: { legalName: "", cnpj: "", address: "", city: "Fortaleza/CE", contactEmail: "", dpoName: "", dpoEmail: "" },
-  finance: { gatewayFeePercent: 4.99, teacherCommissionPercent: 30 },
+  finance: { gatewayFeePercent: 4.99 },
 };
 
 export async function getSettings(): Promise<PlatformSettingsData> {

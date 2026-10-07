@@ -4,7 +4,7 @@ import { getSettings } from "@/lib/settings";
 import { SettingsClient, type StaffRow, type SecurityEvent } from "./settings-client";
 
 // Ações que valem aparecer em Segurança (mudança de papel, reembolso, repasse etc.).
-const SENSITIVE = ["user.updated", "user.created", "user.imported", "settings.updated", "order.refunded", "order.manual_release", "order.cancelled", "payout.processed", "product.deleted"];
+const SENSITIVE = ["user.password_reset_by_admin", "user.purchases_transferred", "user.deleted", "user.updated", "user.created", "user.imported", "settings.updated", "order.refunded", "order.manual_release", "order.cancelled", "payout.processed", "product.deleted"];
 
 export default async function AdminSettingsPage() {
   const settings = await getSettings();
