@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { clientIp, hitRateLimit, normalizeEmail } from "@/lib/rate-limit";
+import { invalidEmailReason } from "@/lib/email-check";
 
 const registerSchema = z.object({
   name: z.string().min(2, "Nome muito curto"),
@@ -18,6 +19,8 @@ export async function registerUser(input: { name: string; email: string; passwor
   }
   const { name, password } = parsed.data;
   const email = normalizeEmail(parsed.data.email);
+  const badEmail = invalidEmailReason(email);
+  if (badEmail) return { success: false as const, error: badEmail };
 
   // Limite: 5 cadastros por IP por hora.
   const limit = await hitRateLimit(`register:ip:${await clientIp()}`, 5, 60 * 60);

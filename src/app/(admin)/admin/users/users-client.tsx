@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, MoreHorizontal, Shield, Ban, CheckCircle2, UserCog, Copy, Mail, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, MoreHorizontal, Shield, Ban, CheckCircle2, UserCog, Copy, Mail, ChevronLeft, ChevronRight, KeyRound, ArrowRightLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -11,7 +11,8 @@ import { useToast } from "@/components/ui/toast";
 import { formatRelativeDate, cn } from "@/lib/utils/cn";
 import { PageHeader, Pill, tableHeadClass } from "@/components/admin/page-kit";
 import { ImportUsersDialog } from "./import-users-dialog";
-import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail } from "@/lib/actions/users";
+import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail, deleteUserWithoutPurchases } from "@/lib/actions/users";
+import { SupportDialogs, type SupportAction } from "./support-dialogs";
 import { KIND_LABEL, isNoLoginEmail, kindFromParam, type UserKind } from "@/lib/user-kinds";
 import { TeacherDialog, type TeacherDraft } from "./teacher-dialog";
 import { CdnImg } from "@/components/ui/cdn-img";
@@ -45,6 +46,7 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
   const [kindFilter, setKindFilter] = useState<UserKind | "contas" | null>(null);
   const [courseFilter, setCourseFilter] = useState("");
   const [teacher, setTeacher] = useState<TeacherDraft | null>(null);
+  const [support, setSupport] = useState<SupportAction>(null);
   const [statusFilter, setStatusFilter] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -158,7 +160,16 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
       { label: "Tornar aluno", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "student") },
       { separator: true as const },
       { label: "Alterar email", icon: <Mail className="h-3.5 w-3.5" />, onClick: () => openEmailDialog(user) },
+      { label: "Gerar senha temporária", icon: <KeyRound className="h-3.5 w-3.5" />, onClick: () => setSupport({ kind: "password", userId: user.id, name: user.name, email: user.email }) },
+      { label: "Mover cursos para outra conta", icon: <ArrowRightLeft className="h-3.5 w-3.5" />, onClick: () => setSupport({ kind: "transfer", userId: user.id, name: user.name, email: user.email }) },
       { separator: true as const },
+      { label: "Excluir conta (sem compras)", icon: <Trash2 className="h-3.5 w-3.5" />, variant: "destructive" as const, onClick: async () => {
+        if (!confirm(`Excluir a conta de ${user.name} (${user.email})? Só funciona se ela não tiver compras.`)) return;
+        const res = await deleteUserWithoutPurchases(user.id);
+        if (!res.success) { error(res.error); return; }
+        success(res.message);
+        startTransition(() => router.refresh());
+      } },
       user.status === "banned"
         ? { label: "Reativar usuário", icon: <CheckCircle2 className="h-3.5 w-3.5" />, onClick: () => handleStatusChange(user, "active") }
         : { label: "Bloquear usuário", icon: <Ban className="h-3.5 w-3.5" />, onClick: () => handleStatusChange(user, "banned"), variant: "destructive" as const },
@@ -329,6 +340,7 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
       </Dialog>
 
       <TeacherDialog draft={teacher} onClose={() => setTeacher(null)} />
+      <SupportDialogs action={support} onClose={() => setSupport(null)} />
 
       {/* Alterar email */}
       <Dialog

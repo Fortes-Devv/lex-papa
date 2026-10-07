@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { registerUser } from "@/lib/actions/auth";
 import { safeCallbackUrl } from "@/lib/safe-redirect";
+import { suggestEmail } from "@/lib/email-check";
 
 export default function RegisterPage() {
   const { success, error } = useToast();
@@ -68,7 +69,16 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input label="Nome completo" placeholder="Seu nome" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required />
-        <Input label="Email" type="email" placeholder="voce@email.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+        <div>
+          <Input label="Email" type="email" placeholder="voce@email.com" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} required />
+          {/* E-mail digitado errado = aluno sem acesso e sem receber nada: sugere a correção. */}
+          {suggestEmail(form.email) && (
+            <button type="button" onClick={() => setForm((f) => ({ ...f, email: suggestEmail(f.email) ?? f.email }))}
+              className="mt-1.5 text-left text-xs text-foreground-muted">
+              Você quis dizer <b className="text-brand underline">{suggestEmail(form.email)}</b>? Toque para corrigir.
+            </button>
+          )}
+        </div>
         <div className="space-y-2">
           <Input label="Senha" type="password" placeholder="Mínimo 8 caracteres" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} required />
           {form.password && (

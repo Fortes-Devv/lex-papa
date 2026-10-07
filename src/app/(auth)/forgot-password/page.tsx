@@ -39,7 +39,7 @@ export default function ForgotPasswordPage() {
           <h1 className="text-xl font-semibold text-foreground">Email enviado!</h1>
           <p className="mt-2 text-sm text-foreground-muted">
             Enviamos um link de recuperação para <strong>{email}</strong>.<br />
-            Verifique também sua caixa de spam.
+            Verifique também as abas Spam e Promoções.
           </p>
         </div>
         <Button variant="outline" className="w-full" onClick={() => setSent(false)}>Reenviar email</Button>
