@@ -47,7 +47,6 @@ export async function updateAvatar(avatarUrl: string) {
 
   await db.user.update({ where: { id: session.user.id }, data: { avatar: avatarUrl || null } });
   revalidatePath("/student/profile");
-  revalidatePath("/teacher/profile");
   revalidatePath("/admin/profile");
   return { success: true as const };
 }

@@ -12,8 +12,8 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
   const params = await props.params;
   const session = await auth();
   if (!session?.user) redirect("/login");
-  // Só equipe (admin/moderador/professor) pode pré-visualizar sem matrícula.
-  if (!["admin", "moderator", "teacher"].includes(session.user.role)) {
+  // Só a equipe (admin/moderador) pode pré-visualizar sem matrícula.
+  if (!["admin", "moderator"].includes(session.user.role)) {
     redirect("/");
   }
 
@@ -41,12 +41,6 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
   });
   if (!course) notFound();
 
-  // Professor só pode pré-visualizar os próprios cursos ou cursos onde tem módulo.
-  const ownsCourse = course.product.instructors.some((i) => i.id === session.user.id);
-  const ownsModule = course.modules.some((cm) => cm.module.instructorId === session.user.id);
-  if (session.user.role === "teacher" && !ownsCourse && !ownsModule) {
-    redirect("/teacher/courses");
-  }
 
   // No preview, todas as aulas ficam desbloqueadas e nada é marcado como concluído.
   const modules: PlayerModule[] = course.modules.map(({ module: m }) => ({
@@ -84,7 +78,7 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
           courseTitle={course.product.title}
           modules={modules}
           isEnrolled={false}
-          backHref={session.user.role === "teacher" ? "/teacher/courses" : "/admin/courses"}
+          backHref="/admin/courses"
         />
       </div>
     </div>

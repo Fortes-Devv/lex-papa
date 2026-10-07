@@ -8,23 +8,23 @@ import { Moon, Sun, Search, Bell, Menu, ChevronDown, ChevronLeft, ChevronRight, 
 import { Dropdown } from "@/components/ui/dropdown";
 import { BottomSheet } from "@/components/course/module-board/bottom-sheet";
 import { cn } from "@/lib/utils/cn";
-import { ADMIN_BOTTOM, ADMIN_SECTIONS, TEACHER_BOTTOM, TEACHER_SECTIONS, activeSection, type NavFilter, type NavSection } from "./sections";
+import { ADMIN_BOTTOM, ADMIN_SECTIONS, activeSection, type NavFilter, type NavSection } from "./sections";
 
 export interface PanelRecent { href: string; title: string; subtitle: string; mark: string }
 export type PanelData = Record<string, { counts?: Record<string, number>; recents?: PanelRecent[]; footer?: { label: string; value: string } }>;
 
 interface NavShellProps {
-  area: "admin" | "teacher";
+  area: "admin";
   user: { name: string; roleLabel: string };
   pendingOrders?: number;
   panelData?: PanelData;
   children: React.ReactNode;
 }
 
-const PROFILE_PATH = { admin: "/admin/profile", teacher: "/teacher/profile" } as const;
+const PROFILE_PATH = { admin: "/admin/profile" } as const;
 
 // Telas de detalhe têm o próprio cabeçalho no celular (‹ voltar · título · ⋯).
-const DETAIL_ROUTES = [/^\/admin\/courses\/[^/]+$/, /^\/teacher\/content$/];
+const DETAIL_ROUTES = [/^\/admin\/courses\/[^/]+$/];
 
 // Parâmetros de URL de um grupo de filtros.
 const groupParams = (filters: NavFilter[]) => Array.from(new Set(filters.map((f) => f.param).filter(Boolean))) as string[];
@@ -167,8 +167,8 @@ export function NavShell({ area, user, pendingOrders = 0, panelData = {}, childr
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [unread, setUnread] = useState(0);
-  const sections = area === "admin" ? ADMIN_SECTIONS : TEACHER_SECTIONS;
-  const bottomIds = area === "admin" ? ADMIN_BOTTOM : TEACHER_BOTTOM;
+  const sections = ADMIN_SECTIONS;
+  const bottomIds = ADMIN_BOTTOM;
   const current = activeSection(sections, pathname) ?? sections[0];
   const data = panelData[current.id];
 

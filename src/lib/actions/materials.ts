@@ -13,7 +13,6 @@ const isCloudinaryUrl = (url: string) => url.startsWith("https://res.cloudinary.
 
 function revalidateMaterials() {
   revalidatePath("/admin/courses", "layout");
-  revalidatePath("/teacher/content");
   revalidatePath("/student/player");
 }
 

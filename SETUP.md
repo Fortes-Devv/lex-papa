@@ -55,12 +55,12 @@ Todas estão documentadas em `.env.example`. As principais:
 
 | Rota | Quem |
 |---|---|
+| `/` | Vitrine pública (quem está logado vai para o painel) |
 | `/login`, `/register`, `/forgot-password` | Público |
 | `/cursos/[slug]` | Página de venda do curso (pública) |
 | `/checkout`, `/checkout/success` | Aluno logado |
-| `/student/*` | Aluno (biblioteca, player, perfil) |
-| `/teacher/*` | Professor (cursos, módulos, editor de aulas) |
-| `/admin/*` | Admin e moderador |
+| `/student/*` | Aluno (início, meu curso, progresso, player, perfil) |
+| `/admin/*` | Admin e moderador (professor não tem login: é só crédito nos módulos) |
 | `/termos`, `/privacidade` | Público (preencher os dados da empresa) |
 
 ## Regras importantes

@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // Áreas logadas, APIs e pagamento não devem aparecer no Google.
-      disallow: ["/admin", "/teacher", "/student", "/api", "/checkout", "/preview"],
+      disallow: ["/admin", "/student", "/api", "/checkout", "/preview"],
     },
     sitemap: `${base}/sitemap.xml`,
   };

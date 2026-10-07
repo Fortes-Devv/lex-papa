@@ -111,7 +111,6 @@ export async function saveQuiz(lessonId: string, input: {
   }
 
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
   return { success: true as const };
 }
 
@@ -121,7 +120,6 @@ export async function deleteQuiz(lessonId: string) {
   if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
   await db.quiz.deleteMany({ where: { lessonId } });
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
   return { success: true as const };
 }
 

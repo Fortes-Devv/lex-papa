@@ -71,7 +71,6 @@ export async function createCourse(input: {
   });
 
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/courses");
   return { success: true as const, productId: product.id, courseId: product.course!.id };
 }
 
@@ -119,7 +118,6 @@ export async function updateCourseDetails(productId: string, input: {
   });
 
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/courses");
   revalidatePath("/admin/products");
   return { success: true as const };
 }
@@ -158,7 +156,6 @@ export async function deleteCourse(productId: string) {
   await logAudit({ actorId: session.user.id, action: "product.deleted", resourceType: "product", resourceId: productId, metadata: { title: product.title } });
 
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/courses");
   revalidatePath("/admin/products");
   return { success: true as const };
 }
@@ -168,7 +165,6 @@ export async function updateCourseThumbnail(productId: string, thumbnail: string
   if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
   await db.product.update({ where: { id: productId }, data: { thumbnail } });
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/courses");
   return { success: true as const };
 }
 
@@ -180,7 +176,6 @@ export async function updateCourseStatus(productId: string, status: "draft" | "p
     data: { status, publishedAt: status === "published" ? new Date() : null },
   });
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/courses");
   return { success: true as const };
 }
 
@@ -191,9 +186,6 @@ export async function updateCourseStatus(productId: string, status: "draft" | "p
 
 function revalidateContent() {
   revalidatePath("/admin/courses");
-  revalidatePath("/teacher/content");
-  revalidatePath("/teacher/modules");
-  revalidatePath("/teacher/dashboard");
 }
 
 async function nextModuleOrder(courseId: string) {

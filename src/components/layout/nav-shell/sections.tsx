@@ -201,16 +201,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
 // Barra inferior do celular (4 seções + "Mais").
 export const ADMIN_BOTTOM = ["dashboard", "courses", "orders", "users"];
 
-export const TEACHER_SECTIONS: NavSection[] = [
-  { id: "dashboard", label: "Dashboard", shortLabel: "Início", href: "/teacher/dashboard", icon: LayoutGrid, group: "Visão geral", hint: "Resumo dos seus cursos e alunos." },
-  { id: "courses", label: "Meus Cursos", shortLabel: "Cursos", href: "/teacher/courses", icon: BookOpen, group: "Conteúdo", hint: "Cursos em que você é instrutor." },
-  { id: "modules", label: "Meus Módulos", shortLabel: "Módulos", href: "/teacher/modules", icon: Layers, group: "Conteúdo", hint: "Módulos que você leciona — o mesmo módulo pode estar em vários cursos." },
-  { id: "content", label: "Editor de Aulas", shortLabel: "Editor", href: "/teacher/content", icon: FileVideo, group: "Conteúdo", hint: "Organize módulos, aulas e materiais." },
-  { id: "students", label: "Alunos", href: "/teacher/students", icon: Users, group: "Alunos", hint: "Alunos matriculados nos seus cursos." },
-  { id: "analytics", label: "Analytics", href: "/teacher/analytics", icon: BarChart3, group: "Performance", hint: "Desempenho dos seus cursos." },
-];
-
-export const TEACHER_BOTTOM = ["dashboard", "courses", "content", "students"];
 
 export function activeSection(sections: NavSection[], pathname: string): NavSection | undefined {
   // Prefixo mais longo vence (ex.: /admin/courses/123 → Cursos).
