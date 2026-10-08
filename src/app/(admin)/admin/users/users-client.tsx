@@ -11,7 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { formatRelativeDate, cn } from "@/lib/utils/cn";
 import { PageHeader, Pill, tableHeadClass } from "@/components/admin/page-kit";
 import { ImportUsersDialog } from "./import-users-dialog";
-import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail, deleteUserWithoutPurchases } from "@/lib/actions/users";
+import { createUserByAdmin, updateUserRole, updateUserStatus, deleteUserWithoutPurchases } from "@/lib/actions/users";
 import { SupportDialogs, type SupportAction } from "./support-dialogs";
 import { KIND_LABEL, kindFromParam, type UserKind } from "@/lib/user-kinds";
 import { CdnImg } from "@/components/ui/cdn-img";
@@ -67,8 +67,6 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
   const [createForm, setCreateForm] = useState<{ name: string; email: string; role: UserRole }>({ name: "", email: "", role: "student" });
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
 
-  const [emailUser, setEmailUser] = useState<User | null>(null);
-  const [newEmail, setNewEmail] = useState("");
 
   const users = useMemo(() => {
     return initialUsers.filter((u) => {
@@ -123,20 +121,6 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
     startTransition(() => router.refresh());
   }
 
-  function openEmailDialog(user: User) {
-    setEmailUser(user);
-    setNewEmail(user.email);
-  }
-
-  async function handleUpdateEmail() {
-    if (!emailUser) return;
-    const result = await updateUserEmail(emailUser.id, newEmail);
-    if (!result.success) { error(result.error); return; }
-    success(`Email de ${emailUser.name} atualizado.`);
-    setEmailUser(null);
-    startTransition(() => router.refresh());
-  }
-
   const pages = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
   const current = Math.min(page, pages);
   const pageUsers = users.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
@@ -148,7 +132,7 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
       { label: "Tornar admin", icon: <Shield className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "admin") },
       { label: "Tornar aluno", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "student") },
       { separator: true as const },
-      { label: "Alterar email", icon: <Mail className="h-3.5 w-3.5" />, onClick: () => openEmailDialog(user) },
+      { label: "Editar dados", icon: <Mail className="h-3.5 w-3.5" />, onClick: () => setSupport({ kind: "edit", userId: user.id, name: user.name, email: user.email, phone: user.phone, status: user.status }) },
       { label: "Gerar senha temporária", icon: <KeyRound className="h-3.5 w-3.5" />, onClick: () => setSupport({ kind: "password", userId: user.id, name: user.name, email: user.email }) },
       { label: "Mover cursos para outra conta", icon: <ArrowRightLeft className="h-3.5 w-3.5" />, onClick: () => setSupport({ kind: "transfer", userId: user.id, name: user.name, email: user.email }) },
       { separator: true as const },
@@ -327,19 +311,6 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
 
       <SupportDialogs action={support} onClose={() => setSupport(null)} />
 
-      {/* Alterar email */}
-      <Dialog
-        open={!!emailUser}
-        onClose={() => setEmailUser(null)}
-        title="Alterar email"
-        description={emailUser ? `Define o email de login de ${emailUser.name}. Use um email real para permitir recuperação de senha.` : ""}
-      >
-        <Input label="Email" type="email" placeholder="usuario@email.com" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setEmailUser(null)}>Cancelar</Button>
-          <Button onClick={handleUpdateEmail}>Salvar</Button>
-        </DialogFooter>
-      </Dialog>
     </div>
   );
 }

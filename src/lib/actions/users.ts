@@ -202,3 +202,23 @@ export async function deleteUserWithoutPurchases(userId: string) {
   revalidatePath("/admin/users");
   return { success: true as const, message: "Conta excluída." };
 }
+
+// "Editar dados" do usuário pelo admin: nome, e-mail, telefone e situação.
+export async function updateUserByAdmin(userId: string, input: { name: string; email: string; phone?: string; status: UserStatus }) {
+  const session = await requireAdmin();
+  const name = input.name.trim();
+  if (name.length < 2) return { success: false as const, error: "Informe o nome." };
+  const email = input.email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success: false as const, error: "E-mail inválido." };
+  const badEmail = invalidEmailReason(email);
+  if (badEmail) return { success: false as const, error: badEmail };
+  const status = statusSchema.safeParse(input.status);
+  if (!status.success) return { success: false as const, error: "Situação inválida." };
+  if (userId === session.user.id && status.data !== "active") return { success: false as const, error: "Você não pode bloquear a própria conta." };
+  const other = await db.user.findFirst({ where: { email: { equals: email, mode: "insensitive" }, NOT: { id: userId } }, select: { id: true } });
+  if (other) return { success: false as const, error: "Este e-mail já está em uso por outra conta. Se for a mesma pessoa, use “Mover cursos para outra conta”." };
+  await db.user.update({ where: { id: userId }, data: { name, email, phone: input.phone?.trim() || null, status: status.data } });
+  await logAudit({ actorId: session.user.id, action: "user.updated", resourceType: "user", resourceId: userId, metadata: { name, email, status: status.data } });
+  revalidatePath("/admin/users");
+  return { success: true as const };
+}

@@ -6,9 +6,10 @@ import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { setTemporaryPassword, transferPurchases } from "@/lib/actions/users";
+import { Select } from "@/components/ui/select";
+import { setTemporaryPassword, transferPurchases, updateUserByAdmin } from "@/lib/actions/users";
 
-export type SupportAction = { kind: "password" | "transfer"; userId: string; name: string; email: string } | null;
+export type SupportAction = { kind: "password" | "transfer" | "edit"; userId: string; name: string; email: string; phone?: string; status?: string } | null;
 
 // Suporte ao aluno: senha temporária e mover compras para a conta certa.
 export function SupportDialogs({ action, onClose }: { action: SupportAction; onClose: () => void }) {
@@ -17,7 +18,23 @@ export function SupportDialogs({ action, onClose }: { action: SupportAction; onC
   const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState<string | null>(null);
   const [toEmail, setToEmail] = useState("");
-  useEffect(() => { setPassword(null); setToEmail(""); }, [action]);
+  const [form, setForm] = useState({ name: "", email: "", phone: "", status: "active" });
+  useEffect(() => {
+    setPassword(null);
+    setToEmail("");
+    if (action) setForm({ name: action.name, email: action.email, phone: action.phone ?? "", status: action.status ?? "active" });
+  }, [action]);
+
+  async function saveEdit() {
+    if (!action) return;
+    setBusy(true);
+    const res = await updateUserByAdmin(action.userId, { ...form, status: form.status as "active" });
+    setBusy(false);
+    if (!res.success) { error(res.error); return; }
+    success("Dados atualizados.");
+    onClose();
+    router.refresh();
+  }
 
   async function generate() {
     if (!action) return;
@@ -41,6 +58,20 @@ export function SupportDialogs({ action, onClose }: { action: SupportAction; onC
 
   return (
     <>
+      <Dialog open={action?.kind === "edit"} onClose={onClose} title="Editar dados" description="Corrija nome, e-mail, telefone ou bloqueie a conta. O e-mail é o login do aluno.">
+        <div className="space-y-4">
+          <Input label="Nome" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          <Input label="E-mail (login)" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+          <Input label="WhatsApp / telefone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+          <Select label="Situação" value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
+            options={[{ value: "active", label: "Ativa" }, { value: "inactive", label: "Inativa" }, { value: "banned", label: "Bloqueada" }]} />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={saveEdit} loading={busy} disabled={form.name.trim().length < 2 || !form.email.includes("@")}>Salvar</Button>
+        </DialogFooter>
+      </Dialog>
+
       <Dialog open={action?.kind === "password"} onClose={onClose} title="Senha temporária"
         description={action ? `Gera uma senha nova para ${action.name} (${action.email}). A senha antiga deixa de funcionar.` : ""}>
         {password ? (
