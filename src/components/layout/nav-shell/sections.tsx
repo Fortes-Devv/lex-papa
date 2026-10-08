@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutGrid, User, Package, BookOpen, ShoppingCart, DollarSign, BarChart3, Plug, List, Settings, Layers, FileVideo, Users,
+  LayoutGrid, User, Package, GraduationCap, BookOpen, ShoppingCart, DollarSign, BarChart3, Plug, List, Settings, Layers, FileVideo, Users,
 } from "lucide-react";
 
 // Navegação do admin e do professor (docs/Layout de módulos com preview/SPEC-navegacao.md).
@@ -54,7 +54,6 @@ export const ADMIN_SECTIONS: NavSection[] = [
       { label: "Cadastrados (sem compra)", param: "papel", value: "cadastrado", countKey: "cadastrado" },
       { label: "Assinantes", param: "papel", value: "assinante", countKey: "assinante" },
       { label: "Acesso encerrado", param: "papel", value: "encerrado", countKey: "encerrado" },
-      { label: "Professores", param: "papel", value: "professor", countKey: "professor" },
       { label: "Equipe (admin)", param: "papel", value: "equipe", countKey: "equipe" },
     ],
     filtersTitle: "Quem é",
@@ -95,6 +94,11 @@ export const ADMIN_SECTIONS: NavSection[] = [
       { label: "Rascunhos", param: "status", value: "draft", countKey: "draft" },
     ],
     action: { label: "Novo curso", href: "/admin/courses?novo=1" },
+  },
+  {
+    id: "teachers", label: "Professores", shortLabel: "Profs.", href: "/admin/teachers", icon: GraduationCap, group: "Gestão",
+    hint: "Só crédito nos módulos: nome, foto e minibio. Professor não é usuário e não faz login.",
+    filters: [],
   },
   {
     id: "orders", label: "Pedidos", href: "/admin/orders", icon: ShoppingCart, group: "Gestão",

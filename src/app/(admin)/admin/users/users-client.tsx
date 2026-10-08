@@ -13,12 +13,11 @@ import { PageHeader, Pill, tableHeadClass } from "@/components/admin/page-kit";
 import { ImportUsersDialog } from "./import-users-dialog";
 import { createUserByAdmin, updateUserRole, updateUserStatus, updateUserEmail, deleteUserWithoutPurchases } from "@/lib/actions/users";
 import { SupportDialogs, type SupportAction } from "./support-dialogs";
-import { KIND_LABEL, isNoLoginEmail, kindFromParam, type UserKind } from "@/lib/user-kinds";
-import { TeacherDialog, type TeacherDraft } from "./teacher-dialog";
+import { KIND_LABEL, kindFromParam, type UserKind } from "@/lib/user-kinds";
 import { CdnImg } from "@/components/ui/cdn-img";
 import type { User, UserRole, UserStatus } from "@/lib/types";
 
-const roleLabels: Record<UserRole, string> = { admin: "Admin", teacher: "Professor", student: "Aluno", moderator: "Moderador" };
+const roleLabels: Record<UserRole, string> = { admin: "Admin", teacher: "Professor", student: "Aluno", moderator: "Moderador" }; // "teacher" não existe mais como usuário
 const statusLabels: Record<UserStatus, string> = { active: "Ativo", inactive: "Inativo", banned: "Bloqueado", pending: "Pendente" };
 
 export interface UserExtra {
@@ -26,15 +25,14 @@ export interface UserExtra {
   courseIds?: string[]; // cursos com acesso válido
   courseTitles?: string[];
   course?: { title: string; progress: number; expired: boolean };
-  teaching?: { modules: number; lessons: number };
 }
 
 const PAGE_SIZE = 25;
 
-const KIND_TONE: Record<UserKind, "ok" | "gray" | "danger" | "brand"> = { cadastrado: "gray", aluno: "ok", assinante: "brand", encerrado: "danger", professor: "brand", equipe: "gray" };
+const KIND_TONE: Record<UserKind, "ok" | "gray" | "danger" | "brand"> = { cadastrado: "gray", aluno: "ok", assinante: "brand", encerrado: "danger", equipe: "gray" };
 const KIND_TITLE: Record<UserKind | "contas", string> = {
   cadastrado: "Cadastrados (sem compra)", aluno: "Alunos", assinante: "Assinantes", encerrado: "Acesso encerrado",
-  professor: "Professores", equipe: "Equipe", contas: "Contas de alunos",
+  equipe: "Equipe", contas: "Contas de alunos",
 };
 
 export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, courses = [] }: { initialUsers: User[]; extras?: Record<string, UserExtra>; newThisWeek?: number; courses?: { id: string; title: string }[] }) {
@@ -45,14 +43,13 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
   const [search, setSearch] = useState("");
   const [kindFilter, setKindFilter] = useState<UserKind | "contas" | null>(null);
   const [courseFilter, setCourseFilter] = useState("");
-  const [teacher, setTeacher] = useState<TeacherDraft | null>(null);
   const [support, setSupport] = useState<SupportAction>(null);
   const [statusFilter, setStatusFilter] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [page, setPage] = useState(1);
 
-  // Filtros do painel (?papel=cadastrado|aluno|assinante|encerrado|professor|equipe, ?situacao=, ?curso=, ?q=, ?novo=1).
+  // Filtros do painel (?papel=cadastrado|aluno|assinante|encerrado|equipe, ?situacao=, ?curso=, ?q=, ?novo=1).
   const searchParams = useSearchParams();
   const pathname = usePathname();
   useEffect(() => {
@@ -147,16 +144,8 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
   const lastAccess = (u: User) => (u.lastLoginAt ? formatRelativeDate(u.lastLoginAt) : "Nunca");
 
   function actions(user: User) {
-    if (user.role === "teacher") {
-      return [
-        { label: "Editar professor", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => setTeacher({ id: user.id, name: user.name, bio: user.bio ?? "", avatar: user.avatar ?? "" }) },
-        { label: "Tornar aluno", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "student") },
-        { label: "Tornar admin", icon: <Shield className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "admin") },
-      ];
-    }
     return [
       { label: "Tornar admin", icon: <Shield className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "admin") },
-      { label: "Tornar professor (sem acesso)", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => { if (confirm(`${user.name} vira professor só para créditos e perde o acesso à plataforma. Continuar?`)) handleRoleChange(user, "teacher"); } },
       { label: "Tornar aluno", icon: <UserCog className="h-3.5 w-3.5" />, onClick: () => handleRoleChange(user, "student") },
       { separator: true as const },
       { label: "Alterar email", icon: <Mail className="h-3.5 w-3.5" />, onClick: () => openEmailDialog(user) },
@@ -176,10 +165,9 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
     ];
   }
 
-  // Curso + progresso (aluno) ou carga de ensino (professor).
+  // Curso + progresso do aluno.
   function CourseCell({ user }: { user: User }) {
     const x = extras[user.id];
-    if (x?.kind === "professor") return <span className="text-[12.5px] text-foreground-muted">{x.teaching ? `${x.teaching.modules} módulo${x.teaching.modules !== 1 ? "s" : ""} · ${x.teaching.lessons} aulas` : "Nenhum módulo ainda"}</span>;
     if (x?.kind === "cadastrado") return <span className="text-[12.5px] text-foreground-muted">Nenhuma compra</span>;
     if (x?.kind === "equipe") return <span className="text-foreground-subtle">—</span>;
     if (x?.kind === "encerrado") return <span className="text-[12.5px] text-foreground-muted">{x.course?.title ?? "Curso"} · encerrado</span>;
@@ -194,7 +182,6 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
         </div>
       );
     }
-    if (x?.teaching) return <span className="text-[12.5px] text-foreground-muted">{x.teaching.modules} módulo{x.teaching.modules !== 1 ? "s" : ""} · {x.teaching.lessons} aulas</span>;
     return <span className="text-foreground-subtle">—</span>;
   }
 
@@ -212,14 +199,13 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
         title={kindFilter ? KIND_TITLE[kindFilter] : "Todos os usuários"}
         subtitle={`${users.length.toLocaleString("pt-BR")} ${search || kindFilter || statusFilter || courseFilter ? "encontrados" : "cadastrados"} · ${newThisWeek} novo${newThisWeek !== 1 ? "s" : ""} esta semana`}
         actions={<>
-          {courses.length > 0 && kindFilter !== "professor" && kindFilter !== "equipe" && (
+          {courses.length > 0 && kindFilter !== "equipe" && (
             <select value={courseFilter} onChange={(e) => changeCourse(e.target.value)} aria-label="Filtrar por curso"
               className="h-9 max-w-[220px] rounded-lg border border-line-strong bg-card px-2 text-[13px] font-semibold text-foreground dark:border-white/10">
               <option value="">Todos os cursos</option>
               {courses.map((c) => <option key={c.id} value={c.id}>Alunos de: {c.title}</option>)}
             </select>
           )}
-          <Button variant="outline" onClick={() => setTeacher({ name: "", bio: "", avatar: "" })} leftIcon={<UserCog className="h-4 w-4" />}>Novo professor</Button>
           <ImportUsersDialog />
           <Button onClick={() => setCreateOpen(true)} leftIcon={<Plus className="h-4 w-4" />}>Novo usuário</Button>
         </>}
@@ -236,12 +222,12 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
               {avatar(user)}
               <div className="min-w-0">
                 <p className="truncate text-[13.5px] font-semibold text-foreground">{user.name}</p>
-                <p className="truncate text-[11.5px] text-foreground-muted">{isNoLoginEmail(user.email) ? "Só crédito nos módulos · sem login" : user.email}</p>
+                <p className="truncate text-[11.5px] text-foreground-muted">{user.email}</p>
               </div>
             </div>
             <span><Pill tone={KIND_TONE[extras[user.id]?.kind ?? "cadastrado"]}>{KIND_LABEL[extras[user.id]?.kind ?? "cadastrado"]}</Pill></span>
             <CourseCell user={user} />
-            <span className="text-[12.5px] text-foreground-muted">{user.role === "teacher" ? "—" : lastAccess(user)}</span>
+            <span className="text-[12.5px] text-foreground-muted">{lastAccess(user)}</span>
             <span><Pill tone={statusTone[user.status]}>{statusLabels[user.status]}</Pill></span>
             <Dropdown align="right" items={actions(user)}
               trigger={<Button variant="ghost" size="icon-sm" disabled={isPending} aria-label={`Ações de ${user.name}`}><MoreHorizontal className="h-4 w-4" /></Button>} />
@@ -263,7 +249,7 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
                   <Pill tone={KIND_TONE[x?.kind ?? "cadastrado"]} className="shrink-0">{KIND_LABEL[x?.kind ?? "cadastrado"]}</Pill>
                 </div>
                 <p className="truncate text-[11.5px] text-foreground-muted">
-                  {user.role === "teacher" ? (x?.teaching ? `${x.teaching.modules} módulos · ${x.teaching.lessons} aulas` : "Sem módulos") : x?.courseTitles?.length ? `${x.courseTitles.join(", ")} · ${lastAccess(user)}` : `${KIND_LABEL[x?.kind ?? "cadastrado"]} · ${lastAccess(user)}`}
+                  {x?.courseTitles?.length ? `${x.courseTitles.join(", ")} · ${lastAccess(user)}` : `${KIND_LABEL[x?.kind ?? "cadastrado"]} · ${lastAccess(user)}`}
                 </p>
                 {x?.course && (
                   <div className="mt-2 h-1 overflow-hidden rounded-full bg-line-soft dark:bg-white/10">
@@ -339,7 +325,6 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
         </DialogFooter>
       </Dialog>
 
-      <TeacherDialog draft={teacher} onClose={() => setTeacher(null)} />
       <SupportDialogs action={support} onClose={() => setSupport(null)} />
 
       {/* Alterar email */}

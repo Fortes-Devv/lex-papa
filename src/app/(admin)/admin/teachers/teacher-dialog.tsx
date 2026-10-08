@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { MediaUploader } from "@/components/upload/media-uploader";
-import { createTeacherProfile, updateTeacherProfile } from "@/lib/actions/users";
+import { createTeacher, updateTeacher } from "@/lib/actions/teachers";
 
 export interface TeacherDraft { id?: string; name: string; bio: string; avatar: string }
 
@@ -21,7 +21,7 @@ export function TeacherDialog({ draft, onClose }: { draft: TeacherDraft | null; 
   async function save() {
     setSaving(true);
     const input = { name: form.name, bio: form.bio, avatar: form.avatar };
-    const res = form.id ? await updateTeacherProfile(form.id, input) : await createTeacherProfile(input);
+    const res = form.id ? await updateTeacher(form.id, input) : await createTeacher(input);
     setSaving(false);
     if (!res.success) { error(res.error); return; }
     success(form.id ? "Professor atualizado." : `Professor ${form.name} cadastrado. Associe-o aos módulos em “Editar módulo”.`);
@@ -31,7 +31,7 @@ export function TeacherDialog({ draft, onClose }: { draft: TeacherDraft | null; 
 
   return (
     <Dialog open={!!draft} onClose={onClose} title={form.id ? "Editar professor" : "Novo professor"}
-      description="Só para dar os créditos: o nome aparece nos módulos e na página do curso. O professor não tem login nem acesso à plataforma.">
+      description="Só para dar os créditos: o nome aparece nos módulos e na página do curso. Professor não é usuário: não tem login nem acesso à plataforma.">
       <div className="space-y-4">
         <Input label="Nome" placeholder="Ex.: Riccardo Carvalho" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} autoFocus />
         <div>

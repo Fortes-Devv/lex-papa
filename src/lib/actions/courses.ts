@@ -197,8 +197,8 @@ export async function createModule(courseId: string, title: string, instructorId
   const session = await requireStaff();
   if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
   if (!title.trim()) return { success: false as const, error: "Dê um título para o módulo." };
-  // Professor que cria o módulo é o dono dele; admin/moderador escolhe o professor.
-  const owner = session.user.role === "teacher" ? session.user.id : instructorId || null;
+  // Professor do módulo = só crédito (cadastro em Professores).
+  const owner = instructorId || null;
   const mod = await db.module.create({
     data: {
       title,
@@ -268,8 +268,6 @@ export async function renameModule(moduleId: string, title: string, instructorId
   const session = await requireStaff();
   if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
   if (!title.trim()) return { success: false as const, error: "Dê um título para o módulo." };
-  // Trocar o dono do módulo é só para admin/moderador.
-  const canReassign = session.user.role === "admin" || session.user.role === "moderator";
   // Se a capa foi trocada, remove a antiga do Cloudinary.
   if (coverImage !== undefined) {
     const current = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
@@ -282,7 +280,7 @@ export async function renameModule(moduleId: string, title: string, instructorId
     // undefined = não mexe; null/string = define/remove
     data: {
       title,
-      ...(instructorId === undefined || !canReassign ? {} : { instructorId: instructorId || null }),
+      ...(instructorId === undefined ? {} : { instructorId: instructorId || null }),
       ...(coverImage === undefined ? {} : { coverImage: coverImage || null }),
     },
   });
@@ -290,14 +288,10 @@ export async function renameModule(moduleId: string, title: string, instructorId
   return { success: true as const };
 }
 
-// Lista os professores/staff disponíveis para associar a um módulo.
+// Professores (só crédito) disponíveis para associar a um módulo.
 export async function listTeachers() {
   await requireStaff();
-  return db.user.findMany({
-    where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
-    select: { id: true, name: true },
-    orderBy: { name: "asc" },
-  });
+  return db.teacher.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } });
 }
 
 // Publica/despublica o módulo NESTE curso (não afeta os outros cursos).

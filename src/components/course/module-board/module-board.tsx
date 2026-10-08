@@ -509,8 +509,8 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
           <Input label="Título do módulo" placeholder="Ex: Direito Constitucional" value={moduleForm.title} onChange={(e) => setModuleForm((f) => ({ ...f, title: e.target.value }))} />
           {teachers.length > 0 && (
             <Select
-              label="Professor responsável"
-              hint="O professor escolhido é o dono do módulo: só ele (e o admin) edita as aulas. As iniciais dele aparecem na capa automática."
+              label="Professor (crédito)"
+              hint="Só para o crédito: o nome aparece no módulo e na página do curso. Cadastre professores em Professores."
               value={moduleForm.instructorId}
               onChange={(e) => setModuleForm((f) => ({ ...f, instructorId: e.target.value }))}
               options={[{ value: "", label: "Sem professor específico" }, ...teachers.map((t) => ({ value: t.id, label: t.name }))]}

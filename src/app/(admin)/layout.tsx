@@ -24,7 +24,7 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
   const byUser = new Map<string, EnrollmentLite[]>();
   for (const e of studentEnrollments) byUser.set(e.userId, [...(byUser.get(e.userId) ?? []), e]);
   const studentIds = await db.user.findMany({ where: { role: "student" }, select: { id: true } });
-  const kinds: Record<UserKind, number> = { cadastrado: 0, aluno: 0, assinante: 0, encerrado: 0, professor: 0, equipe: 0 };
+  const kinds: Record<UserKind, number> = { cadastrado: 0, aluno: 0, assinante: 0, encerrado: 0, equipe: 0 };
   for (const u of studentIds) kinds[classifyUser("student", byUser.get(u.id) ?? []).kind]++;
   const orderStatus = await db.order.groupBy({ by: ["status"], _count: true });
   const storage = await getBunnyStorageBytes();
@@ -61,12 +61,11 @@ async function loadPanelData(): Promise<{ panel: PanelData; pendingOrders: numbe
       },
       users: {
         counts: {
-          all: count(userRoles, () => true),
+          all: count(userRoles, (r) => r.role !== "teacher"),
           cadastrado: kinds.cadastrado,
           aluno: kinds.aluno,
           assinante: kinds.assinante,
           encerrado: kinds.encerrado,
-          professor: count(userRoles, (r) => r.role === "teacher"),
           equipe: count(userRoles, (r) => r.role === "admin" || r.role === "moderator"),
           active: count(userStatus, (r) => r.status === "active"),
           inactive: count(userStatus, (r) => r.status === "inactive"),

@@ -8,10 +8,10 @@ import { requireAdmin, requireModerator } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import type { UserRole, UserStatus } from "@/lib/types";
-import { NO_LOGIN_EMAIL_DOMAIN } from "@/lib/user-kinds";
 import { invalidEmailReason } from "@/lib/email-check";
 
-const roleSchema = z.enum(["admin", "moderator", "teacher", "student"]);
+// Professor não é usuário (cadastro próprio em Professores).
+const roleSchema = z.enum(["admin", "moderator", "student"]);
 const statusSchema = z.enum(["active", "inactive", "banned", "pending"]);
 
 // Papéis que só um admin pode atribuir ou gerenciar.
@@ -112,7 +112,7 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
 // Devolve as senhas temporárias para o admin repassar (não são guardadas em texto).
 export async function importUsersCsv(csvText: string) {
   const session = await requireModerator();
-  const ROLE: Record<string, UserRole> = { aluno: "student", student: "student", professor: "teacher", teacher: "teacher", admin: "admin", moderador: "moderator", moderator: "moderator" };
+  const ROLE: Record<string, UserRole> = { aluno: "student", student: "student", admin: "admin", moderador: "moderator", moderator: "moderator" };
   const lines = csvText.replace(/^﻿/, "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   if (lines.length === 0) return { success: false as const, error: "Arquivo vazio." };
   if (lines.length > 501) return { success: false as const, error: "Máximo de 500 usuários por arquivo." };
@@ -139,54 +139,6 @@ export async function importUsersCsv(csvText: string) {
   return { success: true as const, created, results };
 }
 
-// ── Professores (só para créditos) ──────────────────────────────────────────
-// Professor não entra na plataforma: é um nome (com foto e minibio opcionais)
-// que o admin associa aos módulos. O login de quem tem papel "professor" é recusado.
-
-// E-mail interno (o banco exige um e-mail único); nunca é usado para login.
-const teacherPlaceholderEmail = () => `professor-${crypto.randomBytes(6).toString("hex")}${NO_LOGIN_EMAIL_DOMAIN}`;
-
-const teacherSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome do professor.").max(120),
-  bio: z.string().trim().max(500).optional(),
-  avatar: z.string().trim().url().or(z.literal("")).optional(),
-});
-
-export async function createTeacherProfile(input: { name: string; bio?: string; avatar?: string }) {
-  const session = await requireModerator();
-  const parsed = teacherSchema.safeParse(input);
-  if (!parsed.success) return { success: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-  const created = await db.user.create({
-    data: {
-      name: parsed.data.name,
-      bio: parsed.data.bio || null,
-      avatar: parsed.data.avatar || null,
-      email: teacherPlaceholderEmail(),
-      // Senha aleatória descartada: ninguém a conhece (e o login de professor é recusado).
-      passwordHash: await bcrypt.hash(crypto.randomBytes(24).toString("base64url"), 10),
-      role: "teacher",
-      status: "active",
-    },
-  });
-  await logAudit({ actorId: session.user.id, action: "user.created", resourceType: "user", resourceId: created.id, metadata: { role: "teacher", name: created.name } });
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/courses");
-  return { success: true as const, id: created.id };
-}
-
-export async function updateTeacherProfile(userId: string, input: { name: string; bio?: string; avatar?: string }) {
-  const session = await requireModerator();
-  const parsed = teacherSchema.safeParse(input);
-  if (!parsed.success) return { success: false as const, error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
-  const target = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (target?.role !== "teacher") return { success: false as const, error: "Este usuário não é professor." };
-  await db.user.update({ where: { id: userId }, data: { name: parsed.data.name, bio: parsed.data.bio || null, avatar: parsed.data.avatar || null } });
-  await logAudit({ actorId: session.user.id, action: "user.updated", resourceType: "user", resourceId: userId, metadata: { name: parsed.data.name } });
-  revalidatePath("/admin/users");
-  revalidatePath("/admin/courses");
-  return { success: true as const };
-}
-
 // ── Suporte ao aluno (só admin) ─────────────────────────────────────────────
 
 // Senha temporária: o admin repassa ao aluno (ex.: WhatsApp) quando o e-mail de redefinição não ajuda.
@@ -194,7 +146,6 @@ export async function setTemporaryPassword(userId: string) {
   const session = await requireAdmin();
   const user = await db.user.findUnique({ where: { id: userId }, select: { role: true, email: true } });
   if (!user) return { success: false as const, error: "Usuário não encontrado." };
-  if (user.role === "teacher") return { success: false as const, error: "Professor não tem login." };
   if (userId === session.user.id) return { success: false as const, error: "Para a sua conta, use Meu perfil › Senha." };
   const tempPassword = crypto.randomBytes(6).toString("base64url");
   await db.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(tempPassword, 10) } });
@@ -241,9 +192,6 @@ export async function deleteUserWithoutPurchases(userId: string) {
   if (user.role === "admin" || user.role === "moderator") return { success: false as const, error: "Contas da equipe não podem ser excluídas aqui." };
   if (user._count.orders > 0 || user._count.enrollments > 0) {
     return { success: false as const, error: "Esta conta tem compras. Mova os cursos para a conta certa antes de excluir." };
-  }
-  if (user.role === "teacher" && (await db.module.count({ where: { instructorId: userId } })) > 0) {
-    return { success: false as const, error: "Este professor está em módulos. Troque o professor dos módulos antes." };
   }
   try {
     await db.user.delete({ where: { id: userId } });

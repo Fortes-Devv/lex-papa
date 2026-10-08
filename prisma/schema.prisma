@@ -162,13 +162,11 @@ model User {
   lastViewedProductId String?
   weeklyGoalMinutes   Int        @default(360) // meta de estudo da semana (área do aluno)
 
-  payouts            Payout[]          @relation("TeacherPayouts")
   enrollments        Enrollment[]
   lessonProgress     LessonProgress[]
   certificates       Certificate[]
   orders             Order[]
   instructedProducts Product[]         @relation("ProductInstructors")
-  instructedModules  Module[]          @relation("ModuleInstructor")
   quizAttempts       QuizAttempt[]
   favorites          Favorite[]
   notifications      Notification[]
@@ -302,7 +300,8 @@ model Module {
   description  String?
   coverImage   String?
   instructorId String?
-  instructor   User?    @relation("ModuleInstructor", fields: [instructorId], references: [id], onDelete: SetNull)
+  // Professor do módulo (só crédito: nome/foto; professores não são usuários).
+  instructor   Teacher? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
   lessons Lesson[]
@@ -831,20 +830,6 @@ model RateLimitHit {
 
 // Repasse pago a um professor (Financeiro › Repasses). O valor devido é calculado
 // a partir das vendas; aqui fica o registro do que já foi pago, por período.
-model Payout {
-  id          String   @id @default(cuid())
-  teacherId   String
-  teacher     User     @relation("TeacherPayouts", fields: [teacherId], references: [id], onDelete: Cascade)
-  amount      Decimal  @db.Decimal(10, 2)
-  periodStart DateTime
-  periodEnd   DateTime
-  paidAt      DateTime @default(now())
-  createdById String?
-  note        String?
-
-  @@index([teacherId, periodStart])
-  @@map("payouts")
-}
 
 // Download de PDF (aula ou material anexado) — alimenta "PDFs baixados" no Analytics.
 model DownloadEvent {
@@ -871,4 +856,18 @@ model StudyDay {
 
   @@unique([userId, date])
   @@map("study_days")
+}
+
+// Professores: só para créditos nos módulos (nome, foto, minibio). Não fazem login.
+model Teacher {
+  id        String   @id @default(cuid())
+  name      String
+  avatar    String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  modules Module[]
+
+  @@map("teachers")
 }

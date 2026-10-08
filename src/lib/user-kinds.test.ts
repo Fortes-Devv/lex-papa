@@ -13,14 +13,12 @@ describe("classifyUser", () => {
     expect(classifyUser("student", [enr("active", "course", past)]).kind).toBe("encerrado");
   });
   it("papéis da equipe", () => {
-    expect(classifyUser("teacher", [enr("active")]).kind).toBe("professor");
     expect(classifyUser("moderator", []).kind).toBe("equipe");
   });
 });
 
 it("aceita os filtros antigos", () => {
   expect(kindFromParam("student")).toBe("contas");
-  expect(kindFromParam("teacher")).toBe("professor");
   expect(kindFromParam("aluno")).toBe("aluno");
   expect(kindFromParam("xyz")).toBeNull();
 });

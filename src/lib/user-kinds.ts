@@ -5,16 +5,14 @@ import { isEnrollmentActive } from "@/lib/access";
 // - aluno: tem acesso válido a pelo menos um curso;
 // - assinante: tem uma assinatura ativa (produto do tipo "assinatura");
 // - encerrado: já teve acesso, mas venceu, foi cancelado ou reembolsado;
-// - professor: só o nome, para os créditos dos módulos (não entra na plataforma);
 // - equipe: admin/moderador.
-export type UserKind = "cadastrado" | "aluno" | "assinante" | "encerrado" | "professor" | "equipe";
+export type UserKind = "cadastrado" | "aluno" | "assinante" | "encerrado" | "equipe";
 
 export const KIND_LABEL: Record<UserKind, string> = {
   cadastrado: "Cadastrado",
   aluno: "Aluno",
   assinante: "Assinante",
   encerrado: "Acesso encerrado",
-  professor: "Professor",
   equipe: "Equipe",
 };
 
@@ -26,7 +24,6 @@ export interface EnrollmentLite {
 
 export function classifyUser(role: string, enrollments: EnrollmentLite[]): { kind: UserKind; active: EnrollmentLite[] } {
   if (role === "admin" || role === "moderator") return { kind: "equipe", active: [] };
-  if (role === "teacher") return { kind: "professor", active: [] };
   const active = enrollments.filter((e) => isEnrollmentActive({ status: e.status as never, expiresAt: e.expiresAt }));
   if (active.some((e) => e.product.type === "subscription")) return { kind: "assinante", active };
   if (active.length > 0) return { kind: "aluno", active };
@@ -37,11 +34,6 @@ export function classifyUser(role: string, enrollments: EnrollmentLite[]): { kin
 export function kindFromParam(value: string | null): UserKind | "contas" | null {
   if (!value) return null;
   if (value === "student") return "contas";
-  if (value === "teacher") return "professor";
   if (value === "admin") return "equipe";
-  return (["cadastrado", "aluno", "assinante", "encerrado", "professor", "equipe"] as const).find((k) => k === value) ?? null;
+  return (["cadastrado", "aluno", "assinante", "encerrado", "equipe"] as const).find((k) => k === value) ?? null;
 }
-
-// Professores cadastrados só para créditos recebem um e-mail interno (o banco exige um).
-export const NO_LOGIN_EMAIL_DOMAIN = "@sem-acesso.lexcursos.site";
-export const isNoLoginEmail = (email: string) => email.endsWith(NO_LOGIN_EMAIL_DOMAIN);

@@ -47,12 +47,12 @@ export function ImportUsersDialog() {
   return (
     <>
       <Button variant="outline" onClick={() => setOpen(true)} leftIcon={<Upload className="h-4 w-4" />}>Importar CSV</Button>
-      <Dialog open={open} onClose={close} title="Importar usuários" description="Uma linha por usuário: nome, e-mail e papel (aluno, professor ou admin).">
+      <Dialog open={open} onClose={close} title="Importar usuários" description="Uma linha por usuário: nome, e-mail e papel (aluno ou admin). Professores ficam em Professores.">
         {!result ? (
           <div className="space-y-3">
             <pre className="rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs text-foreground">{`nome;email;papel
 Maria Silva;maria@email.com;aluno
-Riccardo Nunes;riccardo@email.com;professor`}</pre>
+João Souza;joao@email.com;aluno`}</pre>
             <p className="text-xs text-foreground-muted">Aceita vírgula ou ponto e vírgula. E-mails já cadastrados são ignorados. Cada usuário recebe uma senha temporária.</p>
             <input ref={fileRef} type="file" accept=".csv,text/csv,text/plain" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
             <Button className="w-full" loading={busy} onClick={() => fileRef.current?.click()} leftIcon={<Upload className="h-4 w-4" />}>Escolher arquivo CSV</Button>

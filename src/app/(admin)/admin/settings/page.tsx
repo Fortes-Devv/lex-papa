@@ -9,7 +9,7 @@ const SENSITIVE = ["user.password_reset_by_admin", "user.purchases_transferred",
 export default async function AdminSettingsPage() {
   const settings = await getSettings();
   const staff = await db.user.findMany({
-    where: { role: { in: ["admin", "moderator", "teacher"] } },
+    where: { role: { in: ["admin", "moderator"] } },
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: { id: true, name: true, email: true, avatar: true, role: true, status: true, lastLoginAt: true, twoFactorEnabled: true },
   });

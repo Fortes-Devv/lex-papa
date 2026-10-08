@@ -21,11 +21,7 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
 
   const [modules, teachers] = [
     await loadEditorModules(course.id, session.user),
-    await db.user.findMany({
-      where: { role: { in: ["teacher", "moderator", "admin"] }, status: "active" },
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+    await db.teacher.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ];
 
   return (
