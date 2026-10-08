@@ -31,6 +31,7 @@ export interface EditCourseInitial {
   level: ProductLevel;
   thumbnail: string;
   heroColor?: string;
+  pdfReleaseDays?: number;
 }
 
 const fmtNum = (n?: number) => (n && n > 0 ? String(n).replace(".", ",") : "");
@@ -54,6 +55,7 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
     level: initial.level,
     thumbnail: initial.thumbnail,
     heroColor: initial.heroColor ?? "navy",
+    pdfReleaseDays: String(initial.pdfReleaseDays ?? 0),
   });
 
   async function handleSubmit() {
@@ -73,6 +75,7 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
         level: form.level,
         thumbnail: form.thumbnail,
         heroColor: form.heroColor,
+        ...(initial.pdfReleaseDays !== undefined ? { pdfReleaseDays: Number(form.pdfReleaseDays) || 0 } : {}),
       });
       if (!result.success) { error(result.error); return; }
       success("Curso atualizado.");
@@ -105,6 +108,12 @@ export function EditCourseDialog({ initial, open: openProp, onOpenChange }: { in
             <label className="mb-1.5 block text-sm font-medium text-foreground">Capa do curso</label>
             <MediaUploader resourceType="image" folder="lms/thumbnails" value={form.thumbnail} onUploaded={(r) => setForm((f) => ({ ...f, thumbnail: r.url }))} onRemove={() => setForm((f) => ({ ...f, thumbnail: "" }))} />
           </div>
+          {initial.pdfReleaseDays !== undefined && (
+            <div>
+              <Input label="Liberar PDFs após (dias da compra)" type="number" min="0" max="365" value={form.pdfReleaseDays} onChange={(e) => setForm((f) => ({ ...f, pdfReleaseDays: e.target.value }))} />
+              <p className="mt-1 text-xs text-foreground-muted">0 = na hora. Use 7 para casar com a garantia: quem pede reembolso nos 7 dias não leva os PDFs. Os vídeos continuam liberados.</p>
+            </div>
+          )}
           <HeroThemePicker value={form.heroColor} onChange={(key) => setForm((f) => ({ ...f, heroColor: key }))} />
         </div>
         <DialogFooter>

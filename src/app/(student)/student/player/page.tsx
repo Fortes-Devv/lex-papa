@@ -5,6 +5,7 @@ import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-cli
 import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
+import { lockedUntil, releaseLabel } from "@/lib/release";
 
 export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
   const searchParams = await props.searchParams;
@@ -74,22 +75,31 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
   const lastWatched = [...progressRows].filter((p) => p.positionSeconds > 0 && !p.isCompleted).sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())[0]?.lessonId;
   const notesMap = Object.fromEntries(notes.map((n) => [n.lessonId, n.content]));
 
-  const modules: PlayerModule[] = course.modules.map(({ module: m }) => ({
+  // Liberação programada (só para aluno): módulo e PDFs abrem X dias após a compra.
+  const enrolledAt = !isStaff && isEnrolled ? enrollment!.enrolledAt : null;
+
+  const modules: PlayerModule[] = course.modules.map(({ module: m, releaseAfterDays }) => {
+    const moduleUntil = lockedUntil(enrolledAt, releaseAfterDays);
+    const pdfUntil = lockedUntil(enrolledAt, Math.max(course.pdfReleaseDays, releaseAfterDays));
+    return {
     id: m.id,
     title: m.title,
     instructorName: m.instructor?.name ?? null,
     lessons: m.lessons.map<PlayerLesson>((l) => {
-      // Bloqueada se o aluno não está matriculado e a aula não é gratuita/preview.
-      const locked = !isEnrolled; // não existe aula grátis
-      // Aula bloqueada não leva nenhum conteúdo pago para o navegador.
+      // Sem matrícula (não existe aula grátis) ou módulo ainda não liberado.
+      const locked = !isEnrolled || !!moduleUntil;
+      const hasFiles = !!l.pdfUrl || l.materials.length > 0;
+      // Aula bloqueada não leva nenhum conteúdo pago para o navegador; PDFs só depois do prazo.
       return {
         id: l.id,
         title: l.title,
         type: l.type,
         duration: l.duration,
         videoUrl: locked ? null : resolveLessonVideoUrl(l),
-        hasPdf: !locked && !!l.pdfUrl,
-        materials: locked ? [] : l.materials,
+        hasPdf: !locked && !pdfUntil && !!l.pdfUrl,
+        materials: locked || pdfUntil ? [] : l.materials,
+        releaseAt: isEnrolled && moduleUntil ? releaseLabel(moduleUntil) : null,
+        pdfReleaseAt: !locked && pdfUntil && hasFiles ? releaseLabel(pdfUntil) : null,
         description: l.description,
         isFree: l.isFree,
         locked,
@@ -99,7 +109,8 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         quiz: locked ? null : toStudentQuiz(l.quiz),
       };
     }),
-  }));
+  };
+  });
 
   return (
     <PlayerClient

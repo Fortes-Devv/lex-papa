@@ -6,7 +6,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSe
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
   ChevronLeft, MoreHorizontal, Plus, Layers, Play, ImagePlus, RotateCcw, ArrowUp, ArrowDown,
-  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive,
+  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive, Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,7 @@ import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
   createModule, renameModule, deleteModule, moveModule, toggleModulePublished, setModulePublished,
   deleteLesson, moveLesson, updateLessonStatus, detachModule, attachModule, listAttachableModules,
-  reorderModules, setModuleCover, publishAllLessons,
+  reorderModules, setModuleCover, publishAllLessons, setModuleRelease,
 } from "@/lib/actions/courses";
 import { ModuleCard, ModuleCover } from "./module-card";
 import { PreviewPanel } from "./preview-panel";
@@ -240,6 +240,15 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Mover para cima", icon: <ArrowUp className="h-3.5 w-3.5" />, disabled: index === 0, onClick: async () => report(await moveModule(header.courseId, m.id, "up")) });
       items.push({ label: "Mover para baixo", icon: <ArrowDown className="h-3.5 w-3.5" />, disabled: index === modules.length - 1, onClick: async () => report(await moveModule(header.courseId, m.id, "down")) });
       items.push({ label: m.isPublished ? "Despublicar" : "Publicar", icon: m.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />, onClick: () => togglePublish(m) });
+      items.push({
+        label: `Liberação: ${m.releaseAfterDays ? `${m.releaseAfterDays} dias após a compra` : "na hora"}`, icon: <Clock className="h-3.5 w-3.5" />,
+        onClick: async () => {
+          const v = window.prompt("Liberar este módulo quantos dias após a compra? (0 = na hora)", String(m.releaseAfterDays));
+          if (v === null) return;
+          const res = await setModuleRelease(header.courseId, m.id, Number(v));
+          report(res, res.success ? res.message : undefined);
+        },
+      });
       items.push({ separator: true });
       items.push({ label: "Remover do curso", icon: <Unlink className="h-3.5 w-3.5" />, variant: "destructive", onClick: () => removeModule(m) });
     }

@@ -2,25 +2,36 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
+import { lockedUntil, releaseLabel } from "@/lib/release";
 
 // Quem pode baixar um arquivo de uma aula (PDF da aula ou material anexado):
 // equipe sempre; aluno se a aula está publicada num módulo publicado em algum curso
-// e ele tem matrícula válida nesse curso. Não existe aula grátis: sem compra, sem acesso.
+// e ele tem matrícula válida nesse curso e o prazo de liberação (PDFs/módulo) já passou.
+// Não existe aula grátis: sem compra, sem acesso.
 // Retorna null se pode; senão, a resposta de erro já pronta.
 export async function lessonFileAccessError(user: Session["user"], lessonId: string): Promise<NextResponse | null> {
   const lesson = await db.lesson.findUnique({
     where: { id: lessonId },
-    include: { module: { include: { courses: { where: { isPublished: true }, select: { course: { select: { productId: true } } } } } } },
+    include: { module: { include: { courses: { where: { isPublished: true }, select: { releaseAfterDays: true, course: { select: { productId: true, pdfReleaseDays: true } } } } } } },
   });
   if (!lesson) return new NextResponse("Arquivo não encontrado.", { status: 404 });
   if (isStaffRole(user.role)) return null;
 
-  const productIds = lesson.module.courses.map((c) => c.course.productId);
-  if (lesson.status !== "published" || productIds.length === 0) return new NextResponse("Arquivo não encontrado.", { status: 404 });
+  const links = lesson.module.courses;
+  if (lesson.status !== "published" || links.length === 0) return new NextResponse("Arquivo não encontrado.", { status: 404 });
 
-  // Basta matrícula válida em qualquer curso que use o módulo.
-  const enrollments = await db.enrollment.findMany({ where: { userId: user.id, productId: { in: productIds } } });
-  return enrollments.some(isEnrollmentActive) ? null : new NextResponse("Você não tem acesso a este material.", { status: 403 });
+  // Matrícula válida em algum curso que usa o módulo E prazo de liberação daquele curso já passou.
+  const enrollments = (await db.enrollment.findMany({ where: { userId: user.id, productId: { in: links.map((l) => l.course.productId) } } })).filter(isEnrollmentActive);
+  if (enrollments.length === 0) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
+  let soonest: Date | null = null;
+  for (const l of links) {
+    const e = enrollments.find((x) => x.productId === l.course.productId);
+    if (!e) continue;
+    const until = lockedUntil(e.enrolledAt, Math.max(l.course.pdfReleaseDays, l.releaseAfterDays));
+    if (!until) return null;
+    if (!soonest || until < soonest) soonest = until;
+  }
+  return new NextResponse(`Este material será liberado em ${releaseLabel(soonest!)}.`, { status: 403 });
 }
 
 // Busca o PDF no armazenamento e devolve como download (ou para abrir na página,

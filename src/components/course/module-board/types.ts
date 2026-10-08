@@ -27,6 +27,7 @@ export interface EditorModule {
   order: number; // ordem NESTE curso
   isPublished: boolean; // publicado NESTE curso
   instructorId: string | null;
+  releaseAfterDays: number; // abre X dias após a compra (neste curso)
   instructorName: string | null;
   instructorAvatar: string | null;
   coverImage: string | null; // null → capa automática

@@ -84,6 +84,7 @@ export async function updateCourseDetails(productId: string, input: {
   level: ProductLevel;
   thumbnail: string;
   heroColor?: string;
+  pdfReleaseDays?: number; // PDFs liberados X dias após a compra (0 = na hora)
 }) {
   const session = await requireStaff();
   if (!(await canEditProduct(session.user, productId))) return NOT_ALLOWED;
@@ -113,7 +114,9 @@ export async function updateCourseDetails(productId: string, input: {
       level: input.level,
       categoryId: category.id,
       ...(input.thumbnail ? { thumbnail: input.thumbnail } : {}),
-      ...(input.heroColor ? { course: { update: { heroColor: input.heroColor } } } : {}),
+      ...(input.heroColor || input.pdfReleaseDays !== undefined
+        ? { course: { update: { ...(input.heroColor ? { heroColor: input.heroColor } : {}), ...(input.pdfReleaseDays !== undefined ? { pdfReleaseDays: Math.max(0, Math.min(365, Math.round(input.pdfReleaseDays) || 0)) } : {}) } } }
+        : {}),
     },
   });
 
@@ -517,4 +520,14 @@ export async function moveLesson(moduleId: string, lessonId: string, direction: 
   ]);
   revalidateContent();
   return { success: true as const };
+}
+
+// Liberação do módulo neste curso: abre X dias após a compra (0 = na hora).
+export async function setModuleRelease(courseId: string, moduleId: string, days: number) {
+  const session = await requireStaff();
+  if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
+  const value = Math.max(0, Math.min(365, Math.round(days) || 0));
+  await db.courseModule.update({ where: { courseId_moduleId: { courseId, moduleId } }, data: { releaseAfterDays: value } });
+  revalidateContent();
+  return { success: true as const, message: value ? `Módulo libera ${value} dia(s) após a compra.` : "Módulo liberado na hora da compra." };
 }

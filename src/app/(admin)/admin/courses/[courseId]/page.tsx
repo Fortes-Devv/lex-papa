@@ -41,6 +41,7 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
         level: p.level,
         thumbnail: p.thumbnail,
         heroColor: course.heroColor ?? "navy",
+        pdfReleaseDays: course.pdfReleaseDays,
       }}
     />
   );

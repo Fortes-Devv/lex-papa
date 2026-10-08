@@ -153,6 +153,7 @@ export function ModuleCard({ mod, index, selected, draggable, uploading, menuIte
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary lg:text-[11px]">Prof. {mod.instructorName.split(" ")[0]}</span>
           )}
           <Badge variant={mod.isPublished ? "success" : "secondary"} className="rounded-full text-[10px] lg:text-[11px]">{mod.isPublished ? "Publicado" : "Rascunho"}</Badge>
+          {mod.releaseAfterDays > 0 && <Badge variant="secondary" className="rounded-full text-[10px] lg:text-[11px]" title="Abre esses dias após a compra">Libera em {mod.releaseAfterDays}d</Badge>}
           <span className="text-[10px] text-foreground-muted lg:text-[11px]">{mod.lessons.length} {kind === "pdf" ? "PDF" + (mod.lessons.length !== 1 ? "s" : "") : "aula" + (mod.lessons.length !== 1 ? "s" : "")}</span>
           {!mod.canEdit && <span className="text-[10px] text-foreground-muted lg:text-[11px]">· só leitura</span>}
         </div>

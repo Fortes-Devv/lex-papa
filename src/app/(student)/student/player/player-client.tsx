@@ -29,6 +29,8 @@ export interface PlayerLesson {
   isCompleted: boolean;
   note: string;
   position?: number; // segundos onde o aluno parou
+  releaseAt?: string | null; // módulo ainda fechado: libera nesta data (dd/mm)
+  pdfReleaseAt?: string | null; // PDFs da aula liberam nesta data
   quiz?: StudentQuiz | null;
 }
 export interface PlayerModule {
@@ -261,7 +263,7 @@ export function PlayerClient({
                   <span className="min-w-0 flex-1">
                     <span className={cn("block truncate text-[13px] text-foreground", isCurrent ? "font-bold" : "font-medium")}>{lesson.title}</span>
                     <span className={cn("block text-[11px]", isCurrent ? "font-semibold text-brand" : "text-foreground-muted")}>
-                      {isCurrent ? "Assistindo" : done ? "Concluída" : lesson === nextLesson ? "Próxima" : lesson.videoUrl || lesson.type === "video" ? "Vídeo" : lesson.type === "quiz" ? "Quiz" : "PDF"}
+                      {lesson.releaseAt ? `Libera em ${lesson.releaseAt}` : isCurrent ? "Assistindo" : done ? "Concluída" : lesson === nextLesson ? "Próxima" : lesson.videoUrl || lesson.type === "video" ? "Vídeo" : lesson.type === "quiz" ? "Quiz" : "PDF"}
                       {lesson.duration ? ` · ${formatDuration(lesson.duration)}` : ""}
                     </span>
                   </span>
@@ -337,8 +339,14 @@ export function PlayerClient({
           {current.locked ? (
             <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 bg-black px-6 text-center">
               <Lock className="h-10 w-10 text-white/60" />
-              <p className="max-w-sm text-sm text-white/70">Esta aula é exclusiva para alunos matriculados no curso.</p>
-              {buyHref && <Link href={buyHref}><Button>Garantir minha vaga</Button></Link>}
+              {current.releaseAt ? (
+                <p className="max-w-sm text-sm text-white/80">Este módulo será liberado em <b className="text-white">{current.releaseAt}</b>.</p>
+              ) : (
+                <>
+                  <p className="max-w-sm text-sm text-white/70">Esta aula é exclusiva para alunos matriculados no curso.</p>
+                  {buyHref && <Link href={buyHref}><Button>Garantir minha vaga</Button></Link>}
+                </>
+              )}
             </div>
           ) : current.type === "quiz" ? (
             current.quiz ? (
@@ -378,7 +386,7 @@ export function PlayerClient({
                   />
                 ) : (
                   <div className="flex aspect-video w-full items-center justify-center px-6 text-center text-sm text-white/50">
-                    {current.type === "video" ? "Vídeo ainda não enviado para esta aula." : "Esta aula não tem vídeo."}
+                    {current.pdfReleaseAt ? `O material desta aula será liberado em ${current.pdfReleaseAt}.` : current.type === "video" ? "Vídeo ainda não enviado para esta aula." : "Esta aula não tem vídeo."}
                   </div>
                 )}
               </div>
@@ -402,6 +410,11 @@ export function PlayerClient({
           )}
 
           <div className="mx-auto w-full max-w-4xl space-y-4 px-4 pb-28 pt-4 lg:px-6 lg:pb-10">
+            {current.pdfReleaseAt && (
+              <p className="flex items-center gap-2 rounded-[14px] border border-brand-border bg-brand-soft/60 px-4 py-3 text-sm text-foreground dark:border-brand/30 dark:bg-brand/10">
+                <FileText className="h-4 w-4 shrink-0 text-brand" /> Os PDFs desta aula serão liberados em <b>{current.pdfReleaseAt}</b>.
+              </p>
+            )}
             {/* Ações rápidas */}
             <div className="flex flex-wrap items-center gap-2">
               {canComplete && (

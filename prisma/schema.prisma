@@ -279,6 +279,8 @@ model Course {
   completionCertificate Boolean  @default(false)
   certificateTemplate   String?
   heroColor             String?  @default("navy")
+  // PDFs/materiais só abrem X dias após a compra (0 = na hora). Evita "baixa tudo e pede reembolso".
+  pdfReleaseDays        Int      @default(0)
   requirements          String[] @default([])
   whatYouLearn          String[] @default([])
   targetAudience        String[] @default([])
@@ -313,14 +315,16 @@ model Module {
 
 // Ligação curso ↔ módulo. Ordem e publicação são por curso.
 model CourseModule {
-  id          String   @id @default(cuid())
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  moduleId    String
-  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  order       Int      @default(0)
-  isPublished Boolean  @default(false)
-  addedAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  courseId         String
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId         String
+  module           Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  order            Int      @default(0)
+  isPublished      Boolean  @default(false)
+  // Módulo só abre X dias após a compra (0 = na hora).
+  releaseAfterDays Int      @default(0)
+  addedAt          DateTime @default(now())
 
   @@unique([courseId, moduleId])
   @@index([moduleId])

@@ -27,11 +27,12 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
     },
   });
 
-  return links.map(({ module: m, order, isPublished }) => ({
+  return links.map(({ module: m, order, isPublished, releaseAfterDays }) => ({
     id: m.id,
     title: m.title,
     order,
     isPublished,
+    releaseAfterDays,
     instructorId: m.instructorId,
     instructorName: m.instructor?.name ?? null,
     instructorAvatar: m.instructor?.avatar ?? null,
