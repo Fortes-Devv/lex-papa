@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireUser } from "@/lib/auth-guards";
+import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { awardXp } from "@/lib/gamification";
 import { courseLessonsWhere, getEnrolledLessonInCourse } from "@/lib/lesson-access";
@@ -9,6 +9,13 @@ import { isStaffRole } from "@/lib/access";
 import { dayKey } from "@/lib/student-area";
 
 const XP_PER_LESSON = 50;
+const SESSION_EXPIRED = { success: false as const, error: "Sua sessão expirou. Entre novamente." };
+
+// Sessão expirada ou aba aberta depois de sair da conta: responde com aviso em vez de
+// lançar erro (que quebraria a tela e iria para os Logs como erro do sistema).
+async function sessionUser() {
+  return (await auth())?.user ?? null;
+}
 
 // Recalcula o progresso (0-100) da matrícula do aluno naquele curso.
 async function recalcEnrollmentProgress(userId: string, courseId: string, productId: string) {
@@ -33,7 +40,8 @@ async function recalcEnrollmentProgress(userId: string, courseId: string, produc
 }
 
 export async function markLessonComplete(courseId: string, lessonId: string) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
 
   // Garante que a aula pertence ao curso e que o aluno está matriculado nele.
   const access = await getEnrolledLessonInCourse(user.id, courseId, lessonId);
@@ -62,7 +70,8 @@ export async function markLessonComplete(courseId: string, lessonId: string) {
 }
 
 export async function saveLessonNote(lessonId: string, content: string) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
   await db.lessonNote.upsert({
     where: { userId_lessonId: { userId: user.id, lessonId } },
     update: { content },
@@ -74,7 +83,8 @@ export async function saveLessonNote(lessonId: string, content: string) {
 // Chamado pelo player a cada ~20 s de vídeo e ao pausar: guarda onde o aluno
 // parou e soma o tempo de estudo do dia (meta da semana, horas estudadas).
 export async function saveWatchProgress(courseId: string, lessonId: string, position: number, duration: number, watched: number) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
   const access = await getEnrolledLessonInCourse(user.id, courseId, lessonId);
   if (!access.ok) return { success: false as const };
   const total = Math.max(0, Math.round(duration) || 0);
@@ -100,7 +110,8 @@ export async function saveWatchProgress(courseId: string, lessonId: string, posi
 
 // Meta de estudo da semana (Perfil › Preferências de estudo).
 export async function setWeeklyGoal(minutes: number) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
   const value = Math.max(30, Math.min(Math.round(minutes) || 0, 60 * 60));
   await db.user.update({ where: { id: user.id }, data: { weeklyGoalMinutes: value } });
   revalidatePath("/student/dashboard");
@@ -115,7 +126,8 @@ async function canUseLessonQuestions(userId: string, role: string, courseId: str
 }
 
 export async function listLessonQuestions(courseId: string, lessonId: string) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
   if (!(await canUseLessonQuestions(user.id, user.role, courseId, lessonId))) return { success: false as const, error: "Sem acesso a esta aula." };
   const rows = await db.comment.findMany({
     where: { lessonId, status: "published" },
@@ -133,7 +145,8 @@ export async function listLessonQuestions(courseId: string, lessonId: string) {
 }
 
 export async function askLessonQuestion(courseId: string, lessonId: string, content: string) {
-  const { user } = await requireUser();
+  const user = await sessionUser();
+  if (!user) return SESSION_EXPIRED;
   const text = content.trim().slice(0, 2000);
   if (!text) return { success: false as const, error: "Escreva sua dúvida." };
   if (!(await canUseLessonQuestions(user.id, user.role, courseId, lessonId))) return { success: false as const, error: "Sem acesso a esta aula." };

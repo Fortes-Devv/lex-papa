@@ -191,8 +191,9 @@ export function PlayerClient({
   async function handleSaveNote() {
     if (!current) return;
     setSavingNote(true);
-    await saveLessonNote(current.id, notes[current.id] ?? "");
+    const result = await saveLessonNote(current.id, notes[current.id] ?? "");
     setSavingNote(false);
+    if (!result.success) { error(result.error); return; }
     success("Anotação salva!");
   }
 
