@@ -79,14 +79,18 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
   const enrolledAt = !isStaff && isEnrolled ? enrollment!.enrolledAt : null;
 
   const modules: PlayerModule[] = course.modules.map(({ module: m, releaseAfterDays }) => {
-    const moduleUntil = lockedUntil(enrolledAt, releaseAfterDays);
-    const pdfUntil = lockedUntil(enrolledAt, Math.max(course.pdfReleaseDays, releaseAfterDays));
+
     return {
     id: m.id,
     title: m.title,
     instructorName: m.instructor?.name ?? null,
     lessons: m.lessons.map<PlayerLesson>((l) => {
-      // Sem matrícula (não existe aula grátis) ou módulo ainda não liberado.
+      // Liberação programada: a aula (dripDays) ou o módulo abre X dias após a compra;
+      // os PDFs seguem também o prazo do curso.
+      const lessonDays = Math.max(releaseAfterDays, l.dripDays ?? 0);
+      const moduleUntil = lockedUntil(enrolledAt, lessonDays);
+      const pdfUntil = lockedUntil(enrolledAt, Math.max(course.pdfReleaseDays, lessonDays));
+      // Sem matrícula (não existe aula grátis) ou aula ainda não liberada.
       const locked = !isEnrolled || !!moduleUntil;
       const hasFiles = !!l.pdfUrl || l.materials.length > 0;
       // Aula bloqueada não leva nenhum conteúdo pago para o navegador; PDFs só depois do prazo.

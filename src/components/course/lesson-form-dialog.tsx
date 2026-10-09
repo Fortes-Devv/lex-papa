@@ -45,12 +45,13 @@ export interface LessonFormValue {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: string;
+  dripDays?: string;
   materials?: MaterialItem[]; // PDFs anexados à aula
 }
 
 const EMPTY: LessonFormValue = {
   title: "", type: "video", description: "", videoUrl: "", videoPublicId: "", pdfUrl: "",
-  duration: "", isFree: false, isPreview: false, completionCriteria: "watch_100", materials: [],
+  duration: "", isFree: false, isPreview: false, completionCriteria: "watch_100", dripDays: "0", materials: [],
 };
 
 interface LessonFormDialogProps {
@@ -84,6 +85,7 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         isFree: form.isFree,
         isPreview: form.isPreview,
         completionCriteria: form.completionCriteria as CompletionCriteria,
+        dripDays: Number(form.dripDays ?? 0) || 0,
       };
       if (form.id) {
         // null limpa de verdade (ex: ao remover o vídeo/PDF)
@@ -183,6 +185,11 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
             value={form.completionCriteria}
             onChange={(e) => setForm((f) => ({ ...f, completionCriteria: e.target.value }))}
           />
+        </div>
+
+        <div>
+          <Input label="Liberar após (dias da compra)" type="number" min="0" max="365" value={form.dripDays ?? "0"} onChange={(e) => setForm((f) => ({ ...f, dripDays: e.target.value }))} />
+          <p className="mt-1 text-xs text-foreground-muted">0 = liberada na hora. Ex.: 7 = o aluno só assiste e baixa o PDF desta aula 7 dias depois da compra.</p>
         </div>
 
         {/* Quiz opcional — funciona em qualquer tipo de aula, sem trocar o tipo */}

@@ -27,7 +27,7 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
   for (const l of links) {
     const e = enrollments.find((x) => x.productId === l.course.productId);
     if (!e) continue;
-    const until = lockedUntil(e.enrolledAt, Math.max(l.course.pdfReleaseDays, l.releaseAfterDays));
+    const until = lockedUntil(e.enrolledAt, Math.max(l.course.pdfReleaseDays, l.releaseAfterDays, lesson.dripDays ?? 0));
     if (!until) return null;
     if (!soonest || until < soonest) soonest = until;
   }

@@ -24,10 +24,11 @@ import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
   createModule, renameModule, deleteModule, moveModule, toggleModulePublished, setModulePublished,
   deleteLesson, moveLesson, updateLessonStatus, detachModule, attachModule, listAttachableModules,
-  reorderModules, setModuleCover, publishAllLessons, setModuleRelease,
+  reorderModules, setModuleCover, publishAllLessons, setLessonsRelease, setModuleRelease,
 } from "@/lib/actions/courses";
 import { ModuleCard, ModuleCover } from "./module-card";
 import { PreviewPanel } from "./preview-panel";
+import { ReleaseDialog } from "./release-dialog";
 import { BottomSheet } from "./bottom-sheet";
 import type { CourseHeaderInfo, EditorLesson, EditorModule, TeacherOption } from "./types";
 import { defaultLesson, hasPlayableVideo, moduleKind, moduleNumber } from "./utils";
@@ -98,6 +99,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
   const [attachLoading, setAttachLoading] = useState(false);
   // Aula (nova / editar)
   const [driveFor, setDriveFor] = useState<EditorModule | null>(null);
+  const [releaseFor, setReleaseFor] = useState<EditorModule | null>(null);
   const [lessonDialog, setLessonDialog] = useState<{ open: boolean; moduleId: string | null; initial: LessonFormValue | null }>({ open: false, moduleId: null, initial: null });
 
   const report = useCallback((result: ActionResult, ok?: string) => {
@@ -231,6 +233,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Editar módulo", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => openEditModule(m) });
       items.push({ label: "Adicionar aula", icon: <Plus className="h-3.5 w-3.5" />, onClick: () => openNewLesson(m) });
       items.push({ label: "Importar do Google Drive", icon: <HardDrive className="h-3.5 w-3.5" />, onClick: () => setDriveFor(m) });
+      if (m.lessons.length > 0) items.push({ label: "Liberação das aulas…", icon: <Clock className="h-3.5 w-3.5" />, onClick: () => setReleaseFor(m) });
       const drafts = m.lessons.filter((l) => l.status !== "published").length;
       if (drafts > 0) {
         items.push({ label: `Publicar todas as aulas (${drafts})`, icon: <Eye className="h-3.5 w-3.5" />, onClick: async () => report(await publishAllLessons(m.id), `${drafts} aula${drafts !== 1 ? "s" : ""} publicada${drafts !== 1 ? "s" : ""}.`) });
@@ -240,15 +243,6 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Mover para cima", icon: <ArrowUp className="h-3.5 w-3.5" />, disabled: index === 0, onClick: async () => report(await moveModule(header.courseId, m.id, "up")) });
       items.push({ label: "Mover para baixo", icon: <ArrowDown className="h-3.5 w-3.5" />, disabled: index === modules.length - 1, onClick: async () => report(await moveModule(header.courseId, m.id, "down")) });
       items.push({ label: m.isPublished ? "Despublicar" : "Publicar", icon: m.isPublished ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />, onClick: () => togglePublish(m) });
-      items.push({
-        label: `Liberação: ${m.releaseAfterDays ? `${m.releaseAfterDays} dias após a compra` : "na hora"}`, icon: <Clock className="h-3.5 w-3.5" />,
-        onClick: async () => {
-          const v = window.prompt("Liberar este módulo quantos dias após a compra? (0 = na hora)", String(m.releaseAfterDays));
-          if (v === null) return;
-          const res = await setModuleRelease(header.courseId, m.id, Number(v));
-          report(res, res.success ? res.message : undefined);
-        },
-      });
       items.push({ separator: true });
       items.push({ label: "Remover do curso", icon: <Unlink className="h-3.5 w-3.5" />, variant: "destructive", onClick: () => removeModule(m) });
     }
@@ -265,7 +259,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
             open: true, moduleId: m.id, initial: {
               id: l.id, title: l.title, type: l.type, description: l.description ?? "", videoUrl: l.videoUrl ?? "",
               videoPublicId: l.videoPublicId ?? "", pdfUrl: l.pdfUrl ?? "", duration: l.duration ? String(l.duration) : "",
-              isFree: l.isFree, isPreview: l.isPreview, completionCriteria: l.completionCriteria,
+              isFree: l.isFree, isPreview: l.isPreview, completionCriteria: l.completionCriteria, dripDays: String(l.dripDays ?? 0),
               materials: l.materials,
             },
           }),
@@ -580,6 +574,17 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       {driveFor && (
         <DriveImportDialog open onClose={() => setDriveFor(null)} moduleId={driveFor.id} moduleTitle={driveFor.title} />
       )}
+
+      {/* ── Diálogo: liberação das aulas (X dias após a compra) ── */}
+      <ReleaseDialog
+        mod={releaseFor}
+        onClose={() => setReleaseFor(null)}
+        onSave={async (ids, days) => {
+          if (releaseFor!.releaseAfterDays > 0) await setModuleRelease(header.courseId, releaseFor!.id, 0); // regra antiga, por módulo
+          const res = await setLessonsRelease(releaseFor!.id, ids, days);
+          return report(res, res.success ? res.message : undefined);
+        }}
+      />
 
       {/* Anuncia o módulo selecionado para leitores de tela */}
       <p className="sr-only" aria-live="polite">{selected ? `Selecionado: ${moduleNumber(selectedIndex)}, ${selected.title}` : ""}</p>

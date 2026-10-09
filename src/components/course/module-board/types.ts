@@ -18,6 +18,7 @@ export interface EditorLesson {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: string;
+  dripDays: number; // abre X dias após a compra (0 = na hora)
   materials: { id: string; title: string }[]; // PDFs anexados (o aluno baixa embaixo do vídeo)
 }
 

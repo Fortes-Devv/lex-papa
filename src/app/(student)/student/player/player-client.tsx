@@ -29,7 +29,7 @@ export interface PlayerLesson {
   isCompleted: boolean;
   note: string;
   position?: number; // segundos onde o aluno parou
-  releaseAt?: string | null; // módulo ainda fechado: libera nesta data (dd/mm)
+  releaseAt?: string | null; // aula ainda fechada: libera nesta data (dd/mm)
   pdfReleaseAt?: string | null; // PDFs da aula liberam nesta data
   quiz?: StudentQuiz | null;
 }
@@ -341,7 +341,7 @@ export function PlayerClient({
             <div className="flex aspect-video w-full flex-col items-center justify-center gap-4 bg-black px-6 text-center">
               <Lock className="h-10 w-10 text-white/60" />
               {current.releaseAt ? (
-                <p className="max-w-sm text-sm text-white/80">Este módulo será liberado em <b className="text-white">{current.releaseAt}</b>.</p>
+                <p className="max-w-sm text-sm text-white/80">Esta aula será liberada em <b className="text-white">{current.releaseAt}</b>.</p>
               ) : (
                 <>
                   <p className="max-w-sm text-sm text-white/70">Esta aula é exclusiva para alunos matriculados no curso.</p>

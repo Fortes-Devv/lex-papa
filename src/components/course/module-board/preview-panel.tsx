@@ -143,6 +143,7 @@ export function PreviewPanel({ mod, lesson, playing, onPlay, onSelectLesson, onE
                         {pdf ? "PDF" : l.duration ? formatClock(l.duration) : l.previewUrl ? "Vídeo" : "Sem vídeo"}
                         {l.materials.length > 0 && <span className="inline-flex items-center gap-0.5">· <FileText className="h-3 w-3" /> {l.materials.length} PDF{l.materials.length !== 1 ? "s" : ""}</span>}
                         {draft && <span className="inline-flex items-center gap-0.5">· <EyeOff className="h-3 w-3" /> oculta para o aluno</span>}
+                        {l.dripDays > 0 && <span className="font-semibold text-brand">· libera {l.dripDays}d após a compra</span>}
                       </span>
                     </span>
                     {active && playing && <span className="shrink-0 text-[11px] font-semibold text-primary">Reproduzindo</span>}

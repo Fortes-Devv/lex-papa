@@ -402,6 +402,7 @@ export async function createLesson(moduleId: string, input: {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: CompletionCriteria;
+  dripDays?: number; // aula abre X dias após a compra (0 = na hora)
 }) {
   const session = await requireStaff();
   if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
@@ -423,6 +424,7 @@ export async function createLesson(moduleId: string, input: {
       isFree: false,
       isPreview: false,
       completionCriteria: input.completionCriteria,
+      dripDays: Math.max(0, Math.min(365, Math.round(input.dripDays ?? 0) || 0)),
     },
   });
   await recalcTotalsForModule(moduleId);
@@ -443,6 +445,7 @@ export async function updateLesson(lessonId: string, input: {
   isFree: boolean;
   isPreview: boolean;
   completionCriteria: CompletionCriteria;
+  dripDays?: number; // aula abre X dias após a compra (0 = na hora)
 }) {
   const session = await requireStaff();
   if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
@@ -468,6 +471,7 @@ export async function updateLesson(lessonId: string, input: {
       isFree: false,
       isPreview: false,
       completionCriteria: input.completionCriteria,
+      dripDays: Math.max(0, Math.min(365, Math.round(input.dripDays ?? 0) || 0)),
     },
   });
   await recalcTotalsForModule(lesson.moduleId);
@@ -530,4 +534,17 @@ export async function setModuleRelease(courseId: string, moduleId: string, days:
   await db.courseModule.update({ where: { courseId_moduleId: { courseId, moduleId } }, data: { releaseAfterDays: value } });
   revalidateContent();
   return { success: true as const, message: value ? `Módulo libera ${value} dia(s) após a compra.` : "Módulo liberado na hora da compra." };
+}
+
+// "Liberação das aulas" do módulo: as aulas marcadas abrem X dias após a compra;
+// as outras ficam liberadas na hora. (A aula vale para todos os cursos que usam o módulo.)
+export async function setLessonsRelease(moduleId: string, lessonIds: string[], days: number) {
+  const session = await requireStaff();
+  if (!(await canEditModule(session.user, moduleId))) return NOT_ALLOWED;
+  const value = Math.max(0, Math.min(365, Math.round(days) || 0));
+  await db.lesson.updateMany({ where: { moduleId, id: { in: lessonIds } }, data: { dripDays: value } });
+  await db.lesson.updateMany({ where: { moduleId, id: { notIn: lessonIds } }, data: { dripDays: 0 } });
+  revalidateContent();
+  const n = lessonIds.length;
+  return { success: true as const, message: n && value ? `${n} aula(s) liberada(s) ${value} dia(s) após a compra; as outras, na hora.` : "Todas as aulas do módulo liberadas na hora." };
 }

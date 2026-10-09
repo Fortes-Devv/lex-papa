@@ -56,6 +56,7 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
       isFree: l.isFree,
       isPreview: l.isPreview,
       completionCriteria: l.completionCriteria,
+      dripDays: l.dripDays ?? 0,
       materials: l.materials,
     })),
   }));
