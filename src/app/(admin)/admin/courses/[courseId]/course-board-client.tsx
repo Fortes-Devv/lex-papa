@@ -9,8 +9,9 @@ import type { CourseHeaderInfo, EditorModule, TeacherOption } from "@/components
 import { EditCourseDialog, type EditCourseInitial } from "@/components/course/edit-course-dialog";
 import { updateCourseStatus } from "@/lib/actions/courses";
 
-export function AdminCourseBoard({ header, slug, modules, teachers, editInitial }: {
+export function AdminCourseBoard({ header, slug, modules, teachers, editInitial, backHref }: {
   header: CourseHeaderInfo;
+  backHref: string;
   slug: string;
   modules: EditorModule[];
   teachers: TeacherOption[];
@@ -39,7 +40,7 @@ export function AdminCourseBoard({ header, slug, modules, teachers, editInitial 
 
   return (
     <>
-      <ModuleBoard header={header} modules={modules} teachers={teachers} backHref="/admin/courses" courseMenu={courseMenu} />
+      <ModuleBoard header={header} modules={modules} teachers={teachers} backHref={backHref} courseMenu={courseMenu} />
       <EditCourseDialog initial={editInitial} open={editOpen} onOpenChange={setEditOpen} />
     </>
   );

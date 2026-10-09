@@ -6,6 +6,7 @@ import { lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse,
 import { Bar, Chip, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cn } from "@/lib/utils/cn";
+import { BackToSections, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 type Filter = "todas" | "andamento" | "concluidas";
@@ -19,8 +20,9 @@ function statusLine(d: Discipline) {
   return `${d.percent}% · ${parts}`;
 }
 
-// Meu curso (modelos 7b e 8b): módulos agrupados por disciplina, aulas e PDFs juntos.
-export default async function StudentCoursePage(props: { searchParams: Promise<{ courseId?: string; disciplina?: string; modulo?: string; q?: string; filtro?: string }> }) {
+// Meu curso: abre na lista de seções (Aulas e Materiais, FlashCards…). Em "Aulas e
+// Materiais" (modelos 7b e 8b), módulos agrupados por disciplina, aulas e PDFs juntos.
+export default async function StudentCoursePage(props: { searchParams: Promise<{ courseId?: string; secao?: string; disciplina?: string; modulo?: string; q?: string; filtro?: string }> }) {
   const sp = await props.searchParams;
   const session = await requireArea("student");
   const userId = session.user.id;
@@ -37,7 +39,10 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
 
   const outline = (await loadCourseOutline(userId, current.courseId))!;
   const { current: next } = pickNextUp(outline, await lastWatchedLesson(userId, current.courseId));
-  const base = `/student/course?courseId=${outline.courseId}`;
+  const home = `/student/course?courseId=${outline.courseId}`;
+  const base = `${home}&secao=aulas`;
+  // Link direto para disciplina, módulo, busca ou filtro cai em "Aulas e Materiais".
+  const section = parseCourseSection(sp.secao) ?? (sp.disciplina || sp.modulo || sp.q || sp.filtro ? "aulas" : null);
   const filter: Filter = sp.filtro === "andamento" || sp.filtro === "concluidas" ? sp.filtro : "todas";
 
   // Disciplina aberta: pedida na URL, a do módulo pedido ou a da próxima aula.
@@ -69,13 +74,33 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
     </div>
   );
 
+  const courseChips = courses.length > 1 && (
+    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
+      {courses.map((c) => <Chip key={c.courseId} href={`/student/course?courseId=${c.courseId}`} active={c.courseId === outline.courseId}>{c.title}</Chip>)}
+    </div>
+  );
+
+  if (!section) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        {courseChips}
+        {header}
+        <CourseSectionList
+          href={(id) => `${home}&secao=${id}`}
+          detail={{ aulas: `${outline.disciplines.length} disciplina${outline.disciplines.length !== 1 ? "s" : ""} · ${outline.progress}% concluído` }}
+        />
+      </div>
+    );
+  }
+  if (section !== "aulas") {
+    return <div className="mx-auto max-w-2xl"><CourseSectionSoon id={section} backHref={home} /></div>;
+  }
+
   return (
     <div className="space-y-4">
-      {courses.length > 1 && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0">
-          {courses.map((c) => <Chip key={c.courseId} href={`/student/course?courseId=${c.courseId}`} active={c.courseId === outline.courseId}>{c.title}</Chip>)}
-        </div>
-      )}
+      {courseChips}
+      {/* No celular, com disciplina aberta, o "voltar" é para a lista de disciplinas. */}
+      <BackToSections href={home} className={cn(explicit && !results && "hidden lg:inline-flex")} />
 
       {results ? (
         <>

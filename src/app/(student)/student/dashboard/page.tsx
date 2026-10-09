@@ -125,7 +125,7 @@ export default async function StudentHomePage() {
         <div className="min-w-0 lg:order-1">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-[17px] font-bold text-foreground">Seus módulos</h2>
-            <Link href="/student/course" className="text-[13px] font-semibold text-brand">Ver todos{outline.modules.length > 5 ? ` os ${outline.modules.length}` : ""} →</Link>
+            <Link href="/student/course?secao=aulas" className="text-[13px] font-semibold text-brand">Ver todos{outline.modules.length > 5 ? ` os ${outline.modules.length}` : ""} →</Link>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
             {modules.slice(0, 5).map((m, i) => {
