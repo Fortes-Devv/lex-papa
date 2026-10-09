@@ -6,7 +6,7 @@ import { lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse,
 import { Bar, Chip, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cn } from "@/lib/utils/cn";
-import { BackToSections, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
+import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 type Filter = "todas" | "andamento" | "concluidas";
@@ -81,19 +81,41 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
   );
 
   if (!section) {
+    const all = outline.modules.flatMap((m) => m.lessons);
+    const pdfCount = all.filter((l) => l.isPdf).length;
+    const seconds = all.reduce((s, l) => s + (l.duration ?? 0), 0);
+    const nDisc = outline.disciplines.length;
     return (
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         {courseChips}
-        {header}
+        <CourseHubHeader
+          thumbnail={outline.thumbnail}
+          eyebrow="Seu curso"
+          title={outline.title}
+          stats={[
+            { value: String(nDisc), label: `disciplina${nDisc !== 1 ? "s" : ""}` },
+            { value: String(all.length - pdfCount), label: `aula${all.length - pdfCount !== 1 ? "s" : ""}` },
+            ...(pdfCount ? [{ value: String(pdfCount), label: `PDF${pdfCount !== 1 ? "s" : ""}` }] : []),
+            ...(seconds ? [{ value: hours(seconds), label: "de conteúdo" }] : []),
+          ]}
+        />
         <CourseSectionList
           href={(id) => `${home}&secao=${id}`}
-          detail={{ aulas: `${outline.disciplines.length} disciplina${outline.disciplines.length !== 1 ? "s" : ""} · ${outline.progress}% concluído` }}
+          aulas={{
+            detail: `${nDisc} disciplina${nDisc !== 1 ? "s" : ""} · ${outline.modules.length} módulo${outline.modules.length !== 1 ? "s" : ""}`,
+            progress: outline.progress,
+            resume: next ? {
+              href: playerHref(outline.courseId, next.lessonId),
+              label: next.position > 0 || outline.progress > 0 ? "Continuar de onde parou" : "Começar agora",
+              sub: `${next.moduleTitle} · ${next.lessonTitle}`,
+            } : undefined,
+          }}
         />
       </div>
     );
   }
   if (section !== "aulas") {
-    return <div className="mx-auto max-w-2xl"><CourseSectionSoon id={section} backHref={home} /></div>;
+    return <div className="mx-auto max-w-3xl"><CourseSectionSoon id={section} backHref={home} /></div>;
   }
 
   return (

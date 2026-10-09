@@ -8,8 +8,7 @@ import { db } from "@/lib/db";
 import { requireArea } from "@/lib/auth-guards";
 import { loadEditorModules } from "@/lib/editor-modules";
 import { AdminCourseBoard } from "./course-board-client";
-import { CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
-import { CdnImg } from "@/components/ui/cdn-img";
+import { CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
 // Curso no admin: abre na lista de seções, como o aluno vê. "Aulas e Materiais" é a
 // área de módulos (capas, preview das aulas e organização dos módulos).
@@ -31,23 +30,31 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
   if (!section) {
     const modulesCount = await db.courseModule.count({ where: { courseId: course.id } });
     return (
-      <div className="mx-auto max-w-2xl space-y-4">
+      <div className="mx-auto max-w-3xl space-y-4">
         <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm font-semibold text-foreground-muted hover:text-foreground">
           <ChevronLeft className="h-4 w-4" /> Cursos
         </Link>
-        <div className="flex items-center gap-3">
-          <CdnImg src={p.thumbnail} width={96} alt="" className="h-12 w-12 shrink-0 rounded-xl bg-navy object-cover" />
-          <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[19px] font-extrabold text-foreground lg:text-[22px]">{p.title}</h1>
-            <p className="text-[13px] text-foreground-muted">{p.status === "published" ? "Publicado" : "Rascunho"} · {p.enrolledCount} aluno{p.enrolledCount !== 1 ? "s" : ""}</p>
-          </div>
-        </div>
-        <CourseSectionList href={(id) => `${home}?secao=${id}`} detail={{ aulas: `${modulesCount} módulo${modulesCount !== 1 ? "s" : ""} · organizar aulas e PDFs` }} />
+        <CourseHubHeader
+          thumbnail={p.thumbnail}
+          eyebrow={p.status === "published" ? "Curso publicado" : "Rascunho"}
+          title={p.title}
+          stats={[
+            { value: String(modulesCount), label: `módulo${modulesCount !== 1 ? "s" : ""}` },
+            { value: String(p.enrolledCount), label: `aluno${p.enrolledCount !== 1 ? "s" : ""}` },
+          ]}
+        />
+        <CourseSectionList
+          href={(id) => `${home}?secao=${id}`}
+          aulas={{
+            detail: "Organizar módulos, aulas, capas e PDFs",
+            resume: { href: `/preview/${course.id}`, label: "Assistir como aluno", sub: "Ver o curso como o aluno vê" },
+          }}
+        />
       </div>
     );
   }
   if (section !== "aulas") {
-    return <div className="mx-auto max-w-2xl"><CourseSectionSoon id={section} backHref={home} /></div>;
+    return <div className="mx-auto max-w-3xl"><CourseSectionSoon id={section} backHref={home} /></div>;
   }
 
   const [modules, teachers] = [
