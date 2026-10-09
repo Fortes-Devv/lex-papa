@@ -8,7 +8,9 @@ import { db } from "@/lib/db";
 import { requireArea } from "@/lib/auth-guards";
 import { loadEditorModules } from "@/lib/editor-modules";
 import { AdminCourseBoard } from "./course-board-client";
-import { CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
+import { AdminFlashcards } from "@/components/flashcards/admin-flashcards";
+import type { FlashcardType } from "@/lib/flashcards/format";
+import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
 // Curso no admin: abre na lista de seções, como o aluno vê. "Aulas e Materiais" é a
 // área de módulos (capas, preview das aulas e organização dos módulos).
@@ -50,6 +52,23 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
             resume: { href: `/preview/${course.id}`, label: "Assistir como aluno", sub: "Ver o curso como o aluno vê" },
           }}
         />
+      </div>
+    );
+  }
+  if (section === "flashcards") {
+    const decks = await db.flashcardDeck.findMany({
+      where: { courseId: course.id },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      select: { id: true, title: true, description: true, isPublished: true, cards: { orderBy: [{ order: "asc" }, { createdAt: "asc" }], select: { id: true, type: true, front: true, back: true, explanation: true, source: true } } },
+    });
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <BackToSections href={home} />
+        <div>
+          <h1 className="text-[22px] font-extrabold text-foreground">FlashCards · {p.title}</h1>
+          <p className="text-sm text-foreground-muted">Baralhos de revisão espaçada. Só os publicados aparecem para os alunos.</p>
+        </div>
+        <AdminFlashcards courseId={course.id} decks={decks.map((d) => ({ ...d, cards: d.cards.map((c) => ({ ...c, type: c.type as FlashcardType })) }))} />
       </div>
     );
   }

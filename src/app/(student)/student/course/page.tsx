@@ -6,6 +6,9 @@ import { lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse,
 import { Bar, Chip, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cn } from "@/lib/utils/cn";
+import { db } from "@/lib/db";
+import { countFlashcardsToday, loadFlashcardsOverview } from "@/lib/flashcards/queries";
+import { FlashcardsHub } from "@/components/flashcards/flashcards-hub";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -85,6 +88,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
     const pdfCount = all.filter((l) => l.isPdf).length;
     const seconds = all.reduce((s, l) => s + (l.duration ?? 0), 0);
     const nDisc = outline.disciplines.length;
+    const fc = await countFlashcardsToday(userId, outline.courseId);
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         {courseChips}
@@ -101,6 +105,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
         />
         <CourseSectionList
           href={(id) => `${home}&secao=${id}`}
+          details={fc.total ? { flashcards: fc.today ? `${fc.today} para hoje` : "Em dia ✓" } : undefined}
           aulas={{
             detail: `${nDisc} disciplina${nDisc !== 1 ? "s" : ""} · ${outline.modules.length} módulo${outline.modules.length !== 1 ? "s" : ""}`,
             progress: outline.progress,
@@ -111,6 +116,18 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
             } : undefined,
           }}
         />
+      </div>
+    );
+  }
+  if (section === "flashcards") {
+    const [overview, xp] = await Promise.all([
+      loadFlashcardsOverview(userId, outline.courseId),
+      db.userXP.findUnique({ where: { userId }, select: { streak: true } }),
+    ]);
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <BackToSections href={home} />
+        <FlashcardsHub courseId={outline.courseId} overview={overview} streak={xp?.streak ?? 0} />
       </div>
     );
   }

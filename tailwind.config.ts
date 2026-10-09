@@ -229,6 +229,11 @@ const config: Config = {
           "0%":   { left: "-40%", width: "40%" },
           "100%": { left: "100%", width: "40%" },
         },
+        // Flashcards: cartão chegando, contador de acertos e confete do resumo.
+        "card-in":  { from: { opacity: "0", transform: "translateY(18px) scale(0.97)" }, to: { opacity: "1", transform: "translateY(0) scale(1)" } },
+        "pop":      { "0%": { transform: "scale(0.6)", opacity: "0" }, "60%": { transform: "scale(1.15)", opacity: "1" }, "100%": { transform: "scale(1)" } },
+        "confetti": { "0%": { transform: "translateY(-10vh) rotate(0deg)", opacity: "1" }, "100%": { transform: "translateY(105vh) rotate(720deg)", opacity: "0.9" } },
+        "shake":    { "0%, 100%": { transform: "translateX(0)" }, "20%, 60%": { transform: "translateX(-6px)" }, "40%, 80%": { transform: "translateX(6px)" } },
       },
       animation: {
         "accordion-down":  "accordion-down 0.2s ease-out",
@@ -243,6 +248,10 @@ const config: Config = {
         "shimmer":         "shimmer 2s linear infinite",
         "pulse-soft":      "pulse-soft 2s ease-in-out infinite",
         "spin-slow":       "spin-slow 3s linear infinite",
+        "card-in":         "card-in 0.35s cubic-bezier(.2,.8,.2,1)",
+        "pop":             "pop 0.35s ease-out",
+        "confetti":        "confetti 2.8s ease-in forwards",
+        "shake":           "shake 0.4s ease-in-out",
         "bounce-gentle":   "bounce-gentle 2s ease-in-out infinite",
         "progress-indeterminate": "progress-indeterminate 1.5s ease-in-out infinite",
       },

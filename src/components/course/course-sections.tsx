@@ -8,7 +8,7 @@ import { CdnImg } from "@/components/ui/cdn-img";
 export const COURSE_SECTIONS = [
   { id: "aulas", label: "Aulas e Materiais", hint: "Videoaulas e PDFs, por disciplina", icon: PlayCircle, ready: true, accent: "", bar: "" },
   // Cada seção tem a sua cor (ícone e faixa do hover). Classes inteiras para o Tailwind achar.
-  { id: "flashcards", label: "FlashCards", hint: "Revisão rápida dos pontos-chave", icon: Layers, ready: false,
+  { id: "flashcards", label: "FlashCards", hint: "Revisão espaçada: Certo ou Errado, lei seca e perguntas", icon: Layers, ready: true,
     accent: "bg-violet-100 text-violet-600 group-hover:bg-violet-600 dark:bg-violet-500/15 dark:text-violet-300", bar: "from-violet-500 to-fuchsia-500" },
   { id: "simulados", label: "Simulados", hint: "Provas no formato do concurso", icon: ClipboardCheck, ready: false,
     accent: "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300", bar: "from-emerald-500 to-teal-500" },
@@ -37,7 +37,7 @@ export type AulasSummary = {
  * As seções do curso em cartões: "Aulas e Materiais" em destaque (com progresso
  * e "continuar"), as demais lado a lado. `href(id)` monta o link de cada uma.
  */
-export function CourseSectionList({ href, aulas }: { href: (id: CourseSectionId) => string; aulas: AulasSummary }) {
+export function CourseSectionList({ href, aulas, details }: { href: (id: CourseSectionId) => string; aulas: AulasSummary; details?: Partial<Record<CourseSectionId, string>> }) {
   const [main, ...rest] = COURSE_SECTIONS;
   const MainIcon = main.icon;
   return (
@@ -99,6 +99,7 @@ export function CourseSectionList({ href, aulas }: { href: (id: CourseSectionId)
             </div>
             <span className="mt-4 block text-[16px] font-bold text-foreground">{s.label}</span>
             <span className="mt-0.5 block text-[13px] leading-snug text-foreground-muted">{s.hint}</span>
+            {details?.[s.id] && <span className="mt-2 inline-flex w-fit rounded-full bg-violet-100 px-2.5 py-0.5 text-[12px] font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{details[s.id]}</span>}
             <span className="mt-auto inline-flex items-center gap-1 pt-4 text-[13px] font-semibold text-foreground-muted group-hover:text-foreground transition-all duration-200 group-hover:gap-2">
               {s.ready ? "Abrir" : "Ver novidades"} <ArrowRight className="h-3.5 w-3.5" />
             </span>

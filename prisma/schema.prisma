@@ -172,6 +172,7 @@ model User {
   notifications      Notification[]
   lessonNotes        LessonNote[]
   studyDays          StudyDay[]
+  flashcardReviews   FlashcardReview[]
   xp                 UserXP?
   achievements       UserAchievement[]
   posts              Post[]
@@ -289,6 +290,7 @@ model Course {
   modules        CourseModule[]
   lessonProgress LessonProgress[]
   quizAttempts   QuizAttempt[]
+  flashcardDecks FlashcardDeck[]
 
   @@map("courses")
 }
@@ -874,4 +876,70 @@ model Teacher {
   modules Module[]
 
   @@map("teachers")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// FLASHCARDS
+// ─────────────────────────────────────────────────────────────────────────
+
+// Baralho do curso (em geral um por disciplina). Só os publicados aparecem para o aluno.
+model FlashcardDeck {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards Flashcard[]
+
+  @@index([courseId, order])
+  @@map("flashcard_decks")
+}
+
+// type: basic (pergunta → resposta) | certo_errado (afirmação estilo CESPE; back = "certo" | "errado")
+//     | lacuna (front com {{trechos}} escondidos; back vazio)
+model Flashcard {
+  id          String        @id @default(cuid())
+  deckId      String
+  deck        FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  type        String        @default("basic")
+  front       String
+  back        String        @default("")
+  explanation String? // justificativa / fundamento
+  source      String? // ex.: "Art. 5º, XI, CF" ou "CESPE 2023"
+  order       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  reviews FlashcardReview[]
+
+  @@index([deckId, order])
+  @@map("flashcards")
+}
+
+// Estado da repetição espaçada de um cartão para um aluno (SM-2 simplificado).
+model FlashcardReview {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardId         String
+  card           Flashcard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  ease           Float     @default(2.5)
+  interval       Int       @default(0) // dias até a próxima revisão
+  reps           Int       @default(0) // acertos seguidos
+  lapses         Int       @default(0) // vezes que errou depois de ter acertado
+  dueAt          DateTime
+  lastRating     Int? // 1 errei · 2 difícil · 3 bom · 4 fácil
+  lastReviewedAt DateTime?
+  totalReviews   Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  @@unique([userId, cardId])
+  @@index([userId, dueAt])
+  @@index([cardId])
+  @@map("flashcard_reviews")
 }
