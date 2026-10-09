@@ -8,6 +8,7 @@ import { useToast } from "@/components/ui/toast";
 import { formatCurrency, cn } from "@/lib/utils/cn";
 import { applyCoupon, saveCheckoutPhone } from "@/lib/actions/checkout";
 import { CdnImg } from "@/components/ui/cdn-img";
+import { cardPrice } from "@/lib/card-fee";
 
 interface MpInstance {
   createCardToken: (data: Record<string, string>) => Promise<{ id: string }>;
@@ -91,7 +92,9 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   const total = Math.max(product.price - discount, 0);
   const isFree = total === 0 && discount > 0;
   const selectedInst = installmentOptions.find((o) => o.installments === installments);
-  const chargeAmount = method === "card" && selectedInst && selectedInst.installments > 1 ? selectedInst.totalAmount : total;
+  // No cartão, o preço embute a tarifa do MP; os juros das parcelas vêm por cima disso.
+  const cardTotal = cardPrice(total);
+  const chargeAmount = method === "card" ? (selectedInst && selectedInst.installments > 1 ? selectedInst.totalAmount : cardTotal) : total;
   const launchDiscount = product.comparePrice && product.comparePrice > product.price ? product.comparePrice - product.price : 0;
 
   useEffect(() => {
@@ -119,9 +122,9 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
       const methods = await mpRef.current.getPaymentMethods({ bin });
       const pm = methods.results?.[0];
       if (pm) setPaymentMethodId(pm.id);
-      const inst = await mpRef.current.getInstallments({ amount: total.toFixed(2), bin, paymentTypeId: "credit_card" });
+      const inst = await mpRef.current.getInstallments({ amount: cardTotal.toFixed(2), bin, paymentTypeId: "credit_card" });
       const costs = inst?.[0]?.payer_costs ?? [];
-      // Até 12x. O comprador paga os juros (financiamento do MP); o vendedor recebe o valor base.
+      // Até 12x. O comprador paga os juros (financiamento do MP) sobre o preço no cartão.
       setInstallmentOptions(costs.filter((c) => c.installments <= 12).map((c) => ({
         installments: c.installments, label: c.recommended_message, totalAmount: c.total_amount, hasInterest: c.installment_rate > 0,
       })));
@@ -243,7 +246,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
 
   const methods: { id: Method; label: string; hint: string; icon: React.ReactNode; value: string }[] = [
     { id: "pix", label: "Pix", hint: "Aprovação na hora", icon: <QrCode className="h-5 w-5" />, value: formatCurrency(total) },
-    { id: "card", label: "Cartão de crédito", hint: "em até 12x", icon: <CreditCard className="h-5 w-5" />, value: selectedInst && selectedInst.installments > 1 ? selectedInst.label : formatCurrency(total) },
+    { id: "card", label: "Cartão de crédito", hint: "em até 12x", icon: <CreditCard className="h-5 w-5" />, value: selectedInst && selectedInst.installments > 1 ? selectedInst.label : formatCurrency(cardTotal) },
     { id: "boleto", label: "Boleto", hint: "libera em até 3 dias úteis", icon: <FileText className="h-5 w-5" />, value: formatCurrency(total) },
   ];
   const cta = isFree ? "Liberar meu acesso" : method === "pix" ? "Gerar Pix e liberar acesso" : method === "boleto" ? "Gerar boleto" : `Pagar ${formatCurrency(chargeAmount)}`;
@@ -282,7 +285,8 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
         <div className="flex justify-between"><dt className="text-foreground-muted">Curso</dt><dd className="text-foreground">{formatCurrency(product.comparePrice && launchDiscount ? product.comparePrice : product.price)}</dd></div>
         {launchDiscount > 0 && <div className="flex justify-between text-ok-text dark:text-ok"><dt>Desconto de lançamento</dt><dd>− {formatCurrency(launchDiscount)}</dd></div>}
         {discount > 0 && <div className="flex justify-between text-ok-text dark:text-ok"><dt>Cupom {couponCode}</dt><dd>− {formatCurrency(discount)}</dd></div>}
-        {method === "card" && chargeAmount > total && <div className="flex justify-between text-foreground-muted"><dt>Juros do parcelamento</dt><dd>+ {formatCurrency(chargeAmount - total)}</dd></div>}
+        {method === "card" && cardTotal > total && <div className="flex justify-between text-foreground-muted"><dt>Taxa do cartão</dt><dd>+ {formatCurrency(cardTotal - total)}</dd></div>}
+        {method === "card" && chargeAmount > cardTotal && <div className="flex justify-between text-foreground-muted"><dt>Juros do parcelamento</dt><dd>+ {formatCurrency(chargeAmount - cardTotal)}</dd></div>}
         <div className="flex items-baseline justify-between border-t border-line-soft pt-3 dark:border-white/10">
           <dt className="font-bold text-foreground">Total</dt>
           <dd className="text-[24px] font-extrabold text-foreground">{formatCurrency(chargeAmount)}</dd>

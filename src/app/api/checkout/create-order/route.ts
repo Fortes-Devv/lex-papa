@@ -6,6 +6,7 @@ import { computeOrderTotal } from "@/lib/pricing";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFreeOrder, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { isEnrollmentActive } from "@/lib/access";
+import { cardPrice } from "@/lib/card-fee";
 
 const cpf = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 11, "CPF deve ter 11 dígitos.");
 const basePayer = {
@@ -91,20 +92,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Mercado Pago não configurado." }, { status: 500 });
   }
 
+  // No cartão, o valor embute a tarifa do MP (a escola recebe o preço cheio).
+  const charged = body.method === "card" ? cardPrice(priced.total) : priced.total;
+
   // Cria o pedido local (pending)
   const order = await db.order.create({
     data: {
       userId: session.user.id,
       subtotal: priced.subtotal,
       discount: priced.discount,
-      total: priced.total,
+      total: charged,
       status: "pending",
       couponCode: priced.coupon?.code,
       items: { create: [{ productId: body.productId, quantity: 1, unitPrice: priced.subtotal, totalPrice: priced.subtotal, discount: priced.discount }] },
     },
   });
 
-  const amount = priced.total.toFixed(2);
+  const amount = charged.toFixed(2);
 
   // Monta o payment da Order conforme o método
   let paymentMethod: Record<string, unknown>;
