@@ -175,3 +175,14 @@ export async function countFlashcardsToday(userId: string, courseId: string) {
     return { total: 0, today: 0 }; // um selo a menos nunca pode derrubar a tela do curso
   }
 }
+
+/** Painel do aluno: cartões que faltam hoje e quantos já revisou hoje. */
+export async function flashcardsTodayProgress(userId: string, courseId: string) {
+  const { total, today } = await countFlashcardsToday(userId, courseId);
+  // Meia-noite de hoje no horário de Fortaleza (UTC-3, sem horário de verão).
+  const since = new Date(dayKey().getTime() + 3 * 3600000);
+  const reviewedToday = total
+    ? await db.flashcardReview.count({ where: { userId, lastReviewedAt: { gte: since }, card: { deck: { courseId, isPublished: true } } } }).catch(() => 0)
+    : 0;
+  return { total, remaining: today, reviewedToday };
+}
