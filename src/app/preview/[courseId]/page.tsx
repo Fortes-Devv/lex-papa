@@ -22,6 +22,7 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
     include: {
       product: { include: { instructors: { select: { id: true } } } },
       modules: {
+        where: { section: "aulas" },
         orderBy: { order: "asc" },
         include: {
           module: {

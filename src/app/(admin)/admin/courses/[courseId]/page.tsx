@@ -9,6 +9,8 @@ import { requireArea } from "@/lib/auth-guards";
 import { loadEditorModules } from "@/lib/editor-modules";
 import { AdminCourseBoard } from "./course-board-client";
 import { AdminFlashcards } from "@/components/flashcards/admin-flashcards";
+import { MentoriaBoard } from "@/components/course/mentoria-board";
+import { ensureMentoriaModule } from "@/lib/mentoria";
 import type { FlashcardType } from "@/lib/flashcards/format";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
@@ -30,7 +32,7 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
   const section = parseCourseSection(sp.secao) ?? (sp.modulo ? "aulas" : null);
 
   if (!section) {
-    const modulesCount = await db.courseModule.count({ where: { courseId: course.id } });
+    const modulesCount = await db.courseModule.count({ where: { courseId: course.id, section: "aulas" } });
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm font-semibold text-foreground-muted hover:text-foreground">
@@ -69,6 +71,20 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
           <p className="text-sm text-foreground-muted">Baralhos de revisão espaçada. Só os publicados aparecem para os alunos.</p>
         </div>
         <AdminFlashcards courseId={course.id} decks={decks.map((d) => ({ ...d, cards: d.cards.map((c) => ({ ...c, type: c.type as FlashcardType })) }))} />
+      </div>
+    );
+  }
+  if (section === "mentoria") {
+    await ensureMentoriaModule(course.id);
+    const [mod] = await loadEditorModules(course.id, session.user, { section: "mentoria" });
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <BackToSections href={home} />
+        <div>
+          <h1 className="text-[22px] font-extrabold text-foreground">Mentoria · {p.title}</h1>
+          <p className="text-sm text-foreground-muted">Sem módulos: só a lista de aulas. Só as publicadas aparecem para os alunos.</p>
+        </div>
+        <MentoriaBoard mod={mod} />
       </div>
     );
   }

@@ -79,7 +79,7 @@ export async function createDeck(courseId: string, title: string) {
 /** Um baralho por disciplina do curso (pelo título dos módulos), pulando os que já existem. */
 export async function createDecksFromDisciplines(courseId: string) {
   await requireStaff();
-  const modules = await db.courseModule.findMany({ where: { courseId }, orderBy: { order: "asc" }, select: { module: { select: { title: true } } } });
+  const modules = await db.courseModule.findMany({ where: { courseId, section: "aulas" }, orderBy: { order: "asc" }, select: { module: { select: { title: true } } } });
   const names = [...new Set(modules.map((m) => disciplineName(m.module.title)).filter(Boolean))];
   const existing = new Set((await db.flashcardDeck.findMany({ where: { courseId }, select: { title: true } })).map((d) => d.title.toLowerCase()));
   const missing = names.filter((n) => !existing.has(n.toLowerCase()));

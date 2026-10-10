@@ -3,8 +3,8 @@ import { ArrowRight, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, La
 import { cn } from "@/lib/utils/cn";
 import { CdnImg } from "@/components/ui/cdn-img";
 
-// Seções do curso: a tela inicial (aluno e admin) lista estas cinco. Só "Aulas e
-// Materiais" tem conteúdo por enquanto; as outras abrem um aviso de "em breve".
+// Seções do curso: a tela inicial (aluno e admin) lista estas cinco. As que ainda
+// não estão prontas (ready: false) abrem um aviso de "em breve".
 export const COURSE_SECTIONS = [
   { id: "aulas", label: "Aulas e Materiais", hint: "Videoaulas e PDFs, por disciplina", icon: PlayCircle, ready: true, accent: "", bar: "" },
   // Cada seção tem a sua cor (ícone e faixa do hover). Classes inteiras para o Tailwind achar.
@@ -14,7 +14,7 @@ export const COURSE_SECTIONS = [
     accent: "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300", bar: "from-emerald-500 to-teal-500" },
   { id: "cronogramas", label: "Cronogramas", hint: "Plano de estudos semana a semana", icon: CalendarDays, ready: false,
     accent: "bg-sky-100 text-sky-600 group-hover:bg-sky-600 dark:bg-sky-500/15 dark:text-sky-300", bar: "from-sky-500 to-blue-500" },
-  { id: "mentoria", label: "Mentoria", hint: "Acompanhamento com os professores", icon: Users, ready: false,
+  { id: "mentoria", label: "Mentoria", hint: "Aulas de mentoria com os professores", icon: Users, ready: true,
     accent: "bg-amber-100 text-amber-600 group-hover:bg-amber-500 dark:bg-amber-500/15 dark:text-amber-300", bar: "from-amber-400 to-brand" },
 ] as const;
 

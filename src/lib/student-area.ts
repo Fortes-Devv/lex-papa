@@ -75,7 +75,7 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
     include: {
       product: { select: { id: true, title: true, slug: true, thumbnail: true } },
       modules: {
-        where: { isPublished: true },
+        where: { isPublished: true, section: "aulas" },
         orderBy: { order: "asc" },
         include: {
           module: {

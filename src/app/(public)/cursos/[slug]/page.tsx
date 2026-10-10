@@ -26,7 +26,7 @@ const getCourseProduct = cache(async (slug: string) =>
         include: {
           modules: {
             orderBy: { order: "asc" },
-            where: { isPublished: true },
+            where: { isPublished: true, section: "aulas" },
             include: {
               module: {
                 include: {

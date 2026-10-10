@@ -5,7 +5,7 @@ import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-cli
 import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { resolveLessonVideoUrl } from "@/lib/bunny";
-import { lockedUntil, releaseLabel } from "@/lib/release";
+import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
 
 export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
   const searchParams = await props.searchParams;
@@ -78,7 +78,9 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
   // Liberação programada (só para aluno): módulo e PDFs abrem X dias após a compra.
   const enrolledAt = !isStaff && isEnrolled ? enrollment!.enrolledAt : null;
 
-  const modules: PlayerModule[] = course.modules.map(({ module: m, releaseAfterDays }) => {
+  // A aula aberta define a seção (Aulas e Materiais ou Mentoria): o player lista só ela.
+  const section = course.modules.find((cm) => cm.module.lessons.some((l) => l.id === searchParams.lessonId))?.section ?? "aulas";
+  const modules: PlayerModule[] = course.modules.filter((cm) => cm.section === section).map(({ module: m, releaseAfterDays, section: sec }) => {
 
     return {
     id: m.id,
@@ -87,7 +89,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
     lessons: m.lessons.map<PlayerLesson>((l) => {
       // Liberação programada: a aula (dripDays) ou o módulo abre X dias após a compra;
       // os PDFs seguem também o prazo do curso.
-      const lessonDays = Math.max(releaseAfterDays, l.dripDays ?? 0);
+      const lessonDays = Math.max(releaseAfterDays, sectionReleaseDays(sec), l.dripDays ?? 0);
       const moduleUntil = lockedUntil(enrolledAt, lessonDays);
       const pdfUntil = lockedUntil(enrolledAt, Math.max(course.pdfReleaseDays, lessonDays));
       // Sem matrícula (não existe aula grátis) ou aula ainda não liberada.

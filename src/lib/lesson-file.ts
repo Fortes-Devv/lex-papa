@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
-import { lockedUntil, releaseLabel } from "@/lib/release";
+import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
 
 // Quem pode baixar um arquivo de uma aula (PDF da aula ou material anexado):
 // equipe sempre; aluno se a aula está publicada num módulo publicado em algum curso
@@ -12,7 +12,7 @@ import { lockedUntil, releaseLabel } from "@/lib/release";
 export async function lessonFileAccessError(user: Session["user"], lessonId: string): Promise<NextResponse | null> {
   const lesson = await db.lesson.findUnique({
     where: { id: lessonId },
-    include: { module: { include: { courses: { where: { isPublished: true }, select: { releaseAfterDays: true, course: { select: { productId: true, pdfReleaseDays: true } } } } } } },
+    include: { module: { include: { courses: { where: { isPublished: true }, select: { releaseAfterDays: true, section: true, course: { select: { productId: true, pdfReleaseDays: true } } } } } } },
   });
   if (!lesson) return new NextResponse("Arquivo não encontrado.", { status: 404 });
   if (isStaffRole(user.role)) return null;
@@ -27,7 +27,7 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
   for (const l of links) {
     const e = enrollments.find((x) => x.productId === l.course.productId);
     if (!e) continue;
-    const until = lockedUntil(e.enrolledAt, Math.max(l.course.pdfReleaseDays, l.releaseAfterDays, lesson.dripDays ?? 0));
+    const until = lockedUntil(e.enrolledAt, Math.max(l.course.pdfReleaseDays, l.releaseAfterDays, sectionReleaseDays(l.section), lesson.dripDays ?? 0));
     if (!until) return null;
     if (!soonest || until < soonest) soonest = until;
   }

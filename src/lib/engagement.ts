@@ -9,7 +9,7 @@ export async function getCourseEngagement(courseId: string, days: number) {
   const since = new Date(Date.now() - days * 86_400_000);
 
   const links = await db.courseModule.findMany({
-    where: { courseId },
+    where: { courseId, section: "aulas" },
     orderBy: { order: "asc" },
     select: {
       module: {

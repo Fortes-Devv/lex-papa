@@ -58,7 +58,7 @@ export default async function HomePage() {
     select: {
       id: true, slug: true, title: true, shortDescription: true, thumbnail: true, price: true, comparePrice: true,
       category: { select: { name: true } },
-      course: { select: { totalLessons: true, totalDuration: true, _count: { select: { modules: true } }, modules: { where: { isPublished: true }, orderBy: { order: "asc" }, select: { module: { select: { title: true } } } } } },
+      course: { select: { totalLessons: true, totalDuration: true, _count: { select: { modules: { where: { section: "aulas" } } } }, modules: { where: { isPublished: true, section: "aulas" }, orderBy: { order: "asc" }, select: { module: { select: { title: true } } } } } },
     },
   });
   // Matérias de cada curso (módulos "X Aulas" + "X PDFs" viram uma só) e números reais da vitrine.

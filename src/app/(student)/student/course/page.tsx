@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
-import { Check, ChevronLeft, ChevronRight, FileText, Play, Search, HelpCircle } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, FileText, Lock, Play, Search, HelpCircle, Users } from "lucide-react";
 import { requireArea } from "@/lib/auth-guards";
 import { lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse, type Discipline, type OutlineModule } from "@/lib/student-area";
 import { Bar, Chip, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
@@ -10,6 +10,8 @@ import { db } from "@/lib/db";
 import { countFlashcardsToday, loadFlashcardsOverview } from "@/lib/flashcards/queries";
 import { FlashcardsHub } from "@/components/flashcards/flashcards-hub";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
+import { isEnrollmentActive } from "@/lib/access";
+import { MENTORIA_RELEASE_DAYS, lockedUntil, releaseLabel } from "@/lib/release";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 type Filter = "todas" | "andamento" | "concluidas";
@@ -128,6 +130,15 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
       <div className="mx-auto max-w-3xl space-y-4">
         <BackToSections href={home} />
         <FlashcardsHub courseId={outline.courseId} overview={overview} streak={xp?.streak ?? 0} />
+      </div>
+    );
+  }
+  if (section === "mentoria") {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        {courseChips}
+        <BackToSections href={home} />
+        <MentoriaView userId={userId} courseId={outline.courseId} productId={outline.productId} />
       </div>
     );
   }
@@ -303,5 +314,75 @@ function ModuleBlock({ m, courseId }: { m: OutlineModule; courseId: string }) {
         {m.lessons.length === 0 && <li className="px-[18px] py-6 text-center text-sm text-foreground-muted">Sem aulas publicadas.</li>}
       </ul>
     </Panel>
+  );
+}
+
+// Mentoria: só a lista de aulas (sem módulos). Abre MENTORIA_RELEASE_DAYS dias após a compra;
+// a trava vale também no player e na rota do PDF.
+async function MentoriaView({ userId, courseId, productId }: { userId: string; courseId: string; productId: string }) {
+  const [link, enrollment] = await Promise.all([
+    db.courseModule.findFirst({
+      where: { courseId, section: "mentoria", isPublished: true },
+      orderBy: { addedAt: "asc" },
+      select: { module: { select: { lessons: { where: { status: "published" }, orderBy: { order: "asc" }, select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, pdfUrl: true, dripDays: true } } } } },
+    }),
+    db.enrollment.findUnique({ where: { userId_productId: { userId, productId } } }),
+  ]);
+  const lessons = link?.module.lessons ?? [];
+  const enrolledAt = isEnrollmentActive(enrollment) ? enrollment!.enrolledAt : null;
+  const sectionUntil = enrolledAt ? lockedUntil(enrolledAt, MENTORIA_RELEASE_DAYS) : null;
+  const progress = lessons.length
+    ? await db.lessonProgress.findMany({ where: { userId, courseId, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, isCompleted: true } })
+    : [];
+  const done = new Set(progress.filter((p) => p.isCompleted).map((p) => p.lessonId));
+
+  return (
+    <>
+      <div className="rounded-[14px] bg-navy p-5 text-white">
+        <p className="text-[11px] font-bold uppercase tracking-wider text-brand">Mentoria</p>
+        <h2 className="mt-1 text-[22px] font-extrabold">Aulas de mentoria</h2>
+        <p className="mt-1 text-[13px] text-white/60">{lessons.length} aula{lessons.length !== 1 ? "s" : ""}{lessons.length ? ` · ${done.size} assistida${done.size !== 1 ? "s" : ""}` : ""}</p>
+        {sectionUntil && (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold">
+            <Lock className="h-4 w-4 text-brand" /> Liberada em {releaseLabel(sectionUntil)} ({MENTORIA_RELEASE_DAYS} dias após a compra)
+          </p>
+        )}
+      </div>
+      <Panel className="overflow-hidden">
+        <ul className="divide-y divide-line-soft dark:divide-white/10">
+          {lessons.map((l, i) => {
+            const until = enrolledAt ? lockedUntil(enrolledAt, Math.max(MENTORIA_RELEASE_DAYS, l.dripDays ?? 0)) : null;
+            const isPdf = l.type === "pdf" || (!l.videoUrl && !l.videoPublicId && !!l.pdfUrl);
+            const row = (
+              <>
+                <span className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold",
+                  done.has(l.id) ? "bg-ok text-white" : "border border-line-strong text-foreground-muted dark:border-white/20")}>
+                  {done.has(l.id) ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-semibold text-foreground">{l.title}</span>
+                  <span className="block truncate text-xs text-foreground-muted">
+                    {until ? `Libera em ${releaseLabel(until)}` : isPdf ? "PDF" : l.duration ? clock(l.duration) : "Vídeo"}
+                  </span>
+                </span>
+                {until ? <Lock className="h-4 w-4 shrink-0 text-foreground-muted" /> : isPdf ? <FileText className="h-4 w-4 shrink-0 text-foreground-muted" /> : <Play className="h-4 w-4 shrink-0 text-foreground-muted" />}
+              </>
+            );
+            return (
+              <li key={l.id}>
+                {until || !enrolledAt
+                  ? <div className="flex items-center gap-3 px-[18px] py-3 opacity-70">{row}</div>
+                  : <Link href={playerHref(courseId, l.id)} className="flex items-center gap-3 px-[18px] py-3 hover:bg-background">{row}</Link>}
+              </li>
+            );
+          })}
+          {lessons.length === 0 && (
+            <li className="flex flex-col items-center gap-2 px-[18px] py-10 text-center text-sm text-foreground-muted">
+              <Users className="h-6 w-6" /> As aulas de mentoria deste curso ainda vão ser publicadas.
+            </li>
+          )}
+        </ul>
+      </Panel>
+    </>
   );
 }

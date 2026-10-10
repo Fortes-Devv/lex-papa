@@ -192,7 +192,7 @@ function revalidateContent() {
 }
 
 async function nextModuleOrder(courseId: string) {
-  const last = await db.courseModule.findFirst({ where: { courseId }, orderBy: { order: "desc" } });
+  const last = await db.courseModule.findFirst({ where: { courseId, section: "aulas" }, orderBy: { order: "desc" } });
   return (last?.order ?? 0) + 1;
 }
 
@@ -220,7 +220,7 @@ export async function listAttachableModules(courseId: string, search = "") {
   if (!(await canEditCourse(session.user, courseId))) return [];
   const modules = await db.module.findMany({
     where: {
-      courses: { none: { courseId } },
+      courses: { none: { courseId }, every: { section: "aulas" } },
       ...(search.trim() ? { title: { contains: search.trim(), mode: "insensitive" as const } } : {}),
     },
     orderBy: { title: "asc" },
@@ -347,7 +347,7 @@ export async function deleteModule(moduleId: string) {
 export async function moveModule(courseId: string, moduleId: string, direction: "up" | "down") {
   const session = await requireStaff();
   if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
-  const links = await db.courseModule.findMany({ where: { courseId }, orderBy: { order: "asc" } });
+  const links = await db.courseModule.findMany({ where: { courseId, section: "aulas" }, orderBy: { order: "asc" } });
   const idx = links.findIndex((l) => l.moduleId === moduleId);
   const swapIdx = direction === "up" ? idx - 1 : idx + 1;
   if (idx === -1 || swapIdx < 0 || swapIdx >= links.length) return { success: false as const };
@@ -364,7 +364,7 @@ export async function moveModule(courseId: string, moduleId: string, direction: 
 export async function reorderModules(courseId: string, moduleIds: string[]) {
   const session = await requireStaff();
   if (!(await canEditCourse(session.user, courseId))) return NOT_ALLOWED;
-  const links = await db.courseModule.findMany({ where: { courseId }, select: { id: true, moduleId: true } });
+  const links = await db.courseModule.findMany({ where: { courseId, section: "aulas" }, select: { id: true, moduleId: true } });
   const byModule = new Map(links.map((l) => [l.moduleId, l.id]));
   if (moduleIds.length !== links.length || moduleIds.some((id) => !byModule.has(id))) {
     return { success: false as const, error: "A lista de módulos mudou. Recarregue a página." };

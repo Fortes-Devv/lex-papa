@@ -10,11 +10,11 @@ type SessionUser = Pick<Session["user"], "id" | "role">;
 // - canEdit: pode editar o conteúdo do módulo (dono do módulo ou admin/moderador).
 // - usedIn: outros cursos que também usam o módulo (edição vale para todos).
 // - previewUrl: assinada (Bunny com token), para a prévia no editor funcionar.
-export async function loadEditorModules(courseId: string, user: SessionUser, opts: { onlyOwn?: boolean } = {}): Promise<EditorModule[]> {
+export async function loadEditorModules(courseId: string, user: SessionUser, opts: { onlyOwn?: boolean; section?: "aulas" | "mentoria" } = {}): Promise<EditorModule[]> {
   const isManager = user.role === "admin" || user.role === "moderator";
   await syncPendingDurations(courseId);
   const links = await db.courseModule.findMany({
-    where: { courseId, ...(opts.onlyOwn ? { module: { instructorId: user.id } } : {}) },
+    where: { courseId, section: opts.section ?? "aulas", ...(opts.onlyOwn ? { module: { instructorId: user.id } } : {}) },
     orderBy: { order: "asc" },
     include: {
       module: {

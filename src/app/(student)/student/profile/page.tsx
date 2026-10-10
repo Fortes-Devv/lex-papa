@@ -24,7 +24,7 @@ export default async function StudentProfilePage(props: { searchParams: Promise<
   const enrollments = await db.enrollment.findMany({
     where: { userId },
     orderBy: { enrolledAt: "desc" },
-    include: { product: { select: { title: true, thumbnail: true, slug: true, course: { select: { id: true, modules: { where: { isPublished: true }, select: { moduleId: true } } } } } }, order: { select: { id: true, createdAt: true, total: true, paymentMethod: true } } },
+    include: { product: { select: { title: true, thumbnail: true, slug: true, course: { select: { id: true, modules: { where: { isPublished: true, section: "aulas" }, select: { moduleId: true } } } } } }, order: { select: { id: true, createdAt: true, total: true, paymentMethod: true } } },
   });
   const orders = await db.order.findMany({
     where: { userId },

@@ -326,6 +326,9 @@ model CourseModule {
   isPublished      Boolean  @default(false)
   // Módulo só abre X dias após a compra (0 = na hora).
   releaseAfterDays Int      @default(0)
+  // Onde o módulo aparece no curso: "aulas" (Aulas e Materiais) ou "mentoria"
+  // (seção Mentoria: um módulo oculto só com a lista de aulas, abre 7 dias após a compra).
+  section          String   @default("aulas")
   addedAt          DateTime @default(now())
 
   @@unique([courseId, moduleId])

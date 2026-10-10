@@ -25,7 +25,8 @@ export async function getEnrolledLessonInCourse(userId: string, courseId: string
   return { ok: true as const, lesson, course };
 }
 
-// Aulas que contam para o progresso do curso: publicadas, em módulos publicados no curso.
+// Aulas que contam para o progresso do curso: publicadas, em módulos publicados no curso
+// (só "Aulas e Materiais"; a Mentoria fica fora do progresso e dos totais).
 export function courseLessonsWhere(courseId: string) {
-  return { status: "published" as const, module: { courses: { some: { courseId, isPublished: true } } } };
+  return { status: "published" as const, module: { courses: { some: { courseId, isPublished: true, section: "aulas" } } } };
 }
