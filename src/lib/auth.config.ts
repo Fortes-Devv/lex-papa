@@ -47,7 +47,9 @@ export const authConfig = {
       if (areaMatch) {
         if (!isLoggedIn) return false; // NextAuth redireciona para pages.signIn
         const area = areaMatch[1];
-        const allowed = area === "admin" ? role === "admin" || role === "moderator" : area !== "teacher" && role === area;
+        const staff = role === "admin" || role === "moderator";
+        // Equipe também entra na área do aluno ("Visão do aluno": ver e estudar como aluno).
+        const allowed = area === "admin" ? staff : area === "student" ? role === "student" || staff : false;
         if (!allowed) {
           return Response.redirect(new URL(ROLE_HOME[role ?? "student"] ?? "/login", request.nextUrl));
         }

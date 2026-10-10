@@ -15,7 +15,7 @@ export default async function StudentProgressPage(props: { searchParams: Promise
   const { courseId } = await props.searchParams;
   const session = await requireArea("student");
   const userId = session.user.id;
-  const { current } = await resolveStudentCourse(userId, courseId);
+  const { current } = await resolveStudentCourse(userId, courseId, session.user.role);
   const stats = await getStudyStats(userId);
   const xp = await getUserXp(userId);
   const patente = patenteForLevel(xp.level);

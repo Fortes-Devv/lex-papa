@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { countFlashcardsToday, loadFlashcardsOverview } from "@/lib/flashcards/queries";
 import { FlashcardsHub } from "@/components/flashcards/flashcards-hub";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
-import { isEnrollmentActive } from "@/lib/access";
+import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { MENTORIA_RELEASE_DAYS, lockedUntil, releaseLabel } from "@/lib/release";
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -31,7 +31,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
   const sp = await props.searchParams;
   const session = await requireArea("student");
   const userId = session.user.id;
-  const { courses, current } = await resolveStudentCourse(userId, sp.courseId);
+  const { courses, current } = await resolveStudentCourse(userId, sp.courseId, session.user.role);
 
   if (!current) {
     return (
@@ -138,7 +138,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
       <div className="mx-auto max-w-3xl space-y-4">
         {courseChips}
         <BackToSections href={home} />
-        <MentoriaView userId={userId} courseId={outline.courseId} productId={outline.productId} />
+        <MentoriaView userId={userId} courseId={outline.courseId} productId={outline.productId} isStaff={isStaffRole(session.user.role)} />
       </div>
     );
   }
@@ -319,7 +319,7 @@ function ModuleBlock({ m, courseId }: { m: OutlineModule; courseId: string }) {
 
 // Mentoria: só a lista de aulas (sem módulos). Abre MENTORIA_RELEASE_DAYS dias após a compra;
 // a trava vale também no player e na rota do PDF.
-async function MentoriaView({ userId, courseId, productId }: { userId: string; courseId: string; productId: string }) {
+async function MentoriaView({ userId, courseId, productId, isStaff }: { userId: string; courseId: string; productId: string; isStaff: boolean }) {
   const [link, enrollment] = await Promise.all([
     db.courseModule.findFirst({
       where: { courseId, section: "mentoria", isPublished: true },
@@ -370,7 +370,7 @@ async function MentoriaView({ userId, courseId, productId }: { userId: string; c
             );
             return (
               <li key={l.id}>
-                {until || !enrolledAt
+                {until || (!enrolledAt && !isStaff)
                   ? <div className="flex items-center gap-3 px-[18px] py-3 opacity-70">{row}</div>
                   : <Link href={playerHref(courseId, l.id)} className="flex items-center gap-3 px-[18px] py-3 hover:bg-background">{row}</Link>}
               </li>

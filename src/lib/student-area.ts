@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { isEnrollmentActive } from "@/lib/access";
+import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { disciplineName } from "@/lib/discipline";
 
 export { disciplineName };
@@ -160,7 +160,16 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
 }
 
 // Cursos com matrícula válida, do mais recente acessado para o mais antigo.
-export async function getStudentCourses(userId: string) {
+// Equipe (Visão do aluno): todos os cursos, como se tivesse comprado.
+export async function getStudentCourses(userId: string, role?: string) {
+  if (role && isStaffRole(role)) {
+    const products = await db.product.findMany({
+      where: { type: "course", course: { isNot: null } },
+      orderBy: [{ status: "asc" }, { updatedAt: "desc" }],
+      select: { id: true, title: true, thumbnail: true, slug: true, course: { select: { id: true } } },
+    });
+    return products.map((p) => ({ courseId: p.course!.id, productId: p.id, title: p.title, thumbnail: p.thumbnail, slug: p.slug, progress: 0 }));
+  }
   const enrollments = await db.enrollment.findMany({
     where: { userId },
     orderBy: [{ lastAccessedAt: { sort: "desc", nulls: "last" } }, { enrolledAt: "desc" }],
@@ -172,8 +181,8 @@ export async function getStudentCourses(userId: string) {
 }
 
 // Escolhe o curso pedido (se o aluno tem acesso) ou o último acessado.
-export async function resolveStudentCourse(userId: string, requested?: string) {
-  const courses = await getStudentCourses(userId);
+export async function resolveStudentCourse(userId: string, requested?: string, role?: string) {
+  const courses = await getStudentCourses(userId, role);
   const current = courses.find((c) => c.courseId === requested) ?? courses[0] ?? null;
   return { courses, current };
 }

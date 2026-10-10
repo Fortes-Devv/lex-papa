@@ -24,7 +24,7 @@ export default async function StudentHomePage() {
   const session = await requireArea("student");
   const userId = session.user.id;
   const firstName = (session.user.name ?? "").split(" ")[0];
-  const { courses, current: course } = await resolveStudentCourse(userId);
+  const { courses, current: course } = await resolveStudentCourse(userId, undefined, session.user.role);
   const stats = await getStudyStats(userId);
 
   if (!course) {

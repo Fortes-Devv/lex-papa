@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { isEnrollmentActive } from "@/lib/access";
+import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 
 // Aula dentro de um curso específico (o mesmo módulo pode estar em vários cursos;
 // progresso e tentativas de quiz são por curso). Garante que a aula está publicada,
@@ -20,7 +20,11 @@ export async function getEnrolledLessonInCourse(userId: string, courseId: string
   const enrollment = await db.enrollment.findUnique({
     where: { userId_productId: { userId, productId: course.productId } },
   });
-  if (!isEnrollmentActive(enrollment)) return { ok: false as const, error: "Você não está matriculado neste curso." };
+  if (!isEnrollmentActive(enrollment)) {
+    // Equipe na "Visão do aluno" estuda sem matrícula.
+    const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user || !isStaffRole(user.role)) return { ok: false as const, error: "Você não está matriculado neste curso." };
+  }
 
   return { ok: true as const, lesson, course };
 }

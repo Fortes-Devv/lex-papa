@@ -1,4 +1,5 @@
 import { NavShell, type PanelData } from "@/components/layout/nav-shell/nav-shell";
+import { ViewSwitch } from "@/components/layout/view-switch";
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { getBunnyStorageBytes } from "@/lib/bunny";
@@ -91,6 +92,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <NavShell area="admin" user={{ name: session.user.name ?? "Admin", roleLabel: ROLE_LABEL[session.user.role] ?? "Equipe" }} pendingOrders={pendingOrders} panelData={panel}>
       {children}
+      <ViewSwitch to="student" />
     </NavShell>
   );
 }

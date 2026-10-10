@@ -45,7 +45,7 @@ const ROLE_HOME: Record<string, string> = {
 const AREA_ROLES: Record<"admin" | "teacher" | "student", string[]> = {
   admin: ["admin", "moderator"],
   teacher: ["teacher"],
-  student: ["student"],
+  student: ["student", "admin", "moderator"], // equipe: "Visão do aluno"
 };
 
 /** Mesmo critério do middleware, mas checado no servidor (não depende dele). */
