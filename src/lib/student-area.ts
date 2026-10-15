@@ -131,18 +131,7 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
     };
   });
 
-  const groups = new Map<string, Discipline>();
-  for (const mod of modules) {
-    const name = disciplineName(mod.title);
-    const key = disciplineKey(name);
-    const g = groups.get(key) ?? { key, name, instructorName: mod.instructorName, modules: [], done: 0, total: 0, percent: 0, seconds: 0 };
-    g.modules.push(mod);
-    g.done += mod.done;
-    g.total += mod.total;
-    g.seconds += mod.lessons.reduce((s, l) => s + (l.duration ?? 0), 0);
-    groups.set(key, g);
-  }
-  const disciplines = [...groups.values()].map((g) => ({ ...g, percent: g.total ? Math.round((g.done / g.total) * 100) : 0 }));
+  const disciplines = groupDisciplines(modules);
 
   const total = modules.reduce((s, m) => s + m.total, 0);
   const done = modules.reduce((s, m) => s + m.done, 0);
@@ -157,6 +146,22 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
     modules,
     disciplines,
   };
+}
+
+// Módulos agrupados por disciplina (pelo nome do módulo), na ordem do curso.
+export function groupDisciplines(modules: OutlineModule[]): Discipline[] {
+  const groups = new Map<string, Discipline>();
+  for (const mod of modules) {
+    const name = disciplineName(mod.title);
+    const key = disciplineKey(name);
+    const g = groups.get(key) ?? { key, name, instructorName: mod.instructorName, modules: [], done: 0, total: 0, percent: 0, seconds: 0 };
+    g.modules.push(mod);
+    g.done += mod.done;
+    g.total += mod.total;
+    g.seconds += mod.lessons.reduce((s, l) => s + (l.duration ?? 0), 0);
+    groups.set(key, g);
+  }
+  return [...groups.values()].map((g) => ({ ...g, percent: g.total ? Math.round((g.done / g.total) * 100) : 0 }));
 }
 
 // Cursos com matrícula válida, do mais recente acessado para o mais antigo.

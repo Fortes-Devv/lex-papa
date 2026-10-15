@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Check, ChevronLeft, ChevronRight, FileText, Lock, Play, Search, HelpCircle, Users } from "lucide-react";
 import { requireArea } from "@/lib/auth-guards";
-import { lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse, type Discipline, type OutlineModule } from "@/lib/student-area";
+import { groupDisciplines, lastWatchedLesson, loadCourseOutline, pickNextUp, resolveStudentCourse, type Discipline, type OutlineModule } from "@/lib/student-area";
 import { Bar, Chip, ModuleCover, Panel, clock, hours, playerHref } from "@/components/student/kit";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cn } from "@/lib/utils/cn";
@@ -13,6 +13,8 @@ import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, 
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { MENTORIA_RELEASE_DAYS, lockedUntil, releaseLabel } from "@/lib/release";
 
+// Abas de "Aulas e Materiais": módulos de vídeo ou de PDF (Materiais, Vade Mecum…).
+type Tipo = "videos" | "materiais";
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 type Filter = "todas" | "andamento" | "concluidas";
 
@@ -27,7 +29,7 @@ function statusLine(d: Discipline) {
 
 // Meu curso: abre na lista de seções (Aulas e Materiais, FlashCards…). Em "Aulas e
 // Materiais" (modelos 7b e 8b), módulos agrupados por disciplina, aulas e PDFs juntos.
-export default async function StudentCoursePage(props: { searchParams: Promise<{ courseId?: string; secao?: string; disciplina?: string; modulo?: string; q?: string; filtro?: string }> }) {
+export default async function StudentCoursePage(props: { searchParams: Promise<{ courseId?: string; secao?: string; tipo?: string; disciplina?: string; modulo?: string; q?: string; filtro?: string }> }) {
   const sp = await props.searchParams;
   const session = await requireArea("student");
   const userId = session.user.id;
@@ -45,23 +47,31 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
   const outline = (await loadCourseOutline(userId, current.courseId))!;
   const { current: next } = pickNextUp(outline, await lastWatchedLesson(userId, current.courseId));
   const home = `/student/course?courseId=${outline.courseId}`;
-  const base = `${home}&secao=aulas`;
   // Link direto para disciplina, módulo, busca ou filtro cai em "Aulas e Materiais".
-  const section = parseCourseSection(sp.secao) ?? (sp.disciplina || sp.modulo || sp.q || sp.filtro ? "aulas" : null);
+  const section = parseCourseSection(sp.secao) ?? (sp.disciplina || sp.modulo || sp.q || sp.filtro || sp.tipo ? "aulas" : null);
+
+  // Aba: a pedida, a do módulo pedido ou Videoaulas (Materiais se o curso só tem PDFs).
+  const hasVideos = outline.modules.some((m) => m.kind === "aula");
+  const hasMaterials = outline.modules.some((m) => m.kind === "pdf");
+  const linkedKind = sp.modulo ? outline.modules.find((m) => m.id === sp.modulo)?.kind : undefined;
+  const tipo: Tipo = sp.tipo === "videos" || sp.tipo === "materiais" ? sp.tipo : linkedKind === "pdf" || !hasVideos ? "materiais" : "videos";
+  const disciplines = groupDisciplines(outline.modules.filter((m) => (m.kind === "pdf") === (tipo === "materiais")));
+  const tabCount = (t: Tipo) => groupDisciplines(outline.modules.filter((m) => (m.kind === "pdf") === (t === "materiais"))).length;
+  const base = `${home}&secao=aulas&tipo=${tipo}`;
   const filter: Filter = sp.filtro === "andamento" || sp.filtro === "concluidas" ? sp.filtro : "todas";
 
   // Disciplina aberta: pedida na URL, a do módulo pedido ou a da próxima aula.
-  const byModule = sp.modulo ? outline.disciplines.find((d) => d.modules.some((m) => m.id === sp.modulo)) : undefined;
-  const nextDiscipline = next ? outline.disciplines.find((d) => d.modules.some((m) => m.lessons.some((l) => l.id === next.lessonId))) : undefined;
-  const selected = outline.disciplines.find((d) => d.key === sp.disciplina) ?? byModule ?? nextDiscipline ?? outline.disciplines[0];
+  const byModule = sp.modulo ? disciplines.find((d) => d.modules.some((m) => m.id === sp.modulo)) : undefined;
+  const nextDiscipline = next ? disciplines.find((d) => d.modules.some((m) => m.lessons.some((l) => l.id === next.lessonId))) : undefined;
+  const selected = disciplines.find((d) => d.key === sp.disciplina) ?? byModule ?? nextDiscipline ?? disciplines[0];
   const explicit = Boolean(sp.disciplina || sp.modulo); // no celular, mostra a disciplina só quando o aluno tocou nela
 
-  const visible = outline.disciplines.filter((d) =>
+  const visible = disciplines.filter((d) =>
     filter === "todas" ? true : filter === "concluidas" ? d.total > 0 && d.done === d.total : d.done > 0 && d.done < d.total);
   const counts = {
-    todas: outline.disciplines.length,
-    andamento: outline.disciplines.filter((d) => d.done > 0 && d.done < d.total).length,
-    concluidas: outline.disciplines.filter((d) => d.total > 0 && d.done === d.total).length,
+    todas: disciplines.length,
+    andamento: disciplines.filter((d) => d.done > 0 && d.done < d.total).length,
+    concluidas: disciplines.filter((d) => d.total > 0 && d.done === d.total).length,
   };
 
   const q = sp.q?.trim();
@@ -152,6 +162,19 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
       {/* No celular, com disciplina aberta, o "voltar" é para a lista de disciplinas. */}
       <BackToSections href={home} className={cn(explicit && !results && "hidden lg:inline-flex")} />
 
+      {/* Abas: Videoaulas · Materiais (só quando o curso tem os dois) */}
+      {hasVideos && hasMaterials && !results && (
+        <div className={cn("inline-flex rounded-xl bg-muted p-1", explicit && "hidden lg:inline-flex")} role="tablist" aria-label="Tipo de conteúdo">
+          {([["videos", "Videoaulas", Play], ["materiais", "Materiais", FileText]] as const).map(([t, label, Icon]) => (
+            <Link key={t} href={`${home}&secao=aulas&tipo=${t}`} role="tab" aria-selected={tipo === t} scroll={false}
+              className={cn("inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-[13.5px] font-bold transition-colors",
+                tipo === t ? "bg-card text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}>
+              <Icon className="h-4 w-4" /> {label} <span className="font-semibold text-foreground-muted">· {tabCount(t)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+
       {results ? (
         <>
           {header}
@@ -218,7 +241,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
               <DisciplineView d={selected} courseId={outline.courseId} nextLessonId={next?.lessonId ?? null} />
             </div>
           ) : (
-            <Panel className="p-8 text-center text-sm text-foreground-muted">As aulas deste curso ainda não foram publicadas.</Panel>
+            <Panel className="p-8 text-center text-sm text-foreground-muted">{tipo === "materiais" ? "Os materiais deste curso ainda não foram publicados." : "As aulas deste curso ainda não foram publicadas."}</Panel>
           )}
         </div>
       )}
