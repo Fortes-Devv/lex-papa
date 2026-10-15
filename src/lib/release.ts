@@ -2,7 +2,7 @@
 // - curso.pdfReleaseDays: PDFs/materiais (evita "baixa tudo e pede reembolso" na garantia de 7 dias);
 // - courseModule.releaseAfterDays: o módulo inteiro (aulas e PDFs);
 // - lesson.dripDays: a aula;
-// - seção Mentoria: tudo abre MENTORIA_RELEASE_DAYS após a compra.
+// - seção Mentoria: tudo abre MENTORIA_RELEASE_DAYS após a compra (Simulados: na hora).
 
 export const MENTORIA_RELEASE_DAYS = 7;
 

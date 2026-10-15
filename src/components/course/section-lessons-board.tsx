@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Eye, EyeOff, HardDrive, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, HardDrive, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DropdownItem } from "@/components/ui/dropdown";
 import { useToast } from "@/components/ui/toast";
@@ -15,8 +15,13 @@ import { MENTORIA_RELEASE_DAYS } from "@/lib/release";
 
 type ActionResult = { success: boolean; error?: string };
 
-// Mentoria no admin: sem módulos, só a lista de aulas (adicionar, Drive, publicar, ordenar).
-export function MentoriaBoard({ mod }: { mod: EditorModule }) {
+// Mentoria e Simulados no admin: sem módulos, só a lista de aulas (adicionar, Drive,
+// publicar, ordenar). Nos Simulados, a aula nova já vem como PDF.
+export function SectionLessonsBoard({ mod, section }: { mod: EditorModule; section: "mentoria" | "simulados" }) {
+  const pdf = section === "simulados";
+  const fresh: LessonFormValue | null = pdf
+    ? { title: "", type: "pdf", description: "", videoUrl: "", videoPublicId: "", pdfUrl: "", duration: "", isFree: false, isPreview: false, completionCriteria: "manual", dripDays: "0", materials: [] }
+    : null;
   const router = useRouter();
   const { success, error } = useToast();
   const [lessonId, setLessonId] = useState<string | null>(null);
@@ -59,10 +64,12 @@ export function MentoriaBoard({ mod }: { mod: EditorModule }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="inline-flex flex-1 items-center gap-1.5 text-sm text-foreground-muted">
-          <Lock className="h-4 w-4 text-brand" /> O aluno só acessa a Mentoria {MENTORIA_RELEASE_DAYS} dias após a compra.
+          {pdf
+            ? <><FileText className="h-4 w-4 text-brand" /> Cada simulado é uma aula com o PDF da prova (o gabarito pode ir como anexo).</>
+            : <><Lock className="h-4 w-4 text-brand" /> O aluno só acessa a Mentoria {MENTORIA_RELEASE_DAYS} dias após a compra.</>}
         </p>
         <Button size="sm" variant="outline" leftIcon={<HardDrive className="h-3.5 w-3.5" />} onClick={() => setDrive(true)}>Importar do Google Drive</Button>
-        <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => setLessonDialog({ open: true, initial: null })}>Adicionar aula</Button>
+        <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => setLessonDialog({ open: true, initial: fresh })}>{pdf ? "Adicionar simulado" : "Adicionar aula"}</Button>
       </div>
 
       <PreviewPanel
@@ -71,7 +78,7 @@ export function MentoriaBoard({ mod }: { mod: EditorModule }) {
         playing={playing}
         onPlay={() => setPlaying(true)}
         onSelectLesson={(l) => { setLessonId(l.id); setPlaying(false); }}
-        onAddLesson={() => setLessonDialog({ open: true, initial: null })}
+        onAddLesson={() => setLessonDialog({ open: true, initial: fresh })}
         onImportDrive={() => setDrive(true)}
         onPublishAll={async () => report(await publishAllLessons(mod.id), "Aulas publicadas.")}
         lessonMenu={lessonMenu}
@@ -83,7 +90,7 @@ export function MentoriaBoard({ mod }: { mod: EditorModule }) {
         moduleId={mod.id}
         initial={lessonDialog.initial}
       />
-      {drive && <DriveImportDialog open onClose={() => setDrive(false)} moduleId={mod.id} moduleTitle="Mentoria" />}
+      {drive && <DriveImportDialog open onClose={() => setDrive(false)} moduleId={mod.id} moduleTitle={mod.title} />}
     </div>
   );
 }

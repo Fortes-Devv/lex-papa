@@ -9,8 +9,8 @@ import { requireArea } from "@/lib/auth-guards";
 import { loadEditorModules } from "@/lib/editor-modules";
 import { AdminCourseBoard } from "./course-board-client";
 import { AdminFlashcards } from "@/components/flashcards/admin-flashcards";
-import { MentoriaBoard } from "@/components/course/mentoria-board";
-import { ensureMentoriaModule } from "@/lib/mentoria";
+import { SectionLessonsBoard } from "@/components/course/section-lessons-board";
+import { LIST_SECTIONS, ensureSectionModule, isListSection } from "@/lib/list-sections";
 import type { FlashcardType } from "@/lib/flashcards/format";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 
@@ -74,17 +74,17 @@ export default async function AdminCoursePage(props: { params: Promise<{ courseI
       </div>
     );
   }
-  if (section === "mentoria") {
-    await ensureMentoriaModule(course.id);
-    const [mod] = await loadEditorModules(course.id, session.user, { section: "mentoria" });
+  if (isListSection(section)) {
+    await ensureSectionModule(course.id, section);
+    const [mod] = await loadEditorModules(course.id, session.user, { section });
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <BackToSections href={home} />
         <div>
-          <h1 className="text-[22px] font-extrabold text-foreground">Mentoria · {p.title}</h1>
-          <p className="text-sm text-foreground-muted">Sem módulos: só a lista de aulas. Só as publicadas aparecem para os alunos.</p>
+          <h1 className="text-[22px] font-extrabold text-foreground">{LIST_SECTIONS[section].title} · {p.title}</h1>
+          <p className="text-sm text-foreground-muted">Sem módulos: só a lista de {LIST_SECTIONS[section].items}. Só o que estiver publicado aparece para os alunos.</p>
         </div>
-        <MentoriaBoard mod={mod} />
+        <SectionLessonsBoard mod={mod} section={section} />
       </div>
     );
   }

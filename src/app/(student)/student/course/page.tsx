@@ -11,7 +11,8 @@ import { countFlashcardsToday, loadFlashcardsOverview } from "@/lib/flashcards/q
 import { FlashcardsHub } from "@/components/flashcards/flashcards-hub";
 import { BackToSections, CourseHubHeader, CourseSectionList, CourseSectionSoon, parseCourseSection } from "@/components/course/course-sections";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
-import { MENTORIA_RELEASE_DAYS, lockedUntil, releaseLabel } from "@/lib/release";
+import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
+import { LIST_SECTIONS, isListSection, type ListSection } from "@/lib/list-sections";
 
 // Abas de "Aulas e Materiais": módulos de vídeo ou de PDF (Materiais, Vade Mecum…).
 type Tipo = "videos" | "materiais";
@@ -143,12 +144,12 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
       </div>
     );
   }
-  if (section === "mentoria") {
+  if (isListSection(section)) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         {courseChips}
         <BackToSections href={home} />
-        <MentoriaView userId={userId} courseId={outline.courseId} productId={outline.productId} isStaff={isStaffRole(session.user.role)} />
+        <ListSectionView section={section} userId={userId} courseId={outline.courseId} productId={outline.productId} isStaff={isStaffRole(session.user.role)} />
       </div>
     );
   }
@@ -340,12 +341,14 @@ function ModuleBlock({ m, courseId }: { m: OutlineModule; courseId: string }) {
   );
 }
 
-// Mentoria: só a lista de aulas (sem módulos). Abre MENTORIA_RELEASE_DAYS dias após a compra;
-// a trava vale também no player e na rota do PDF.
-async function MentoriaView({ userId, courseId, productId, isStaff }: { userId: string; courseId: string; productId: string; isStaff: boolean }) {
+// Mentoria e Simulados: só a lista de aulas (sem módulos). A Mentoria abre
+// MENTORIA_RELEASE_DAYS dias após a compra (trava também no player e na rota do PDF).
+async function ListSectionView({ section, userId, courseId, productId, isStaff }: { section: ListSection; userId: string; courseId: string; productId: string; isStaff: boolean }) {
+  const meta = LIST_SECTIONS[section];
+  const days = sectionReleaseDays(section);
   const [link, enrollment] = await Promise.all([
     db.courseModule.findFirst({
-      where: { courseId, section: "mentoria", isPublished: true },
+      where: { courseId, section, isPublished: true },
       orderBy: { addedAt: "asc" },
       select: { module: { select: { lessons: { where: { status: "published" }, orderBy: { order: "asc" }, select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, pdfUrl: true, dripDays: true } } } } },
     }),
@@ -353,7 +356,7 @@ async function MentoriaView({ userId, courseId, productId, isStaff }: { userId: 
   ]);
   const lessons = link?.module.lessons ?? [];
   const enrolledAt = isEnrollmentActive(enrollment) ? enrollment!.enrolledAt : null;
-  const sectionUntil = enrolledAt ? lockedUntil(enrolledAt, MENTORIA_RELEASE_DAYS) : null;
+  const sectionUntil = enrolledAt ? lockedUntil(enrolledAt, days) : null;
   const progress = lessons.length
     ? await db.lessonProgress.findMany({ where: { userId, courseId, lessonId: { in: lessons.map((l) => l.id) } }, select: { lessonId: true, isCompleted: true } })
     : [];
@@ -362,19 +365,19 @@ async function MentoriaView({ userId, courseId, productId, isStaff }: { userId: 
   return (
     <>
       <div className="rounded-[14px] bg-navy p-5 text-white">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-brand">Mentoria</p>
-        <h2 className="mt-1 text-[22px] font-extrabold">Aulas de mentoria</h2>
-        <p className="mt-1 text-[13px] text-white/60">{lessons.length} aula{lessons.length !== 1 ? "s" : ""}{lessons.length ? ` · ${done.size} assistida${done.size !== 1 ? "s" : ""}` : ""}</p>
+        <p className="text-[11px] font-bold uppercase tracking-wider text-brand">{meta.title}</p>
+        <h2 className="mt-1 text-[22px] font-extrabold">{meta.heading}</h2>
+        <p className="mt-1 text-[13px] text-white/60">{lessons.length} {lessons.length !== 1 ? meta.items : meta.item}{lessons.length ? ` · ${done.size} concluído${done.size !== 1 ? "s" : ""}` : ""}</p>
         {sectionUntil && (
           <p className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3 py-1.5 text-[13px] font-semibold">
-            <Lock className="h-4 w-4 text-brand" /> Liberada em {releaseLabel(sectionUntil)} ({MENTORIA_RELEASE_DAYS} dias após a compra)
+            <Lock className="h-4 w-4 text-brand" /> Liberada em {releaseLabel(sectionUntil)} ({days} dias após a compra)
           </p>
         )}
       </div>
       <Panel className="overflow-hidden">
         <ul className="divide-y divide-line-soft dark:divide-white/10">
           {lessons.map((l, i) => {
-            const until = enrolledAt ? lockedUntil(enrolledAt, Math.max(MENTORIA_RELEASE_DAYS, l.dripDays ?? 0)) : null;
+            const until = enrolledAt ? lockedUntil(enrolledAt, Math.max(days, l.dripDays ?? 0)) : null;
             const isPdf = l.type === "pdf" || (!l.videoUrl && !l.videoPublicId && !!l.pdfUrl);
             const row = (
               <>
@@ -401,7 +404,7 @@ async function MentoriaView({ userId, courseId, productId, isStaff }: { userId: 
           })}
           {lessons.length === 0 && (
             <li className="flex flex-col items-center gap-2 px-[18px] py-10 text-center text-sm text-foreground-muted">
-              <Users className="h-6 w-6" /> As aulas de mentoria deste curso ainda vão ser publicadas.
+              <Users className="h-6 w-6" /> {section === "simulados" ? "Os simulados deste curso ainda vão ser publicados." : "As aulas de mentoria deste curso ainda vão ser publicadas."}
             </li>
           )}
         </ul>

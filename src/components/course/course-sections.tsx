@@ -10,7 +10,7 @@ export const COURSE_SECTIONS = [
   // Cada seção tem a sua cor (ícone e faixa do hover). Classes inteiras para o Tailwind achar.
   { id: "flashcards", label: "FlashCards", hint: "Revisão espaçada: Certo ou Errado, lei seca e perguntas", icon: Layers, ready: true,
     accent: "bg-violet-100 text-violet-600 group-hover:bg-violet-600 dark:bg-violet-500/15 dark:text-violet-300", bar: "from-violet-500 to-fuchsia-500" },
-  { id: "simulados", label: "Simulados", hint: "Provas no formato do concurso", icon: ClipboardCheck, ready: false,
+  { id: "simulados", label: "Simulados", hint: "Provas no formato do concurso, em PDF", icon: ClipboardCheck, ready: true,
     accent: "bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300", bar: "from-emerald-500 to-teal-500" },
   { id: "cronogramas", label: "Cronogramas", hint: "Plano de estudos semana a semana", icon: CalendarDays, ready: false,
     accent: "bg-sky-100 text-sky-600 group-hover:bg-sky-600 dark:bg-sky-500/15 dark:text-sky-300", bar: "from-sky-500 to-blue-500" },
