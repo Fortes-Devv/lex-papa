@@ -5,6 +5,8 @@ import { requireStaff } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/utils/cn";
 import { deleteBunnyVideo } from "@/lib/bunny";
+import { bunnyVideoIdOf } from "@/lib/lesson-video";
+import { parseYoutubeId } from "@/lib/youtube";
 import { deleteCloudinaryImageByUrl } from "@/lib/cloudinary";
 import { canEditCourse, canEditLesson, canEditModule, canEditProduct, NOT_ALLOWED } from "@/lib/course-permissions";
 import { recalcCourseTotals, recalcTotalsForModule } from "@/lib/course-totals";
@@ -333,7 +335,7 @@ export async function deleteModule(moduleId: string) {
   }
   // Coleta os vídeos Bunny das aulas e a capa antes de excluir o módulo (cascade).
   const lessons = await db.lesson.findMany({
-    where: { moduleId, videoProvider: "bunny", videoPublicId: { not: null } },
+    where: { moduleId, videoProvider: { in: ["bunny", "youtube"] }, videoPublicId: { not: null } },
     select: { videoPublicId: true },
   });
   const mod = await db.module.findUnique({ where: { id: moduleId }, select: { coverImage: true } });
@@ -397,6 +399,7 @@ export async function createLesson(moduleId: string, input: {
   videoUrl?: string;
   videoProvider?: VideoProvider;
   videoPublicId?: string;
+  youtubeId?: string; // link ou ID do YouTube
   pdfUrl?: string;
   duration?: number;
   isFree: boolean;
@@ -418,6 +421,7 @@ export async function createLesson(moduleId: string, input: {
       videoUrl: input.videoUrl,
       videoProvider: input.videoProvider,
       videoPublicId: input.videoPublicId,
+      youtubeId: input.youtubeId ? parseYoutubeId(input.youtubeId) : null,
       pdfUrl: input.pdfUrl,
       duration: input.duration,
       // Não existe aula grátis na LEX (decisão do dono): sempre falso.
@@ -440,6 +444,7 @@ export async function updateLesson(lessonId: string, input: {
   videoUrl?: string | null;
   videoProvider?: VideoProvider | null;
   videoPublicId?: string | null;
+  youtubeId?: string | null; // link ou ID do YouTube; null limpa
   pdfUrl?: string | null;
   duration?: number | null;
   isFree: boolean;
@@ -452,8 +457,9 @@ export async function updateLesson(lessonId: string, input: {
 
   // Se o vídeo foi trocado, remove o antigo do Bunny.
   const old = await db.lesson.findUnique({ where: { id: lessonId }, select: { videoProvider: true, videoPublicId: true } });
-  if (old?.videoProvider === "bunny" && old.videoPublicId && old.videoPublicId !== input.videoPublicId) {
-    await deleteBunnyVideo(old.videoPublicId);
+  const oldBunny = old ? bunnyVideoIdOf(old) : null;
+  if (oldBunny && oldBunny !== input.videoPublicId) {
+    await deleteBunnyVideo(oldBunny);
   }
 
   const lesson = await db.lesson.update({
@@ -466,6 +472,7 @@ export async function updateLesson(lessonId: string, input: {
       videoUrl: input.videoUrl ?? null,
       videoProvider: input.videoProvider ?? null,
       videoPublicId: input.videoPublicId ?? null,
+      youtubeId: input.youtubeId ? parseYoutubeId(input.youtubeId) : null,
       pdfUrl: input.pdfUrl ?? null,
       duration: input.duration ?? null,
       isFree: false,
@@ -502,9 +509,8 @@ export async function deleteLesson(lessonId: string) {
   const session = await requireStaff();
   if (!(await canEditLesson(session.user, lessonId))) return NOT_ALLOWED;
   const lesson = await db.lesson.delete({ where: { id: lessonId } });
-  if (lesson.videoProvider === "bunny" && lesson.videoPublicId) {
-    await deleteBunnyVideo(lesson.videoPublicId);
-  }
+  const bunnyId = bunnyVideoIdOf(lesson); // o YouTube nunca é tocado pela plataforma
+  if (bunnyId) await deleteBunnyVideo(bunnyId);
   await recalcTotalsForModule(lesson.moduleId);
   revalidateContent();
   return { success: true as const };

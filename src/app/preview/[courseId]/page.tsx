@@ -6,7 +6,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "@/app/(student)/student/player/player-client";
 import { toStudentQuiz } from "@/lib/quiz";
-import { resolveLessonVideoUrl } from "@/lib/bunny";
+import { staffVideoSrc } from "@/lib/lesson-video";
 
 export default async function CoursePreviewPage(props: { params: Promise<{ courseId: string }> }) {
   const params = await props.params;
@@ -52,7 +52,7 @@ export default async function CoursePreviewPage(props: { params: Promise<{ cours
       title: l.title,
       type: l.type,
       duration: l.duration,
-      videoUrl: resolveLessonVideoUrl(l),
+      videoUrl: staffVideoSrc(l),
       hasPdf: !!l.pdfUrl,
       materials: l.materials,
       description: l.description,

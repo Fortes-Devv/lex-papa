@@ -6,7 +6,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSe
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
   ChevronLeft, MoreHorizontal, Plus, Layers, Play, ImagePlus, RotateCcw, ArrowUp, ArrowDown,
-  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive, Clock,
+  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive, Clock, PlaySquare, CloudOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import { MediaUploader } from "@/components/upload/media-uploader";
 import { useToast } from "@/components/ui/toast";
 import { LessonFormDialog, type LessonFormValue } from "@/components/course/lesson-form-dialog";
 import { DriveImportDialog } from "@/components/course/drive-import-dialog";
+import { YoutubeImportDialog } from "@/components/course/youtube-import-dialog";
+import { deleteBunnyBackups, setModuleVideoSource } from "@/lib/actions/youtube-import";
 import { uploadToCloudinary } from "@/lib/cloudinary-upload";
 import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
@@ -100,6 +102,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
   // Aula (nova / editar)
   const [driveFor, setDriveFor] = useState<EditorModule | null>(null);
   const [releaseFor, setReleaseFor] = useState<EditorModule | null>(null);
+  const [youtubeFor, setYoutubeFor] = useState<EditorModule | null>(null);
   const [lessonDialog, setLessonDialog] = useState<{ open: boolean; moduleId: string | null; initial: LessonFormValue | null }>({ open: false, moduleId: null, initial: null });
 
   const report = useCallback((result: ActionResult, ok?: string) => {
@@ -233,6 +236,22 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Editar módulo", icon: <Pencil className="h-3.5 w-3.5" />, onClick: () => openEditModule(m) });
       items.push({ label: "Adicionar aula", icon: <Plus className="h-3.5 w-3.5" />, onClick: () => openNewLesson(m) });
       items.push({ label: "Importar do Google Drive", icon: <HardDrive className="h-3.5 w-3.5" />, onClick: () => setDriveFor(m) });
+      items.push({ label: "Importar playlist do YouTube", icon: <PlaySquare className="h-3.5 w-3.5" />, onClick: () => setYoutubeFor(m) });
+      // De onde o módulo toca (o vídeo da Bunny fica como reserva enquanto existir).
+      const toYoutube = m.lessons.filter((l) => l.youtubeId && l.videoProvider !== "youtube").length;
+      const withBackup = m.lessons.filter((l) => l.videoProvider === "youtube" && l.videoPublicId).length;
+      if (toYoutube > 0) items.push({ label: `Tocar do YouTube (${toYoutube})`, icon: <PlaySquare className="h-3.5 w-3.5" />, onClick: async () => report(await setModuleVideoSource(m.id, "youtube"), "Módulo tocando do YouTube.") });
+      if (withBackup > 0) {
+        items.push({ label: `Voltar para a Bunny (${withBackup})`, icon: <RotateCcw className="h-3.5 w-3.5" />, onClick: async () => report(await setModuleVideoSource(m.id, "bunny"), "Módulo tocando da Bunny de novo.") });
+        items.push({
+          label: `Apagar cópias da Bunny (${withBackup})`, icon: <CloudOff className="h-3.5 w-3.5" />, variant: "destructive", onClick: async () => {
+            if (!confirm(`Apagar da Bunny os ${withBackup} vídeos deste módulo que já tocam do YouTube?
+
+Isso reduz o custo de armazenamento, mas "Voltar para a Bunny" deixa de funcionar: para voltar, será preciso importar do Google Drive de novo.`)) return;
+            report(await deleteBunnyBackups(m.id), "Cópias da Bunny apagadas.");
+          },
+        });
+      }
       if (m.lessons.length > 0) items.push({ label: "Liberação das aulas…", icon: <Clock className="h-3.5 w-3.5" />, onClick: () => setReleaseFor(m) });
       const drafts = m.lessons.filter((l) => l.status !== "published").length;
       if (drafts > 0) {
@@ -260,6 +279,7 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
               id: l.id, title: l.title, type: l.type, description: l.description ?? "", videoUrl: l.videoUrl ?? "",
               videoPublicId: l.videoPublicId ?? "", pdfUrl: l.pdfUrl ?? "", duration: l.duration ? String(l.duration) : "",
               isFree: l.isFree, isPreview: l.isPreview, completionCriteria: l.completionCriteria, dripDays: String(l.dripDays ?? 0),
+              youtubeId: l.youtubeId ?? "", playFrom: l.videoProvider === "youtube" ? "youtube" : "bunny",
               materials: l.materials,
             },
           }),
@@ -573,6 +593,11 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       {/* ── Diálogo: importar do Google Drive ── */}
       {driveFor && (
         <DriveImportDialog open onClose={() => setDriveFor(null)} moduleId={driveFor.id} moduleTitle={driveFor.title} />
+      )}
+
+      {/* ── Diálogo: importar playlist do YouTube ── */}
+      {youtubeFor && (
+        <YoutubeImportDialog open onClose={() => setYoutubeFor(null)} scope={{ kind: "module", moduleId: youtubeFor.id }} scopeTitle={youtubeFor.title} />
       )}
 
       {/* ── Diálogo: liberação das aulas (X dias após a compra) ── */}

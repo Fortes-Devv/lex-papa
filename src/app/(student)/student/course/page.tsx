@@ -350,7 +350,7 @@ async function ListSectionView({ section, userId, courseId, productId, isStaff }
     db.courseModule.findFirst({
       where: { courseId, section, isPublished: true },
       orderBy: { addedAt: "asc" },
-      select: { module: { select: { lessons: { where: { status: "published" }, orderBy: { order: "asc" }, select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, pdfUrl: true, dripDays: true } } } } },
+      select: { module: { select: { lessons: { where: { status: "published" }, orderBy: { order: "asc" }, select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, youtubeId: true, pdfUrl: true, dripDays: true } } } } },
     }),
     db.enrollment.findUnique({ where: { userId_productId: { userId, productId } } }),
   ]);
@@ -378,7 +378,7 @@ async function ListSectionView({ section, userId, courseId, productId, isStaff }
         <ul className="divide-y divide-line-soft dark:divide-white/10">
           {lessons.map((l, i) => {
             const until = enrolledAt ? lockedUntil(enrolledAt, Math.max(days, l.dripDays ?? 0)) : null;
-            const isPdf = l.type === "pdf" || (!l.videoUrl && !l.videoPublicId && !!l.pdfUrl);
+            const isPdf = l.type === "pdf" || (!l.videoUrl && !l.videoPublicId && !l.youtubeId && !!l.pdfUrl);
             const row = (
               <>
                 <span className={cn("grid h-6 w-6 shrink-0 place-items-center rounded-full text-[11px] font-bold",

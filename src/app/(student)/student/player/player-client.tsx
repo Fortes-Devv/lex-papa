@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { formatDuration, cn } from "@/lib/utils/cn";
 import { markLessonComplete, saveLessonNote, saveWatchProgress } from "@/lib/actions/learning";
+import { getLessonYoutubeId } from "@/lib/actions/video";
+import { YOUTUBE_PENDING, youtubeSrc } from "@/lib/youtube";
 
 export interface PlayerLesson {
   id: string;
@@ -96,6 +98,21 @@ export function PlayerClient({
   const totalLessons = allLessons.length;
   const progress = totalLessons > 0 ? Math.round((completed.size / totalLessons) * 100) : 0;
   const back = backHref ?? `/student/course?courseId=${courseId}${currentModule ? `&modulo=${currentModule.id}` : ""}`;
+
+  // Aula do YouTube: o ID só é pedido ao servidor quando a aula é aberta (a lista de
+  // aulas não leva os IDs). Guarda os já pedidos para voltar a uma aula sem esperar.
+  const [ytSrc, setYtSrc] = useState<Record<string, string | { error: string }>>({});
+  const needsYoutube = current?.videoUrl === YOUTUBE_PENDING;
+  useEffect(() => {
+    if (!current || !needsYoutube || ytSrc[current.id]) return;
+    const id = current.id;
+    getLessonYoutubeId(courseId, id)
+      .then((r) => setYtSrc((p) => ({ ...p, [id]: r.ok ? youtubeSrc(r.id) : { error: r.error } })))
+      .catch(() => setYtSrc((p) => ({ ...p, [id]: { error: "Não foi possível carregar o vídeo. Recarregue a página." } })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, needsYoutube]);
+  const ytEntry = current && needsYoutube ? ytSrc[current.id] : undefined;
+  const videoSrc = !current?.videoUrl ? null : needsYoutube ? (typeof ytEntry === "string" ? ytEntry : null) : current.videoUrl;
 
   // Modo de leitura lembrado neste aparelho.
   useEffect(() => {
@@ -371,12 +388,16 @@ export function PlayerClient({
           ) : (
             <div className={cn("relative bg-black", effectiveMode === "split" && "lg:grid lg:grid-cols-2", effectiveMode === "pdf" && "lg:bg-neutral-800")}>
               <div className={cn(effectiveMode === "pdf" && "lg:hidden", effectiveMode === "split" && "lg:flex lg:items-center")}>
-                {current.videoUrl ? (
+                {current.videoUrl && !videoSrc ? (
+                  <div className="flex aspect-video w-full items-center justify-center px-6 text-center text-sm text-white/60">
+                    {ytEntry && typeof ytEntry !== "string" ? ytEntry.error : <Loader2 className="h-8 w-8 animate-spin text-white/70" />}
+                  </div>
+                ) : videoSrc ? (
                   <VideoPlayer
                     key={current.id}
                     title={current.title}
                     watermark="LEX Concursos"
-                    src={current.videoUrl}
+                    src={videoSrc}
                     onComplete={handleVideoEnded}
                     autoPlay={autoPlayNext}
                     startAt={positions[current.id] ?? 0}

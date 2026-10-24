@@ -34,7 +34,7 @@ const getCourseProduct = cache(async (slug: string) =>
                   lessons: {
                     orderBy: { order: "asc" },
                     where: { status: "published" },
-                    select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoProvider: true, videoPublicId: true, pdfUrl: true, _count: { select: { materials: true } } },
+                    select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoProvider: true, videoPublicId: true, youtubeId: true, pdfUrl: true, _count: { select: { materials: true } } },
                   },
                 },
               },
@@ -100,7 +100,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
     const key = name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
     const g = groups.get(key) ?? { key, name, instructorName: m.instructor?.name ?? null, initials: subjectInitials(name), lessons: [], seconds: 0, pdfs: 0 };
     for (const l of m.lessons) {
-      const hasVideo = Boolean(l.videoUrl || l.videoPublicId);
+      const hasVideo = Boolean(l.videoUrl || l.videoPublicId || l.youtubeId);
       const isPdf = l.type === "pdf" || (!hasVideo && !!l.pdfUrl);
       g.lessons.push({ id: l.id, title: l.title, duration: l.duration, isPdf });
       g.seconds += l.duration ?? 0;
@@ -112,7 +112,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
   const allLessons = modules.flatMap((m) => m.lessons);
   const totalSeconds = allLessons.reduce((s, l) => s + (l.duration ?? 0), 0);
   const pdfCount = allLessons.filter((l) => l.pdfUrl).length + allLessons.reduce((s, l) => s + l._count.materials, 0);
-  const videoCount = allLessons.filter((l) => l.videoUrl || l.videoPublicId).length;
+  const videoCount = allLessons.filter((l) => l.videoUrl || l.videoPublicId || l.youtubeId).length;
   const teachers = [...new Set(modules.map((m) => m.instructor?.name).filter(Boolean) as string[])];
   const hasLessons = allLessons.length > 0;
 

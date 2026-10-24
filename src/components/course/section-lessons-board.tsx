@@ -1,12 +1,13 @@
 "use client";
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, HardDrive, Lock, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, EyeOff, FileText, HardDrive, Lock, Pencil, PlaySquare, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { DropdownItem } from "@/components/ui/dropdown";
 import { useToast } from "@/components/ui/toast";
 import { LessonFormDialog, type LessonFormValue } from "@/components/course/lesson-form-dialog";
 import { DriveImportDialog } from "@/components/course/drive-import-dialog";
+import { YoutubeImportDialog } from "@/components/course/youtube-import-dialog";
 import { PreviewPanel } from "@/components/course/module-board/preview-panel";
 import type { EditorLesson, EditorModule } from "@/components/course/module-board/types";
 import { defaultLesson } from "@/components/course/module-board/utils";
@@ -27,6 +28,7 @@ export function SectionLessonsBoard({ mod, section }: { mod: EditorModule; secti
   const [lessonId, setLessonId] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [drive, setDrive] = useState(false);
+  const [youtube, setYoutube] = useState(false);
   const [lessonDialog, setLessonDialog] = useState<{ open: boolean; initial: LessonFormValue | null }>({ open: false, initial: null });
   const lesson = mod.lessons.find((l) => l.id === lessonId) ?? defaultLesson(mod);
 
@@ -44,6 +46,7 @@ export function SectionLessonsBoard({ mod, section }: { mod: EditorModule; secti
           id: l.id, title: l.title, type: l.type, description: l.description ?? "", videoUrl: l.videoUrl ?? "",
           videoPublicId: l.videoPublicId ?? "", pdfUrl: l.pdfUrl ?? "", duration: l.duration ? String(l.duration) : "",
           isFree: l.isFree, isPreview: l.isPreview, completionCriteria: l.completionCriteria, dripDays: String(l.dripDays ?? 0),
+          youtubeId: l.youtubeId ?? "", playFrom: l.videoProvider === "youtube" ? "youtube" : "bunny",
           materials: l.materials,
         },
       }),
@@ -68,6 +71,7 @@ export function SectionLessonsBoard({ mod, section }: { mod: EditorModule; secti
             ? <><FileText className="h-4 w-4 text-brand" /> Cada simulado é uma aula com o PDF da prova (o gabarito pode ir como anexo).</>
             : <><Lock className="h-4 w-4 text-brand" /> O aluno só acessa a Mentoria {MENTORIA_RELEASE_DAYS} dias após a compra.</>}
         </p>
+        {!pdf && <Button size="sm" variant="outline" leftIcon={<PlaySquare className="h-3.5 w-3.5" />} onClick={() => setYoutube(true)}>Playlist do YouTube</Button>}
         <Button size="sm" variant="outline" leftIcon={<HardDrive className="h-3.5 w-3.5" />} onClick={() => setDrive(true)}>Importar do Google Drive</Button>
         <Button size="sm" leftIcon={<Plus className="h-3.5 w-3.5" />} onClick={() => setLessonDialog({ open: true, initial: fresh })}>{pdf ? "Adicionar simulado" : "Adicionar aula"}</Button>
       </div>
@@ -90,6 +94,7 @@ export function SectionLessonsBoard({ mod, section }: { mod: EditorModule; secti
         moduleId={mod.id}
         initial={lessonDialog.initial}
       />
+      {youtube && <YoutubeImportDialog open onClose={() => setYoutube(false)} scope={{ kind: "module", moduleId: mod.id }} scopeTitle={mod.title} />}
       {drive && <DriveImportDialog open onClose={() => setDrive(false)} moduleId={mod.id} moduleTitle={mod.title} />}
     </div>
   );

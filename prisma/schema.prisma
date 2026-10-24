@@ -348,7 +348,9 @@ model Lesson {
   duration           Int? // segundos
   videoUrl           String?
   videoProvider      VideoProvider?
-  videoPublicId      String? // id do asset no Cloudinary, p/ deletar/gerenciar
+  videoPublicId      String? // id do vídeo na Bunny (fica como reserva quando a aula toca do YouTube)
+  // Vídeo da aula no YouTube (não listado). videoProvider = "youtube" faz a aula tocar daqui.
+  youtubeId          String?
   content            String?            @db.Text
   pdfUrl             String?
   audioUrl           String?

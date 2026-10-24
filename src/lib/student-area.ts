@@ -84,7 +84,7 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
               lessons: {
                 where: { status: "published" },
                 orderBy: { order: "asc" },
-                select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, pdfUrl: true, _count: { select: { materials: true } } },
+                select: { id: true, title: true, type: true, duration: true, videoUrl: true, videoPublicId: true, youtubeId: true, pdfUrl: true, _count: { select: { materials: true } } },
               },
             },
           },
@@ -104,7 +104,7 @@ export async function loadCourseOutline(userId: string, courseId: string): Promi
 
   const modules: OutlineModule[] = course.modules.map(({ module: m }, i) => {
     const lessons = m.lessons.map<OutlineLesson>((l) => {
-      const hasVideo = Boolean(l.videoUrl || l.videoPublicId);
+      const hasVideo = Boolean(l.videoUrl || l.videoPublicId || l.youtubeId);
       return {
         id: l.id,
         title: l.title,

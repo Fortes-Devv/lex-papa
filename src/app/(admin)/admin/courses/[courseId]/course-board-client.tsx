@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Eye, EyeOff, ExternalLink, MonitorPlay } from "lucide-react";
+import { Pencil, Eye, EyeOff, ExternalLink, MonitorPlay, PlaySquare } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import type { DropdownItem } from "@/components/ui/dropdown";
 import { ModuleBoard } from "@/components/course/module-board/module-board";
 import type { CourseHeaderInfo, EditorModule, TeacherOption } from "@/components/course/module-board/types";
 import { EditCourseDialog, type EditCourseInitial } from "@/components/course/edit-course-dialog";
+import { YoutubeImportDialog } from "@/components/course/youtube-import-dialog";
 import { updateCourseStatus } from "@/lib/actions/courses";
 
 export function AdminCourseBoard({ header, slug, modules, teachers, editInitial, backHref }: {
@@ -20,6 +21,7 @@ export function AdminCourseBoard({ header, slug, modules, teachers, editInitial,
   const router = useRouter();
   const { success, error } = useToast();
   const [editOpen, setEditOpen] = useState(false);
+  const [youtubeOpen, setYoutubeOpen] = useState(false);
   const published = header.status === "published";
 
   const courseMenu: DropdownItem[] = [
@@ -34,6 +36,7 @@ export function AdminCourseBoard({ header, slug, modules, teachers, editInitial,
         router.refresh();
       },
     },
+    { label: "Ligar vídeos do YouTube (curso todo)", icon: <PlaySquare className="h-3.5 w-3.5" />, onClick: () => setYoutubeOpen(true) },
     { label: "Assistir como aluno", icon: <MonitorPlay className="h-3.5 w-3.5" />, href: `/preview/${header.courseId}` },
     ...(published ? [{ label: "Ver página de venda", icon: <ExternalLink className="h-3.5 w-3.5" />, href: `/cursos/${slug}` }] : []),
   ];
@@ -42,6 +45,7 @@ export function AdminCourseBoard({ header, slug, modules, teachers, editInitial,
     <>
       <ModuleBoard header={header} modules={modules} teachers={teachers} backHref={backHref} courseMenu={courseMenu} />
       <EditCourseDialog initial={editInitial} open={editOpen} onOpenChange={setEditOpen} />
+      {youtubeOpen && <YoutubeImportDialog open onClose={() => setYoutubeOpen(false)} scope={{ kind: "course", courseId: header.courseId }} scopeTitle={header.title} />}
     </>
   );
 }

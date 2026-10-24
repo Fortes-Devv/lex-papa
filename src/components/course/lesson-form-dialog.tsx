@@ -13,6 +13,7 @@ import { createLesson, updateLesson } from "@/lib/actions/courses";
 import type { LessonType, Lesson } from "@/lib/types";
 import { LessonMaterials, type MaterialItem } from "@/components/course/lesson-materials";
 import { addLessonMaterial } from "@/lib/actions/materials";
+import { parseYoutubeId } from "@/lib/youtube";
 
 type CompletionCriteria = Lesson["completionCriteria"];
 
@@ -46,6 +47,8 @@ export interface LessonFormValue {
   isPreview: boolean;
   completionCriteria: string;
   dripDays?: string;
+  youtubeId?: string; // link ou ID do YouTube
+  playFrom?: "bunny" | "youtube"; // quando a aula tem os dois vídeos
   materials?: MaterialItem[]; // PDFs anexados à aula
 }
 
@@ -76,6 +79,11 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
       error("Dê um título para a aula.");
       return;
     }
+    const ytId = form.youtubeId?.trim() ? parseYoutubeId(form.youtubeId) : null;
+    if (form.youtubeId?.trim() && !ytId) { error("Link do YouTube não reconhecido. Cole o link do vídeo (youtube.com/watch?v=… ou youtu.be/…)."); return; }
+    // Toca do YouTube quando escolhido (ou quando é o único vídeo); senão, da Bunny.
+    const fromYoutube = Boolean(ytId) && (form.playFrom === "youtube" || !form.videoPublicId);
+    const provider = fromYoutube ? "youtube" as const : form.videoPublicId ? "bunny" as const : undefined;
     setLoading(true);
     try {
       const base = {
@@ -86,13 +94,15 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         isPreview: form.isPreview,
         completionCriteria: form.completionCriteria as CompletionCriteria,
         dripDays: Number(form.dripDays ?? 0) || 0,
+        youtubeId: ytId ?? undefined,
       };
       if (form.id) {
         // null limpa de verdade (ex: ao remover o vídeo/PDF)
         const result = await updateLesson(form.id, {
           ...base,
           videoUrl: form.videoUrl || null,
-          videoProvider: form.videoPublicId ? "bunny" : null,
+          videoProvider: provider ?? null,
+          youtubeId: ytId,
           videoPublicId: form.videoPublicId || null,
           pdfUrl: form.pdfUrl || null,
           duration: form.duration ? Number(form.duration) : null,
@@ -103,7 +113,7 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
         const result = await createLesson(moduleId, {
           ...base,
           videoUrl: form.videoUrl || undefined,
-          videoProvider: (form.videoPublicId ? "bunny" : undefined) as "bunny" | undefined,
+          videoProvider: provider,
           videoPublicId: form.videoPublicId || undefined,
           pdfUrl: form.pdfUrl || undefined,
           duration: form.duration ? Number(form.duration) : undefined,
@@ -153,6 +163,26 @@ export function LessonFormDialog({ open, onClose, moduleId, initial }: LessonFor
               }))}
               onRemove={() => setForm((f) => ({ ...f, videoUrl: "", videoPublicId: "" }))}
             />
+          </div>
+        )}
+
+        {(form.type === "video" || form.youtubeId) && (
+          <div className="space-y-2">
+            <Input label="Vídeo no YouTube (opcional)" placeholder="https://youtu.be/… ou https://www.youtube.com/watch?v=…" value={form.youtubeId ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, youtubeId: e.target.value }))} />
+            {form.youtubeId?.trim() && form.videoPublicId ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-foreground-muted">Tocar de:</span>
+                {(["youtube", "bunny"] as const).map((p) => (
+                  <button key={p} type="button" onClick={() => setForm((f) => ({ ...f, playFrom: p }))}
+                    className={`rounded-md border px-3 py-1 text-xs font-semibold ${(form.playFrom ?? "youtube") === p ? "border-brand bg-brand-soft text-brand dark:bg-brand/15" : "border-border text-foreground-muted"}`}>
+                    {p === "youtube" ? "YouTube" : "Bunny (reserva)"}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-foreground-muted">Use um vídeo <b>não listado</b>. Se a aula também tiver vídeo na Bunny, ele fica como reserva.</p>
+            )}
           </div>
         )}
 

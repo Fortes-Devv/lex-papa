@@ -12,7 +12,9 @@ export interface EditorLesson {
   videoUrl: string | null; // URL base: é o que o formulário devolve ao salvar
   previewUrl: string | null; // URL assinada, só para o player do preview (nunca salvar)
   thumbUrl: string | null; // miniatura do vídeo (Bunny), assinada
-  videoPublicId: string | null;
+  videoPublicId: string | null; // Bunny (reserva quando toca do YouTube)
+  videoProvider: string | null; // "bunny" | "youtube" | ...
+  youtubeId: string | null;
   pdfUrl: string | null;
   description: string | null;
   isFree: boolean;

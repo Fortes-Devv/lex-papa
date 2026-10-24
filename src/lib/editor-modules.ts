@@ -1,6 +1,6 @@
 import type { Session } from "next-auth";
 import { db } from "@/lib/db";
-import { resolveLessonThumbUrl, resolveLessonVideoUrl } from "@/lib/bunny";
+import { lessonThumbUrl, staffVideoSrc } from "@/lib/lesson-video";
 import { syncPendingDurations } from "@/lib/video-durations";
 import type { EditorModule } from "@/components/course/module-board/types";
 
@@ -48,9 +48,11 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
       duration: l.duration,
       // URL base (é o que o formulário devolve ao salvar — nunca gravar a assinada).
       videoUrl: l.videoUrl,
-      previewUrl: resolveLessonVideoUrl(l),
-      thumbUrl: resolveLessonThumbUrl(l),
+      previewUrl: staffVideoSrc(l),
+      thumbUrl: lessonThumbUrl(l),
       videoPublicId: l.videoPublicId,
+      videoProvider: l.videoProvider,
+      youtubeId: l.youtubeId,
       pdfUrl: l.pdfUrl,
       description: l.description,
       isFree: l.isFree,

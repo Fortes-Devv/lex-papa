@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-client";
 import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
-import { resolveLessonVideoUrl } from "@/lib/bunny";
+import { studentVideoSrc } from "@/lib/lesson-video";
 import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
 
 export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
@@ -101,7 +101,8 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
         title: l.title,
         type: l.type,
         duration: l.duration,
-        videoUrl: locked ? null : resolveLessonVideoUrl(l),
+        // YouTube: só um marcador; o ID é pedido ao abrir a aula (getLessonYoutubeId).
+        videoUrl: locked ? null : studentVideoSrc(l),
         hasPdf: !locked && !pdfUntil && !!l.pdfUrl,
         materials: locked || pdfUntil ? [] : l.materials,
         releaseAt: isEnrolled && moduleUntil ? releaseLabel(moduleUntil) : null,
