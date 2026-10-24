@@ -60,12 +60,13 @@ const stamp = (t: number) => formatDuration(t);
 // Player (modelos 7c e 8c): vídeo com modos Vídeo / Vídeo + PDF / Só PDF, abas
 // Aulas · Capítulos · PDF · Anotações · Dúvidas, lista do módulo e "Próxima aula" fixa.
 export function PlayerClient({
-  courseId, courseTitle, modules, initialLessonId, initialTab, isEnrolled, backHref, buyHref,
+  courseId, courseTitle, modules, initialLessonId, initialTab, isEnrolled, backHref, buyHref, viewerMark,
 }: {
   courseId: string;
   courseTitle: string;
   modules: PlayerModule[];
   initialLessonId?: string;
+  viewerMark?: string; // marca-d'água do aluno no vídeo
   initialTab?: Tab;
   isEnrolled: boolean;
   backHref?: string;
@@ -397,6 +398,7 @@ export function PlayerClient({
                     key={current.id}
                     title={current.title}
                     watermark="LEX Concursos"
+                    viewerMark={viewerMark}
                     src={videoSrc}
                     onComplete={handleVideoEnded}
                     autoPlay={autoPlayNext}

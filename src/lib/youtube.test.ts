@@ -61,3 +61,15 @@ describe("ligar vídeos às aulas", () => {
     expect(r.lessonsWithout.map((l) => l.id)).toEqual(["c"]);
   });
 });
+
+import { codeFromSearch, viewerCode, viewerMark } from "./viewer-mark";
+describe("marca-d'água do aluno", () => {
+  it("usa o primeiro nome e o código da conta, sem e-mail", () => {
+    expect(viewerCode("cmabc123xyz9k3f9qz")).toBe("K3F9QZ");
+    expect(viewerMark({ id: "cmabc123xyz9k3f9qz", name: "Ana Kelly de Sousa" })).toBe("Ana · #K3F9QZ");
+  });
+  it("a busca do admin entende #CÓDIGO", () => {
+    expect(codeFromSearch("#k3f9qz")).toBe("K3F9QZ");
+    expect(codeFromSearch("ana")).toBeNull();
+  });
+});

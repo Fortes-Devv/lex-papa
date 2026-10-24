@@ -5,6 +5,7 @@ import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-cli
 import { toStudentQuiz } from "@/lib/quiz";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { studentVideoSrc } from "@/lib/lesson-video";
+import { viewerMark } from "@/lib/viewer-mark";
 import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
 
 export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
@@ -127,6 +128,7 @@ export default async function PlayerPage(props: { searchParams: Promise<{ course
       initialLessonId={searchParams.lessonId ?? lastWatched}
       initialTab={searchParams.aba === "duvidas" ? "duvidas" : undefined}
       isEnrolled={isEnrolled}
+      viewerMark={viewerMark({ id: userId, name: session.user.name })}
       buyHref={`/cursos/${course.product.slug}`}
     />
   );

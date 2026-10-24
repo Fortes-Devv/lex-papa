@@ -15,6 +15,7 @@ import { createUserByAdmin, updateUserRole, updateUserStatus, deleteUserWithoutP
 import { SupportDialogs, type SupportAction } from "./support-dialogs";
 import { KIND_LABEL, kindFromParam, type UserKind } from "@/lib/user-kinds";
 import { CdnImg } from "@/components/ui/cdn-img";
+import { codeFromSearch } from "@/lib/viewer-mark";
 import type { User, UserRole, UserStatus } from "@/lib/types";
 
 const roleLabels: Record<UserRole, string> = { admin: "Admin", teacher: "Professor", student: "Aluno", moderator: "Moderador" }; // "teacher" não existe mais como usuário
@@ -70,7 +71,9 @@ export function UsersClient({ initialUsers, extras = {}, newThisWeek = 0, course
 
   const users = useMemo(() => {
     return initialUsers.filter((u) => {
-      const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+      // "#CÓDIGO" = código da marca-d'água do player (6 últimos caracteres do ID da conta).
+      const code = codeFromSearch(search);
+      const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()) || (!!code && u.id.toUpperCase().endsWith(code));
       const kind = extras[u.id]?.kind;
       const matchKind = !kindFilter || (kindFilter === "contas" ? u.role === "student" : kind === kindFilter);
       const matchCourse = !courseFilter || (extras[u.id]?.courseIds ?? []).includes(courseFilter);

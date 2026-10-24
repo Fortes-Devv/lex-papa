@@ -6,12 +6,14 @@ import {
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils/cn";
 import { SeekBar } from "./seek-bar";
+import { MovingWatermark } from "./moving-watermark";
 import { YouTubePlayer } from "./youtube-player";
 import { youtubeIdFromSrc } from "@/lib/youtube";
 
 interface VideoPlayerProps {
   title?: string;
   watermark?: string;
+  viewerMark?: string; // marca-d'água do aluno (nome + código da conta), muda de lugar
   onComplete?: () => void;
   className?: string;
   src?: string;
@@ -29,7 +31,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
   // Aula que toca do YouTube ("youtube:ID"): player próprio sobre a IFrame API.
   const ytId = src ? youtubeIdFromSrc(src) : null;
   if (ytId) {
-    return <YouTubePlayer key={ytId} videoId={ytId} title={props.title} watermark={watermark} className={className} autoPlay={props.autoPlay}
+    return <YouTubePlayer key={ytId} videoId={ytId} title={props.title} watermark={watermark} viewerMark={props.viewerMark} className={className} autoPlay={props.autoPlay}
       startAt={props.startAt} onComplete={onComplete} onTimeUpdate={props.onTimeUpdate} onPause={props.onPause} seekRef={props.seekRef} />;
   }
   if (src) {
@@ -38,7 +40,7 @@ export function VideoPlayer(props: VideoPlayerProps) {
   return <MockVideoPlayer watermark={watermark} onComplete={onComplete} className={className} />;
 }
 
-function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, startAt, onTimeUpdate, onPause, seekRef }: VideoPlayerProps & { src: string }) {
+function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, autoPlay, startAt, onTimeUpdate, onPause, seekRef }: VideoPlayerProps & { src: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -56,6 +58,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, star
   const [fullscreen, setFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [error, setError] = useState(false);
+  const [tampered, setTampered] = useState(false);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
   const bufferedPct = duration > 0 ? (buffered / duration) * 100 : 0;
@@ -226,7 +229,7 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, star
           const b = e.currentTarget.buffered;
           if (b.length) setBuffered(b.end(b.length - 1));
         }}
-        onPlay={() => { setPlaying(true); setEnded(false); revealControls(); }}
+        onPlay={(e) => { if (tampered) { e.currentTarget.pause(); return; } setPlaying(true); setEnded(false); revealControls(); }}
         onPause={(e) => { setPlaying(false); setShowControls(true); onPause?.(e.currentTarget.currentTime, e.currentTarget.duration || 0); }}
         onWaiting={() => setWaiting(true)}
         onPlaying={() => setWaiting(false)}
@@ -271,6 +274,16 @@ function RealVideoPlayer({ src, watermark, onComplete, className, autoPlay, star
             {ended ? <RotateCcw className="h-7 w-7 text-white" /> : <Play className="h-8 w-8 text-white ml-1" />}
           </span>
         </button>
+      )}
+
+      {viewerMark && (
+        <MovingWatermark text={viewerMark} onTamper={(t) => { setTampered(t); if (t) videoRef.current?.pause(); }} />
+      )}
+      {/* Marca do aluno escondida pelas ferramentas do navegador: o vídeo não toca */}
+      {tampered && (
+        <div className="absolute inset-0 z-[45] flex items-center justify-center bg-black px-6 text-center text-sm font-semibold text-white">
+          Vídeo pausado: a identificação do aluno precisa ficar visível. Recarregue a página.
+        </div>
       )}
 
       {/* Watermark */}

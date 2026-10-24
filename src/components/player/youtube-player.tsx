@@ -4,6 +4,7 @@ import { Loader2, Maximize, Minimize, Pause, Play, RotateCcw, SkipBack, SkipForw
 import { cn, formatDuration } from "@/lib/utils/cn";
 import { youtubeThumb } from "@/lib/youtube";
 import { SeekBar } from "./seek-bar";
+import { MovingWatermark } from "./moving-watermark";
 
 // Player das aulas que tocam do YouTube (IFrame Player API), no padrão do metodocev:
 // o vídeo vem do YouTube, mas os controles são nossos (controls:0). Uma camada por cima
@@ -48,6 +49,7 @@ export interface YouTubePlayerProps {
   videoId: string;
   title?: string;
   watermark?: string;
+  viewerMark?: string; // marca-d'água do aluno (nome + código da conta)
   className?: string;
   autoPlay?: boolean;
   startAt?: number;
@@ -57,7 +59,7 @@ export interface YouTubePlayerProps {
   seekRef?: React.MutableRefObject<((seconds: number) => void) | null>;
 }
 
-export function YouTubePlayer({ videoId, title, watermark, className, autoPlay, startAt, onComplete, onTimeUpdate, onPause, seekRef }: YouTubePlayerProps) {
+export function YouTubePlayer({ videoId, title, watermark, viewerMark, className, autoPlay, startAt, onComplete, onTimeUpdate, onPause, seekRef }: YouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
@@ -82,6 +84,8 @@ export function YouTubePlayer({ videoId, title, watermark, className, autoPlay, 
   const [fullscreen, setFullscreen] = useState(false); // tela cheia de verdade
   const [pseudoFull, setPseudoFull] = useState(false); // iPhone: ocupa a tela com CSS
   const [showControls, setShowControls] = useState(true);
+  const [tampered, setTampered] = useState(false);
+  const tamperedRef = useRef(false);
 
   // Cria o player do YouTube.
   useEffect(() => {
@@ -143,7 +147,7 @@ export function YouTubePlayer({ videoId, title, watermark, className, autoPlay, 
     return () => clearInterval(t);
   }, [playing]);
 
-  const play = useCallback(() => { setStarted(true); setEnded(false); playerRef.current?.playVideo(); }, []);
+  const play = useCallback(() => { if (tamperedRef.current) return; setStarted(true); setEnded(false); playerRef.current?.playVideo(); }, []);
   const togglePlay = useCallback(() => {
     const p = playerRef.current;
     if (!p) return;
@@ -260,6 +264,17 @@ export function YouTubePlayer({ videoId, title, watermark, className, autoPlay, 
                 }}
               />
             ))}
+          </div>
+        )}
+
+        {viewerMark && started && (
+          <MovingWatermark text={viewerMark} onTamper={(t) => { tamperedRef.current = t; setTampered(t); if (t) playerRef.current?.pauseVideo(); }} />
+        )}
+
+        {/* Marca do aluno escondida pelas ferramentas do navegador: o vídeo não toca */}
+        {tampered && (
+          <div className="absolute inset-0 z-[45] flex items-center justify-center bg-black px-6 text-center text-sm font-semibold text-white">
+            Vídeo pausado: a identificação do aluno precisa ficar visível. Recarregue a página.
           </div>
         )}
 
