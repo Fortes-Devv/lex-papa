@@ -17,6 +17,7 @@ type YTPlayer = {
   getCurrentTime(): number; getDuration(): number; getPlayerState(): number; getVideoLoadedFraction(): number;
   setVolume(v: number): void; mute(): void; unMute(): void; setPlaybackRate(r: number): void; destroy(): void;
   unloadModule?(name: string): void; setOption?(module: string, option: string, value: unknown): void;
+  getIframe?(): HTMLIFrameElement; getPlaybackQuality?(): string; getAvailableQualityLevels?(): string[];
   setPlaybackQualityRange?(min: string, max?: string): void; // não documentado; o YouTube pode ignorar
 };
 type YTNamespace = {
@@ -196,6 +197,19 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
   }, []);
   const scale = box.w && box.h ? Math.min(box.w / STAGE_W, box.h / STAGE_H) : 0;
 
+  // Diagnóstico (só com "qualidade" no endereço da página): mostra a qualidade que o
+  // YouTube está entregando, para conferir no aparelho e na internet do aluno.
+  const [diag, setDiag] = useState<string | null>(null);
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("qualidade")) return;
+    const t = setInterval(() => {
+      const p = playerRef.current;
+      const iframe = p?.getIframe?.();
+      setDiag(`qualidade: ${p?.getPlaybackQuality?.() ?? "?"} · disponíveis: ${(p?.getAvailableQualityLevels?.() ?? []).join(", ") || "?"} · iframe ${iframe?.clientWidth ?? 0}×${iframe?.clientHeight ?? 0} · tela ${Math.round(box.w)}×${Math.round(box.h)}`);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [box.w, box.h]);
+
   // Tempo: a IFrame API não tem evento de progresso; lê a cada meio segundo enquanto toca.
   useEffect(() => {
     if (!playing) return;
@@ -369,6 +383,8 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
             </span>
           </button>
         )}
+
+        {diag && <div className="pointer-events-none absolute left-2 top-16 z-[60] rounded bg-black/80 px-2 py-1 font-mono text-[11px] text-lime-300">{diag}</div>}
 
         {warming && (
           <div className="pointer-events-none absolute inset-0 z-[22] flex items-center justify-center bg-black">
