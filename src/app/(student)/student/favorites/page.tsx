@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { FavoritesClient, type FavoriteProduct } from "./favorites-client";
 
 export default async function StudentFavoritesPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
 
   const favorites = await db.favorite.findMany({
     where: { userId: session.user.id },

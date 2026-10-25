@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { LibraryClient, type LibraryEnrollment } from "./library-client";
 
 export default async function StudentLibraryPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
 
   const enrollments = await db.enrollment.findMany({
     where: { userId: session.user.id },

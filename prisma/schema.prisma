@@ -179,6 +179,7 @@ model User {
   postLikes          PostLike[]
   comments           Comment[]
   auditLogs          AuditLog[]
+  sessions           UserSession[]
 
   @@map("users")
 }
@@ -947,4 +948,46 @@ model FlashcardReview {
   @@index([userId, dueAt])
   @@index([cardId])
   @@map("flashcard_reviews")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// SEGURANÇA
+// ─────────────────────────────────────────────────────────────────────────
+
+// Sessão de login (um aparelho). O JWT leva o id da sessão; o servidor confere se ela
+// continua ativa e se a conta não foi suspensa. Revogar = desconectar o aparelho.
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  ipPrefix     String? // IP truncado (minimização de dados)
+  device       String? // "Chrome · Android" (resumo do User-Agent)
+  revokedAt    DateTime?
+  revokeReason String? // logout | limite de aparelhos | admin | conta suspensa
+  revokedBy    String? // id do admin, ou "system"
+
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+// Evento de segurança gravado pelo servidor (nunca vem do navegador).
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  userId    String? // null quando o e-mail do login não existe
+  email     String? // e-mail tentado no login (só em falhas de login)
+  sessionId String?
+  type      String // login_ok | login_fail | login_blocked | session_limit | session_revoked | access_denied | ...
+  severity  String // low | medium | high
+  resource  String? // "lesson:abc", "pdf:abc" (sem tokens nem query string)
+  ipPrefix  String?
+  device    String?
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@map("security_events")
 }

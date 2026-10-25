@@ -9,6 +9,14 @@ import { db } from "@/lib/db";
 import { logAudit } from "@/lib/audit";
 import type { UserRole, UserStatus } from "@/lib/types";
 import { invalidEmailReason } from "@/lib/email-check";
+import { logSecurityEvent, revokeUserSessions } from "@/lib/security";
+
+// Conta deixou de estar ativa: desconecta todos os aparelhos na hora.
+async function disconnectIfBlocked(userId: string, status: string, actorId: string) {
+  if (status === "active") return;
+  const n = await revokeUserSessions(userId, "conta suspensa", actorId);
+  await logSecurityEvent({ type: "account_suspended", severity: "medium", userId, reason: `situação "${status}" pelo admin; ${n} aparelho(s) desconectado(s)` });
+}
 
 // Professor não é usuário (cadastro próprio em Professores).
 const roleSchema = z.enum(["admin", "moderator", "student"]);
@@ -102,6 +110,7 @@ export async function updateUserStatus(userId: string, status: UserStatus) {
   }
   if (!(await canManageUser(session.user.role, userId))) return forbidden;
   await db.user.update({ where: { id: userId }, data: { status: parsedStatus.data } });
+  await disconnectIfBlocked(userId, parsedStatus.data, session.user.id);
   await logAudit({ actorId: session.user.id, action: parsedStatus.data === "banned" ? "user.banned" : "user.updated", resourceType: "user", resourceId: userId, metadata: { status: parsedStatus.data } });
   revalidatePath("/admin/users");
   return { success: true as const };
@@ -149,6 +158,8 @@ export async function setTemporaryPassword(userId: string) {
   if (userId === session.user.id) return { success: false as const, error: "Para a sua conta, use Meu perfil › Senha." };
   const tempPassword = crypto.randomBytes(6).toString("base64url");
   await db.user.update({ where: { id: userId }, data: { passwordHash: await bcrypt.hash(tempPassword, 10) } });
+  // Senha nova: quem estava logado com a antiga sai de todos os aparelhos.
+  await revokeUserSessions(userId, "senha redefinida pelo admin", session.user.id);
   // Libera o bloqueio de tentativas de login desse e-mail.
   await db.rateLimitHit.deleteMany({ where: { key: { contains: user.email.toLowerCase() } } });
   await logAudit({ actorId: session.user.id, action: "user.password_reset_by_admin", resourceType: "user", resourceId: userId });
@@ -218,6 +229,7 @@ export async function updateUserByAdmin(userId: string, input: { name: string; e
   const other = await db.user.findFirst({ where: { email: { equals: email, mode: "insensitive" }, NOT: { id: userId } }, select: { id: true } });
   if (other) return { success: false as const, error: "Este e-mail já está em uso por outra conta. Se for a mesma pessoa, use “Mover cursos para outra conta”." };
   await db.user.update({ where: { id: userId }, data: { name, email, phone: input.phone?.trim() || null, status: status.data } });
+  await disconnectIfBlocked(userId, status.data, session.user.id);
   await logAudit({ actorId: session.user.id, action: "user.updated", resourceType: "user", resourceId: userId, metadata: { name, email, status: status.data } });
   revalidatePath("/admin/users");
   return { success: true as const };

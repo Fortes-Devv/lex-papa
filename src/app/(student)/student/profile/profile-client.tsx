@@ -12,6 +12,7 @@ import { MediaUploader } from "@/components/upload/media-uploader";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { Bar } from "@/components/student/kit";
 import { updateProfile, changePassword, updateAvatar, markAllNotificationsRead } from "@/lib/actions/profile";
+import { signOutOtherDevices } from "@/lib/actions/security";
 import { setWeeklyGoal } from "@/lib/actions/learning";
 import { formatCurrency, formatRelativeDate, cn } from "@/lib/utils/cn";
 
@@ -54,8 +55,10 @@ function Card({ title, action, children }: { title?: string; action?: React.Reac
   );
 }
 
-export function ProfileClient({ section, user, streak, xp, achievements, accesses, orders, notifications }: {
-  section: ProfileSection; user: ProfileUser; streak: number; xp: Xp; achievements: Achievement[]; accesses: Access[]; orders: OrderRow[]; notifications: NotificationRow[];
+export type Device = { id: string; device: string; since: string; seen: string; current: boolean };
+
+export function ProfileClient({ section, devices = [], user, streak, xp, achievements, accesses, orders, notifications }: {
+  section: ProfileSection; devices?: Device[]; user: ProfileUser; streak: number; xp: Xp; achievements: Achievement[]; accesses: Access[]; orders: OrderRow[]; notifications: NotificationRow[];
 }) {
   const { success, error } = useToast();
   const router = useRouter();
@@ -248,7 +251,30 @@ export function ProfileClient({ section, user, streak, xp, achievements, accesse
                 if (pwd.next !== pwd.confirm) { error("As senhas não coincidem."); return; }
                 if (await run("pwd", () => changePassword({ current: pwd.current, next: pwd.next }), "Senha alterada!")) setPwd({ current: "", next: "", confirm: "" });
               }}>Alterar senha</Button>
+              <p className="text-xs text-foreground-muted">Ao trocar a senha, os outros aparelhos são desconectados.</p>
             </div>
+          </Card>
+        )}
+
+        {section === "seguranca" && (
+          <Card title="Aparelhos conectados">
+            <p className="mb-3 text-sm text-foreground-muted">Sua conta pode ficar conectada em até 2 aparelhos ao mesmo tempo. Ao entrar num terceiro, o mais antigo é desconectado.</p>
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {devices.map((d) => (
+                <li key={d.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+                  <span className="font-semibold text-foreground">{d.device}</span>
+                  {d.current && <span className="rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-bold text-ok-text dark:bg-ok/15 dark:text-ok">Este aparelho</span>}
+                  <span className="text-foreground-muted">desde {new Date(d.since).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}</span>
+                </li>
+              ))}
+              {devices.length === 0 && <li className="px-3 py-4 text-sm text-foreground-muted">Nenhum aparelho registrado.</li>}
+            </ul>
+            {devices.some((d) => !d.current) && (
+              <Button variant="outline" className="mt-3" loading={busy === "devices"}
+                onClick={() => run("devices", signOutOtherDevices, "Os outros aparelhos foram desconectados.")}>
+                Sair dos outros aparelhos
+              </Button>
+            )}
           </Card>
         )}
 

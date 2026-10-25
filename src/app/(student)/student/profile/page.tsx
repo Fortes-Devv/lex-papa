@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { requireArea } from "@/lib/auth-guards";
 import { db } from "@/lib/db";
 import { getUserXp } from "@/lib/gamification";
@@ -17,7 +18,7 @@ export default async function StudentProfilePage(props: { searchParams: Promise<
   const section: ProfileSection = SECTIONS.includes(secao as ProfileSection) ? (secao as ProfileSection) : "acessos";
 
   const user = await db.user.findUnique({ where: { id: userId } });
-  if (!user) redirect("/login");
+  if (!user) redirect(LOGIN_PATH);
   const xp = await getUserXp(userId);
   const stats = await getStudyStats(userId);
   const achievements = await db.userAchievement.findMany({ where: { userId }, include: { achievement: true } });
@@ -32,10 +33,14 @@ export default async function StudentProfilePage(props: { searchParams: Promise<
     include: { items: { include: { product: { select: { title: true } } } } },
   });
   const notifications = await db.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: 30 });
+  const devices = section === "seguranca"
+    ? await db.userSession.findMany({ where: { userId, revokedAt: null, lastSeenAt: { gte: new Date(Date.now() - 30 * 86_400_000) } }, orderBy: { lastSeenAt: "desc" }, select: { id: true, device: true, createdAt: true, lastSeenAt: true } })
+    : [];
 
   return (
     <ProfileClient
       section={section}
+      devices={devices.map((d) => ({ id: d.id, device: d.device ?? "Aparelho", since: d.createdAt.toISOString(), seen: d.lastSeenAt.toISOString(), current: d.id === session.user.sid }))}
       user={{
         name: user.name,
         email: user.email,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Clock, XCircle, BookOpen, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function CheckoutSuccessPage(props: { searchParams: Promise<{ order_id?: string }> }) {
   const searchParams = await props.searchParams;
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
   if (!searchParams.order_id) redirect("/");
 
   let order = await db.order.findUnique({

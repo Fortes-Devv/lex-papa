@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import Link from "next/link";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { redirect, notFound } from "next/navigation";
 import { Eye } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -11,7 +12,7 @@ import { staffVideoSrc } from "@/lib/lesson-video";
 export default async function CoursePreviewPage(props: { params: Promise<{ courseId: string }> }) {
   const params = await props.params;
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
   // Só a equipe (admin/moderador) pode pré-visualizar sem matrícula.
   if (!["admin", "moderator"].includes(session.user.role)) {
     redirect("/");

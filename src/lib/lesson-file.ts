@@ -3,6 +3,8 @@ import type { Session } from "next-auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
+import { logSecurityEvent } from "@/lib/security";
+import { stampPdf } from "@/lib/pdf-stamp";
 
 // Quem pode baixar um arquivo de uma aula (PDF da aula ou material anexado):
 // equipe sempre; aluno se a aula está publicada num módulo publicado em algum curso
@@ -22,7 +24,10 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
 
   // Matrícula válida em algum curso que usa o módulo E prazo de liberação daquele curso já passou.
   const enrollments = (await db.enrollment.findMany({ where: { userId: user.id, productId: { in: links.map((l) => l.course.productId) } } })).filter(isEnrollmentActive);
-  if (enrollments.length === 0) return new NextResponse("Você não tem acesso a este material.", { status: 403 });
+  if (enrollments.length === 0) {
+    await logSecurityEvent({ type: "access_denied", severity: "medium", userId: user.id, sessionId: user.sid, resource: `pdf:${lessonId}`, reason: "PDF pedido sem matrícula ativa" });
+    return new NextResponse("Você não tem acesso a este material.", { status: 403 });
+  }
   let soonest: Date | null = null;
   for (const l of links) {
     const e = enrollments.find((x) => x.productId === l.course.productId);
@@ -36,7 +41,8 @@ export async function lessonFileAccessError(user: Session["user"], lessonId: str
 
 // Busca o PDF no armazenamento e devolve como download (ou para abrir na página,
 // com inline), com nome legível e sem expor a URL do Cloudinary ao aluno.
-export async function pdfDownloadResponse(url: string, fileTitle: string, inline = false): Promise<NextResponse> {
+// `stamp` (aluno): carimba o código da conta em cada página antes de entregar.
+export async function pdfDownloadResponse(url: string, fileTitle: string, inline = false, stamp?: string): Promise<NextResponse> {
   const upstream = await fetch(url);
   if (!upstream.ok || !upstream.body) {
     // 401 aqui = entrega de PDF bloqueada nas configurações do Cloudinary.
@@ -49,7 +55,13 @@ export async function pdfDownloadResponse(url: string, fileTitle: string, inline
       .replace(/[̀-ͯ]/g, "")
       .replace(/[^\w\s.-]/g, "")
       .trim() || "material";
-  return new NextResponse(upstream.body, {
+  let body: ReadableStream<Uint8Array> = upstream.body;
+  if (stamp) {
+    const stamped = await stampPdf(new Uint8Array(await upstream.arrayBuffer()), stamp);
+    if (stamped) body = chunked(stamped);
+    else body = (await fetch(url)).body ?? chunked(new Uint8Array());
+  }
+  return new NextResponse(body, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${safeName}.pdf"`,
@@ -67,4 +79,16 @@ export async function recordDownload(user: Session["user"], lessonId: string, ma
   } catch (err) {
     console.error("[downloads] não foi possível registrar:", err);
   }
+}
+
+// Entrega em pedaços (streaming): resposta grande não esbarra no limite de corpo da Vercel.
+function chunked(bytes: Uint8Array, size = 512 * 1024): ReadableStream<Uint8Array> {
+  let i = 0;
+  return new ReadableStream({
+    pull(controller) {
+      if (i >= bytes.byteLength) { controller.close(); return; }
+      controller.enqueue(bytes.subarray(i, i + size));
+      i += size;
+    },
+  });
 }

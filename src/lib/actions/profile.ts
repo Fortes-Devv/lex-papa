@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { revokeUserSessions } from "@/lib/security";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
@@ -64,6 +65,8 @@ export async function changePassword(input: { current: string; next: string }) {
 
   const passwordHash = await bcrypt.hash(input.next, 10);
   await db.user.update({ where: { id: user.id }, data: { passwordHash } });
+  // Troca de senha: os outros aparelhos saem (este continua).
+  await revokeUserSessions(user.id, "senha alterada", "user", session.user.sid);
   return { success: true as const };
 }
 

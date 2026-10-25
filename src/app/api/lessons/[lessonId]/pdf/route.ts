@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/lib/lesson-file";
+import { isStaffRole } from "@/lib/access";
+import { viewerMark } from "@/lib/viewer-mark";
 
 /**
  * Baixa o PDF principal da aula pelo nosso servidor:
@@ -25,5 +27,6 @@ export async function GET(request: Request, props: { params: Promise<{ lessonId:
   // ?inline=1: abre na página (modo Vídeo + PDF); só o download conta em "PDFs baixados".
   const inline = new URL(request.url).searchParams.get("inline") === "1";
   if (!inline) await recordDownload(session.user, lessonId);
-  return pdfDownloadResponse(lesson.pdfUrl, lesson.title, inline);
+  // Aluno: o PDF sai com o código da conta em cada página.
+  return pdfDownloadResponse(lesson.pdfUrl, lesson.title, inline, isStaffRole(session.user.role) ? undefined : viewerMark(session.user));
 }

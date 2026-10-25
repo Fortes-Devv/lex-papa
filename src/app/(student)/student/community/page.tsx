@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CommunityClient, type CommunityPost } from "./community-client";
 
 export default async function StudentCommunityPage() {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
   const userId = session.user.id;
 
   const posts = await db.post.findMany({

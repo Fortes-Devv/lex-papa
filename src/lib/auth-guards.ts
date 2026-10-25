@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { auth } from "@/lib/auth";
 import { isStaffRole } from "@/lib/access";
 
@@ -51,7 +52,7 @@ const AREA_ROLES: Record<"admin" | "teacher" | "student", string[]> = {
 /** Mesmo critério do middleware, mas checado no servidor (não depende dele). */
 export async function requireArea(area: keyof typeof AREA_ROLES) {
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
   if (!AREA_ROLES[area].includes(session.user.role)) redirect(ROLE_HOME[session.user.role] ?? "/login");
   return session;
 }

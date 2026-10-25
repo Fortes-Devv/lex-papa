@@ -22,9 +22,12 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [callback, setCallback] = useState<string | null>(null);
+  const [ended, setEnded] = useState(false);
 
   useEffect(() => {
-    setCallback(safeCallbackUrl(new URLSearchParams(window.location.search).get("callbackUrl")));
+    const params = new URLSearchParams(window.location.search);
+    setCallback(safeCallbackUrl(params.get("callbackUrl")));
+    setEnded(params.get("sessao") === "encerrada");
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,6 +61,11 @@ export default function LoginPage() {
 
       <div>
         <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">Entrar</h1>
+        {ended && (
+          <p className="mt-3 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-foreground">
+            Sua sessão foi encerrada. Isso acontece quando a conta entra em mais de 2 aparelhos, quando você sai em outro aparelho ou quando a conta é suspensa. Entre de novo para continuar.
+          </p>
+        )}
         <p className="mt-1 text-sm text-foreground-muted">
           {callback?.startsWith("/checkout") ? "Entre para finalizar sua compra." : <>Ainda não tem conta? <Link href="/#cursos" className="font-semibold text-brand">Veja os cursos</Link></>}
         </p>

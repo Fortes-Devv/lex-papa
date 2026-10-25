@@ -1,6 +1,7 @@
 "use server";
 
 import crypto from "crypto";
+import { revokeUserSessions } from "@/lib/security";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { isEmailConfigured, sendEmail } from "@/lib/email";
@@ -64,6 +65,10 @@ export async function resetPassword(token: string, newPassword: string) {
     // Invalida este e qualquer outro link pendente do mesmo e-mail.
     db.passwordResetToken.updateMany({ where: { email: record.email, usedAt: null }, data: { usedAt: new Date() } }),
   ]);
+
+  // Senha nova: desconecta todos os aparelhos que entraram com a antiga.
+  const user = await db.user.findUnique({ where: { email: record.email }, select: { id: true } });
+  if (user) await revokeUserSessions(user.id, "senha redefinida", "user");
 
   return { success: true as const };
 }

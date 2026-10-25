@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutGrid, User, Package, GraduationCap, BookOpen, ShoppingCart, DollarSign, BarChart3, Plug, List, Settings, Layers, FileVideo, Users,
+  LayoutGrid, User, Package, GraduationCap, BookOpen, ShoppingCart, DollarSign, BarChart3, Plug, List, Settings, Layers, FileVideo, Users, ShieldCheck,
 } from "lucide-react";
 
 // Navegação do admin e do professor (docs/Layout de módulos com preview/SPEC-navegacao.md).
@@ -168,6 +168,9 @@ export const ADMIN_SECTIONS: NavSection[] = [
         { label: "Marketing", param: "categoria", value: "marketing" },
       ],
     }],
+  },
+  {
+    id: "security", label: "Segurança", shortLabel: "Segur.", href: "/admin/security", icon: ShieldCheck, group: "Sistema",
   },
   {
     id: "logs", label: "Logs", href: "/admin/logs", icon: List, group: "Sistema",

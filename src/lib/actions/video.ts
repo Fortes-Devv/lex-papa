@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isEnrollmentActive, isStaffRole } from "@/lib/access";
 import { lockedUntil, sectionReleaseDays } from "@/lib/release";
+import { logSecurityEvent } from "@/lib/security";
 
 // ID do vídeo do YouTube da aula aberta no player. Só sai depois de conferir no
 // servidor: login, aula publicada num módulo publicado do curso, matrícula ativa e
@@ -33,7 +34,10 @@ export async function getLessonYoutubeId(courseId: string, lessonId: string): Pr
   const enrollment = course
     ? await db.enrollment.findUnique({ where: { userId_productId: { userId: user.id, productId: course.productId } } })
     : null;
-  if (!isEnrollmentActive(enrollment)) return { ok: false, error: "Você não tem acesso a esta aula." };
+  if (!isEnrollmentActive(enrollment)) {
+    await logSecurityEvent({ type: "access_denied", severity: "medium", userId: user.id, sessionId: user.sid, resource: `video:${lessonId}`, reason: "vídeo pedido sem matrícula ativa" });
+    return { ok: false, error: "Você não tem acesso a esta aula." };
+  }
 
   const link = lesson.module.courses[0];
   const days = Math.max(link?.releaseAfterDays ?? 0, sectionReleaseDays(link?.section ?? "aulas"), lesson.dripDays ?? 0);

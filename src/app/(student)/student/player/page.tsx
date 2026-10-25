@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { LOGIN_PATH } from "@/lib/login-redirect";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { PlayerClient, type PlayerModule, type PlayerLesson } from "./player-client";
@@ -11,7 +12,7 @@ import { lockedUntil, releaseLabel, sectionReleaseDays } from "@/lib/release";
 export default async function PlayerPage(props: { searchParams: Promise<{ courseId?: string; lessonId?: string; aba?: string }> }) {
   const searchParams = await props.searchParams;
   const session = await auth();
-  if (!session?.user) redirect("/login");
+  if (!session?.user) redirect(LOGIN_PATH);
   const userId = session.user.id;
   const isStaff = isStaffRole(session.user.role);
 

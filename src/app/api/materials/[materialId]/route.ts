@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { lessonFileAccessError, pdfDownloadResponse, recordDownload } from "@/lib/lesson-file";
+import { isStaffRole } from "@/lib/access";
+import { viewerMark } from "@/lib/viewer-mark";
 
 /** Baixa um material (PDF) anexado a uma aula, com a mesma regra de acesso da aula. */
 export async function GET(request: Request, props: { params: Promise<{ materialId: string }> }) {
@@ -18,5 +20,6 @@ export async function GET(request: Request, props: { params: Promise<{ materialI
   // ?inline=1: abre na página (modo Vídeo + PDF); só o download conta em "PDFs baixados".
   const inline = new URL(request.url).searchParams.get("inline") === "1";
   if (!inline) await recordDownload(session.user, material.lessonId, materialId);
-  return pdfDownloadResponse(material.url, material.title, inline);
+  // Aluno: o PDF sai com o código da conta em cada página.
+  return pdfDownloadResponse(material.url, material.title, inline, isStaffRole(session.user.role) ? undefined : viewerMark(session.user));
 }
