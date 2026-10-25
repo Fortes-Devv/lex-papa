@@ -31,6 +31,15 @@ declare global {
 }
 
 const STATE = { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3 } as const;
+
+// O YouTube escolhe a qualidade pelo TAMANHO do player: num player pequeno (página da
+// aula, modo Vídeo + PDF, notebook) ele fica em 360p/480p e não sobe. O iframe é
+// desenhado sempre em 1920×1080 e reduzido na tela com CSS (transform), então o YouTube
+// entrega a maior qualidade disponível. STAGE_PAD = faixa extra em cima e embaixo do
+// iframe (fica cortada) onde o YouTube desenha título e canal.
+const STAGE_W = 1920;
+const STAGE_H = 1080;
+const STAGE_PAD = 160;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 
 // Legendas automáticas do YouTube: cc_load_policy:0 nem sempre basta (a preferência da
@@ -74,6 +83,8 @@ export interface YouTubePlayerProps {
 export function YouTubePlayer({ videoId, title, watermark, viewerMark, className, autoPlay, startAt, onComplete, onTimeUpdate, onPause, seekRef }: YouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
   const playerRef = useRef<YTPlayer | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout>>();
   // Callbacks mais recentes (o player é criado uma vez por vídeo).
@@ -174,6 +185,16 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
     // Recria só quando muda o vídeo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoId]);
+
+  // Tamanho da área visível (para reduzir o palco de 1920×1080 até ela).
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setBox({ w: e.contentRect.width, h: e.contentRect.height }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const scale = box.w && box.h ? Math.min(box.w / STAGE_W, box.h / STAGE_H) : 0;
 
   // Tempo: a IFrame API não tem evento de progresso; lê a cada meio segundo enquanto toca.
   useEffect(() => {
@@ -284,12 +305,15 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
       onMouseLeave={() => playing && setShowControls(false)}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <div className={cn("relative w-full", isFull ? "h-full" : "aspect-video")}>
+      <div ref={boxRef} className={cn("relative w-full overflow-hidden", isFull ? "h-full" : "aspect-video")}>
         {/* Vídeo do YouTube (sem cliques: a camada abaixo recebe tudo) */}
-        {/* O iframe é mais alto que a área visível: o vídeo fica no meio (com faixas pretas em
-            cima e embaixo dentro do iframe) e o título/canal do YouTube, desenhados na borda de
-            cima do iframe, ficam na parte cortada. */}
-        <div ref={stageRef} className="pointer-events-none absolute inset-x-0 -bottom-[72px] -top-[72px] [&>iframe]:h-full [&>iframe]:w-full" />
+        {/* Palco de 1920×(1080 + faixas) reduzido até a área visível e centralizado. As faixas
+            de cima e de baixo (com título e canal do YouTube) ficam fora da área, cortadas. */}
+        <div
+          ref={stageRef}
+          className="pointer-events-none absolute left-1/2 top-1/2 origin-center [&>iframe]:h-full [&>iframe]:w-full"
+          style={{ width: STAGE_W, height: STAGE_H + 2 * STAGE_PAD, transform: `translate(-50%, -50%) scale(${scale || 0.0001})` }}
+        />
 
         {/* Camada de cliques: toque pausa/toca, toque duplo nas laterais pula 10 s, clique duplo = tela cheia */}
         {started && (
