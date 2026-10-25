@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Play, Pause, Volume2, Volume1, VolumeX, Maximize, Minimize,
-  SkipForward, SkipBack, PictureInPicture, Loader2, RotateCcw,
+  SkipForward, SkipBack, Loader2, RotateCcw,
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils/cn";
 import { SeekBar } from "./seek-bar";
@@ -56,6 +56,7 @@ function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, au
   const [speed, setSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
+  const [pseudoFull, setPseudoFull] = useState(false); // iPhone: ocupa a tela com CSS
   const [showControls, setShowControls] = useState(true);
   const [error, setError] = useState(false);
   const [tampered, setTampered] = useState(false);
@@ -99,26 +100,17 @@ function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, au
     v.muted = !v.muted;
     setMuted(v.muted);
   }
+  // Tela cheia sempre no contêiner, para a marca-d'água e os controles ficarem por cima.
+  // O iPhone não deixa um <div> entrar em tela cheia: em vez do modo nativo do <video>
+  // (que esconde a marca), o player ocupa a tela com CSS.
   function toggleFullscreen() {
     if (document.fullscreenElement) { document.exitFullscreen(); return; }
+    if (pseudoFull) { setPseudoFull(false); return; }
     const container = containerRef.current;
-    const video = videoRef.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
-    if (container?.requestFullscreen) {
-      // Alguns navegadores mobile (iOS) recusam fullscreen em <div>; cai para o
-      // fullscreen nativo do próprio <video>.
-      container.requestFullscreen().catch(() => video?.webkitEnterFullscreen?.());
-    } else {
-      video?.webkitEnterFullscreen?.();
-    }
+    if (container?.requestFullscreen) container.requestFullscreen().catch(() => setPseudoFull(true));
+    else setPseudoFull(true);
   }
-  async function togglePiP() {
-    const v = videoRef.current;
-    if (!v) return;
-    try {
-      if (document.pictureInPictureElement) await document.exitPictureInPicture();
-      else await v.requestPictureInPicture();
-    } catch { /* PiP não suportado */ }
-  }
+  // Sem Picture-in-Picture: a janelinha flutuante mostra o vídeo sem a marca-d'água.
 
   // Fonte do vídeo: HLS (Bunny/.m3u8) via hls.js, ou arquivo direto (mp4).
   useEffect(() => {
@@ -204,16 +196,18 @@ function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, au
       ref={containerRef}
       className={cn(
         "group relative select-none overflow-hidden bg-black",
-        fullscreen
-          ? "flex h-screen w-screen items-center justify-center rounded-none"
-          : cn("rounded-lg", className)
+        pseudoFull
+          ? "fixed inset-0 z-[1400] flex items-center justify-center rounded-none"
+          : fullscreen
+            ? "flex h-screen w-screen items-center justify-center rounded-none"
+            : cn("rounded-lg", className)
       )}
       onMouseMove={revealControls}
       onMouseLeave={() => playing && setShowControls(false)}
     >
       <video
         ref={videoRef}
-        className={cn("bg-black object-contain", fullscreen ? "h-full w-full" : "aspect-video w-full")}
+        className={cn("bg-black object-contain", fullscreen || pseudoFull ? "h-full w-full" : "aspect-video w-full")}
         autoPlay={autoPlay}
         onClick={togglePlay}
         onDoubleClick={toggleFullscreen}
@@ -237,6 +231,9 @@ function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, au
         onEnded={() => { setPlaying(false); setEnded(true); setShowControls(true); onComplete?.(); }}
         onError={() => setError(true)}
         playsInline
+        disablePictureInPicture
+        controlsList="nodownload noplaybackrate noremoteplayback"
+        x-webkit-airplay="deny"
       />
 
       {/* Vídeo em processamento / indisponível */}
@@ -358,11 +355,8 @@ function RealVideoPlayer({ src, watermark, viewerMark, onComplete, className, au
             )}
           </div>
 
-          <button onClick={togglePiP} className="p-1.5 text-white/80 hover:text-white transition-colors hidden sm:block" aria-label="Picture-in-Picture">
-            <PictureInPicture className="h-4 w-4" />
-          </button>
           <button onClick={toggleFullscreen} className="p-1.5 text-white/80 hover:text-white transition-colors" aria-label="Tela cheia">
-            {fullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            {fullscreen || pseudoFull ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </button>
         </div>
       </div>
