@@ -171,6 +171,10 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
               clearTimeout(badgeTimer.current);
               badgeTimer.current = setTimeout(() => setBadge(false), 4200);
             }
+            if (data === STATE.PLAYING) {
+              clearTimeout(controlsTimer.current);
+              controlsTimer.current = setTimeout(() => setShowControls(false), 2800);
+            }
             if (data === STATE.PLAYING) { hideCaptions(p); setPlaying(true); setWaiting(false); setEnded(false); setStarted(true); setDuration(p.getDuration() || 0); }
             else if (data === STATE.BUFFERING) setWaiting(true);
             else if (data === STATE.PAUSED) { setPlaying(false); setWaiting(false); setShowControls(true); cb.current.onPause?.(p.getCurrentTime(), p.getDuration() || 0); }
@@ -315,8 +319,9 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
         "group relative select-none overflow-hidden bg-black",
         pseudoFull ? "fixed inset-0 z-[1400] flex items-center" : fullscreen ? "flex h-screen w-screen items-center" : cn("rounded-lg", className),
       )}
-      onMouseMove={revealControls}
-      onMouseLeave={() => playing && setShowControls(false)}
+      // Só mouse de verdade: no celular o toque gera um "mousemove" falso que mostraria as barras.
+      onPointerMove={(e) => { if (e.pointerType === "mouse") revealControls(); }}
+      onPointerLeave={(e) => { if (e.pointerType === "mouse" && playing) setShowControls(false); }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <div ref={boxRef} className={cn("relative w-full overflow-hidden", isFull ? "h-full" : "aspect-video")}>
@@ -343,7 +348,10 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
                   const double = now - lastTap.current < 300;
                   lastTap.current = now;
                   if (double) { if (jump === 0) toggleFullscreen(); else skip(jump); return; }
-                  if (e.detail <= 1) setTimeout(() => { if (Date.now() - lastTap.current >= 300) togglePlay(); }, 300);
+                  // Toque com as barras escondidas: só mostra as barras (padrão dos players de
+                  // celular); com as barras à mostra, pausa/toca.
+                  const hiddenBars = playing && !showControls;
+                  if (!hiddenBars && e.detail <= 1) setTimeout(() => { if (Date.now() - lastTap.current >= 300) togglePlay(); }, 300);
                   revealControls();
                 }}
               />
