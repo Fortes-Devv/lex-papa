@@ -40,6 +40,9 @@ export const authConfig = {
       const areaMatch = path.match(/^\/(admin|teacher|student)(\/|$)/);
 
       if (isAuthPage) {
+        // Vindo de sessão encerrada no servidor: mostra o login mesmo que reste algum
+        // cookie (evita loop login ⇄ área protegida).
+        if (request.nextUrl.searchParams.get("sessao") === "encerrada") return true;
         if (isLoggedIn) {
           return Response.redirect(new URL(ROLE_HOME[role ?? "student"], request.nextUrl));
         }
