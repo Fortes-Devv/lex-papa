@@ -363,9 +363,12 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
         )}
 
         {/* Faixa de cima: cobre título e canal do YouTube quando pausa */}
-        <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[64px] items-start justify-between bg-black px-4 pt-3 transition-opacity duration-300", visible || coverTop || !started ? "opacity-100" : "opacity-0")}>
-          {title && <p className="line-clamp-1 max-w-[75%] text-sm font-semibold text-white/90">{title}</p>}
-          {watermark && <span className="text-xs font-semibold tracking-wide text-white/40">{watermark}</span>}
+        {/* Nas cores da LEX (azul-marinho com fio laranja) e com a logo. Precisa ser opaca. */}
+        <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[56px] items-center gap-3 border-b-2 border-brand bg-gradient-to-r from-navy-deep via-navy to-navy-deep px-3 transition-opacity duration-300 sm:h-[64px] sm:px-4", visible || coverTop || !started ? "opacity-100" : "opacity-0")}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- logo estática da plataforma */}
+          <img src="/logo.png" alt={watermark ?? "LEX Concursos"} className="h-8 w-auto shrink-0 object-contain sm:h-9" />
+          <span aria-hidden className="h-6 w-px shrink-0 bg-white/20" />
+          {title && <p className="line-clamp-1 min-w-0 flex-1 text-sm font-semibold text-white">{title}</p>}
         </div>
 
         {/* Capa própria antes do primeiro play (cobre a tela inicial do YouTube) */}
@@ -428,7 +431,7 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
 
         {/* Barra de baixo, sólida: cobre o botão "YouTube" que aparece ao pausar */}
         {started && (
-          <div className={cn("absolute inset-x-0 bottom-0 z-20 bg-black/95 px-3 pb-2 pt-1 transition-opacity duration-300", visible ? "opacity-100" : "pointer-events-none opacity-0")}>
+          <div className={cn("absolute inset-x-0 bottom-0 z-20 border-t border-white/10 bg-navy-deep px-3 pb-2 pt-1 transition-opacity duration-300", visible ? "opacity-100" : "pointer-events-none opacity-0")}>
             <SeekBar progress={progress} buffered={bufferedPct} onSeek={(pct) => seekToTime(pct * duration)} />
             <div className="mt-1 flex items-center gap-1">
               <button onClick={togglePlay} className="p-1.5 text-white transition-colors hover:text-primary" aria-label={playing ? "Pausar" : "Reproduzir"}>
