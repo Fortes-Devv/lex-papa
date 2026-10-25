@@ -17,6 +17,7 @@ type YTPlayer = {
   getCurrentTime(): number; getDuration(): number; getPlayerState(): number; getVideoLoadedFraction(): number;
   setVolume(v: number): void; mute(): void; unMute(): void; setPlaybackRate(r: number): void; destroy(): void;
   unloadModule?(name: string): void; setOption?(module: string, option: string, value: unknown): void;
+  setPlaybackQualityRange?(min: string, max?: string): void; // não documentado; o YouTube pode ignorar
 };
 type YTNamespace = {
   Player: new (el: HTMLElement, opts: {
@@ -96,6 +97,22 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
   const [pseudoFull, setPseudoFull] = useState(false); // iPhone: ocupa a tela com CSS
   const [showControls, setShowControls] = useState(true);
   const [tampered, setTampered] = useState(false);
+  // O YouTube mostra título e canal por ~3 s a cada play/pausa: a faixa de cima fica
+  // visível (e sólida) nesse intervalo, mesmo com os controles escondidos.
+  const [coverTop, setCoverTop] = useState(true);
+  // O YouTube esconde a interface dele ~4 s depois de começar a tocar (medido). No
+  // primeiro play a capa da aula cobre esse tempo; ao retomar depois de pausar, um ícone
+  // nosso fica por cima do ícone cinza do YouTube (o título já fica na parte cortada).
+  const [warming, setWarming] = useState(false);
+  const [badge, setBadge] = useState(false);
+  const badgeTimer = useRef<ReturnType<typeof setTimeout>>();
+  const warmedRef = useRef(false);
+  const coverTimer = useRef<ReturnType<typeof setTimeout>>();
+  const flashTop = useCallback(() => {
+    setCoverTop(true);
+    clearTimeout(coverTimer.current);
+    coverTimer.current = setTimeout(() => setCoverTop(false), 4000);
+  }, []);
   const tamperedRef = useRef(false);
 
   // Cria o player do YouTube.
@@ -122,6 +139,8 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
             if (destroyed) return;
             const p = playerRef.current!;
             hideCaptions(p);
+            // Pede a maior qualidade disponível (sem isso o embed começa baixo e demora a subir).
+            try { p.setPlaybackQualityRange?.("hd1080", "highres"); } catch { /* ignorado pelo YouTube */ }
             setReady(true);
             setDuration(p.getDuration() || 0);
             if (resume) setCurrentTime(resume);
@@ -130,6 +149,16 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
           onStateChange: ({ data }) => {
             const p = playerRef.current;
             if (!p) return;
+            if (data === STATE.PLAYING || data === STATE.PAUSED) flashTop();
+            if (data === STATE.PLAYING && !warmedRef.current) {
+              warmedRef.current = true;
+              setWarming(true);
+              setTimeout(() => setWarming(false), 4200);
+            } else if (data === STATE.PLAYING) {
+              setBadge(true);
+              clearTimeout(badgeTimer.current);
+              badgeTimer.current = setTimeout(() => setBadge(false), 4200);
+            }
             if (data === STATE.PLAYING) { hideCaptions(p); setPlaying(true); setWaiting(false); setEnded(false); setStarted(true); setDuration(p.getDuration() || 0); }
             else if (data === STATE.BUFFERING) setWaiting(true);
             else if (data === STATE.PAUSED) { setPlaying(false); setWaiting(false); setShowControls(true); cb.current.onPause?.(p.getCurrentTime(), p.getDuration() || 0); }
@@ -257,7 +286,10 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
     >
       <div className={cn("relative w-full", isFull ? "h-full" : "aspect-video")}>
         {/* Vídeo do YouTube (sem cliques: a camada abaixo recebe tudo) */}
-        <div ref={stageRef} className="pointer-events-none absolute inset-0 [&>iframe]:h-full [&>iframe]:w-full" />
+        {/* O iframe é mais alto que a área visível: o vídeo fica no meio (com faixas pretas em
+            cima e embaixo dentro do iframe) e o título/canal do YouTube, desenhados na borda de
+            cima do iframe, ficam na parte cortada. */}
+        <div ref={stageRef} className="pointer-events-none absolute inset-x-0 -bottom-[72px] -top-[72px] [&>iframe]:h-full [&>iframe]:w-full" />
 
         {/* Camada de cliques: toque pausa/toca, toque duplo nas laterais pula 10 s, clique duplo = tela cheia */}
         {started && (
@@ -293,7 +325,7 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
         )}
 
         {/* Faixa de cima: cobre título e canal do YouTube quando pausa */}
-        <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[72px] items-start justify-between bg-gradient-to-b from-black/95 via-black/70 to-transparent px-4 pt-3 transition-opacity duration-300", visible || !started ? "opacity-100" : "opacity-0")}>
+        <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[64px] items-start justify-between bg-black px-4 pt-3 transition-opacity duration-300", visible || coverTop || !started ? "opacity-100" : "opacity-0")}>
           {title && <p className="line-clamp-1 max-w-[75%] text-sm font-semibold text-white/90">{title}</p>}
           {watermark && <span className="text-xs font-semibold tracking-wide text-white/40">{watermark}</span>}
         </div>
@@ -312,6 +344,22 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
               {startAt && startAt > 5 ? <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">Continua em {formatDuration(Math.floor(startAt))}</span> : null}
             </span>
           </button>
+        )}
+
+        {warming && (
+          <div className="pointer-events-none absolute inset-0 z-[22] flex items-center justify-center bg-black">
+            {/* eslint-disable-next-line @next/next/no-img-element -- miniatura do próprio vídeo */}
+            <img src={youtubeThumb(videoId)} alt="" className="absolute inset-0 h-full w-full object-cover opacity-50" />
+            <Loader2 className="relative h-10 w-10 animate-spin text-white/80" />
+          </div>
+        )}
+
+        {badge && !warming && (
+          <div className="pointer-events-none absolute inset-0 z-[22] flex items-center justify-center">
+            <span className="flex h-[76px] w-[76px] items-center justify-center rounded-full bg-primary shadow-2xl">
+              <Pause className="h-8 w-8 text-white" />
+            </span>
+          </div>
         )}
 
         {/* Fim da aula: cobre a grade de vídeos sugeridos do YouTube */}
