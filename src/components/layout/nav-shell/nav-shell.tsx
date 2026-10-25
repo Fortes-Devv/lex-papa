@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
-import { Moon, Sun, Search, Bell, Menu, ChevronDown, ChevronLeft, ChevronRight, Plus, LogOut, UserCircle } from "lucide-react";
+import { Moon, Sun, Search, Bell, Menu, ChevronDown, ChevronLeft, ChevronRight, Plus, LogOut, UserCircle, GraduationCap } from "lucide-react";
 import { Dropdown } from "@/components/ui/dropdown";
 import { BottomSheet } from "@/components/course/module-board/bottom-sheet";
 import { cn } from "@/lib/utils/cn";
@@ -398,6 +398,14 @@ export function NavShell({ area, user, pendingOrders = 0, panelData = {}, childr
               {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           </div>
+          {area === "admin" && (
+            <Link href="/student/dashboard" onClick={() => setMoreSheet(false)}
+              className="mb-3 flex items-center gap-3 rounded-[14px] bg-navy px-4 py-3 text-sm font-bold text-white">
+              <GraduationCap className="h-5 w-5 text-brand" />
+              <span className="flex-1">Visão do aluno</span>
+              <span className="text-xs font-medium text-white/60">ver e estudar como aluno</span>
+            </Link>
+          )}
           {groups.map((g) => (
             <div key={g} className="mb-3">
               <p className="px-1 pb-2 text-[10px] font-bold uppercase tracking-[1.2px] text-ink-faint">{g}</p>

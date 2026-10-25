@@ -29,7 +29,9 @@ export function BottomSheet({ open, onClose, children, className, label }: { ope
       <div className="absolute inset-0 bg-[rgba(15,22,32,.55)]" onClick={onClose} />
       <div
         className={cn("absolute inset-x-0 bottom-0 flex flex-col rounded-t-2xl bg-card shadow-2xl", className)}
-        style={{ transform: `translateY(${dragY}px)`, transition: startY.current === null ? "transform .2s ease-out" : undefined }}
+        // Transform só enquanto arrasta: parado, ele prenderia elementos "fixed" (tela cheia do
+        // player) dentro da folha em vez da tela.
+        style={{ transform: dragY ? `translateY(${dragY}px)` : undefined, transition: startY.current === null ? "transform .2s ease-out" : undefined }}
       >
         <div
           className="flex shrink-0 touch-none justify-center py-2.5"
