@@ -16,12 +16,13 @@ type YTPlayer = {
   playVideo(): void; pauseVideo(): void; seekTo(s: number, allowSeekAhead: boolean): void;
   getCurrentTime(): number; getDuration(): number; getPlayerState(): number; getVideoLoadedFraction(): number;
   setVolume(v: number): void; mute(): void; unMute(): void; setPlaybackRate(r: number): void; destroy(): void;
+  unloadModule?(name: string): void; setOption?(module: string, option: string, value: unknown): void;
 };
 type YTNamespace = {
   Player: new (el: HTMLElement, opts: {
     host?: string; videoId: string; width?: string; height?: string;
     playerVars?: Record<string, string | number>;
-    events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void; onError?: (e: { data: number }) => void };
+    events?: { onReady?: () => void; onStateChange?: (e: { data: number }) => void; onError?: (e: { data: number }) => void; onApiChange?: () => void };
   }) => YTPlayer;
 };
 declare global {
@@ -30,6 +31,16 @@ declare global {
 
 const STATE = { ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3 } as const;
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+// Legendas automáticas do YouTube: cc_load_policy:0 nem sempre basta (a preferência da
+// conta do aluno pode ligar). Descarregar o módulo de legendas desliga de vez.
+function hideCaptions(p: YTPlayer | null) {
+  try {
+    p?.setOption?.("captions", "track", {});
+    p?.unloadModule?.("captions");
+    p?.unloadModule?.("cc");
+  } catch { /* módulo ainda não carregado */ }
+}
 
 // Carrega a IFrame API uma vez só.
 let apiPromise: Promise<YTNamespace> | null = null;
@@ -110,6 +121,7 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
           onReady: () => {
             if (destroyed) return;
             const p = playerRef.current!;
+            hideCaptions(p);
             setReady(true);
             setDuration(p.getDuration() || 0);
             if (resume) setCurrentTime(resume);
@@ -118,12 +130,14 @@ export function YouTubePlayer({ videoId, title, watermark, viewerMark, className
           onStateChange: ({ data }) => {
             const p = playerRef.current;
             if (!p) return;
-            if (data === STATE.PLAYING) { setPlaying(true); setWaiting(false); setEnded(false); setStarted(true); setDuration(p.getDuration() || 0); }
+            if (data === STATE.PLAYING) { hideCaptions(p); setPlaying(true); setWaiting(false); setEnded(false); setStarted(true); setDuration(p.getDuration() || 0); }
             else if (data === STATE.BUFFERING) setWaiting(true);
             else if (data === STATE.PAUSED) { setPlaying(false); setWaiting(false); setShowControls(true); cb.current.onPause?.(p.getCurrentTime(), p.getDuration() || 0); }
             else if (data === STATE.ENDED) { setPlaying(false); setWaiting(false); setEnded(true); setShowControls(true); cb.current.onComplete?.(); }
           },
           onError: () => setError(true),
+          // O módulo de legendas carrega depois do play: desliga quando ele aparecer.
+          onApiChange: () => hideCaptions(playerRef.current),
         },
       });
     });
