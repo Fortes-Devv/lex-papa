@@ -92,7 +92,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <NavShell area="admin" user={{ name: session.user.name ?? "Admin", roleLabel: ROLE_LABEL[session.user.role] ?? "Equipe" }} pendingOrders={pendingOrders} panelData={panel}>
       {children}
-      <ViewSwitch to="student" desktopOnly />
+      <ViewSwitch to="student" />
     </NavShell>
   );
 }
