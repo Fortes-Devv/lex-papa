@@ -21,7 +21,7 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
   const { success, error } = useToast();
   const isModule = scope.kind === "module";
   const [link, setLink] = useState("");
-  const [data, setData] = useState<{ videos: MatchVideo[]; lessons: MatchLesson[] } | null>(null);
+  const [data, setData] = useState<{ videos: MatchVideo[]; lessons: MatchLesson[]; hiddenPositions: number[] } | null>(null);
   const [mode, setMode] = useState<Mode>("title");
   const [playNow, setPlayNow] = useState(true);
   const [publish, setPublish] = useState(true);
@@ -43,7 +43,7 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
     const res = await previewYoutubePlaylist(scope, link);
     setBusy(false);
     if (!res.success) { error(res.error); return; }
-    setData({ videos: res.videos, lessons: res.lessons });
+    setData({ videos: res.videos, lessons: res.lessons, hiddenPositions: res.hiddenPositions });
     // Módulo sem aulas: o natural é criar.
     if (isModule && res.lessons.length === 0) setMode("create");
   }
@@ -84,6 +84,11 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
         </div>
       ) : (
         <div className="space-y-3">
+          {data.hiddenPositions.length > 0 && (
+            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-foreground">
+              <b>{data.hiddenPositions.length === 1 ? "1 vídeo da playlist ficou de fora" : `${data.hiddenPositions.length} vídeos da playlist ficaram de fora`}</b> (posição {data.hiddenPositions.join(", ")}): privado ou apagado. Se for privado, mude para <b>Não listado</b> no YouTube Studio e leia a playlist de novo.
+            </p>
+          )}
           {isModule && (
             <div className="inline-flex rounded-lg bg-muted p-1" role="tablist" aria-label="Como usar os vídeos">
               {([["title", "Ligar pelo título"], ["order", "Ligar pela ordem"], ["create", "Criar aulas novas"]] as const).map(([m, label]) => (

@@ -27,7 +27,8 @@ export async function previewYoutubePlaylist(scope: YoutubeScope, link: string) 
   const playlistId = parsePlaylistId(link);
   if (!playlistId) return { success: false as const, error: "Cole o link de uma playlist do YouTube (tem \"list=\" no endereço)." };
   try {
-    const videos: MatchVideo[] = (await listPlaylistVideos(playlistId)).map((v) => ({ id: v.id, title: v.title, duration: v.duration }));
+    const playlist = await listPlaylistVideos(playlistId);
+    const videos: MatchVideo[] = playlist.videos.map((v) => ({ id: v.id, title: v.title, duration: v.duration }));
     if (videos.length === 0) return { success: false as const, error: "A playlist não tem vídeos públicos ou não listados." };
     const lessons: MatchLesson[] = scope.kind === "module"
       ? (await db.lesson.findMany({ where: { moduleId: scope.moduleId }, orderBy: { order: "asc" }, select: { id: true, title: true } }))
@@ -36,7 +37,7 @@ export async function previewYoutubePlaylist(scope: YoutubeScope, link: string) 
           orderBy: [{ section: "asc" }, { order: "asc" }],
           select: { module: { select: { title: true, lessons: { orderBy: { order: "asc" }, select: { id: true, title: true } } } } },
         })).flatMap((cm) => cm.module.lessons.map((l) => ({ ...l, moduleTitle: cm.module.title })));
-    return { success: true as const, videos, lessons };
+    return { success: true as const, videos, lessons, hiddenPositions: playlist.hiddenPositions };
   } catch (err) {
     return { success: false as const, error: err instanceof Error ? err.message : "Não foi possível ler a playlist." };
   }

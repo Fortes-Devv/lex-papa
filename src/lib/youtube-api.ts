@@ -30,20 +30,24 @@ async function call<T>(path: string, params: Record<string, string>): Promise<T>
 }
 
 // Vídeos da playlist, na ordem dela, com título e duração. Vídeos privados ou
-// apagados ficam de fora (não tocam para o aluno).
-export async function listPlaylistVideos(playlistId: string): Promise<PlaylistVideo[]> {
+// apagados ficam de fora (não tocam para o aluno); `hiddenPositions` diz onde eles estão
+// na playlist (contando de 1), porque o YouTube não informa o título deles.
+export async function listPlaylistVideos(playlistId: string): Promise<{ videos: PlaylistVideo[]; hiddenPositions: number[] }> {
   type ItemsPage = {
     nextPageToken?: string;
     items: { snippet: { title: string; position: number; resourceId: { videoId: string } }; status?: { privacyStatus?: string } }[];
   };
   const items: { id: string; title: string; position: number }[] = [];
+  const hiddenPositions: number[] = [];
   let pageToken = "";
   do {
     const page = await call<ItemsPage>("playlistItems", { part: "snippet,status", playlistId, maxResults: "50", ...(pageToken ? { pageToken } : {}) });
     for (const it of page.items) {
       const privacy = it.status?.privacyStatus;
-      if (privacy === "private" || privacy === "privacyStatusUnspecified") continue;
-      if (it.snippet.title === "Deleted video" || it.snippet.title === "Private video") continue;
+      if (privacy === "private" || privacy === "privacyStatusUnspecified" || it.snippet.title === "Deleted video" || it.snippet.title === "Private video") {
+        hiddenPositions.push(it.snippet.position + 1);
+        continue;
+      }
       items.push({ id: it.snippet.resourceId.videoId, title: it.snippet.title, position: it.snippet.position });
     }
     pageToken = page.nextPageToken ?? "";
@@ -56,5 +60,5 @@ export async function listPlaylistVideos(playlistId: string): Promise<PlaylistVi
     const res = await call<{ items: { id: string; contentDetails: { duration: string } }[] }>("videos", { part: "contentDetails", id: ids, maxResults: "50" });
     for (const v of res.items) durations.set(v.id, parseIsoDuration(v.contentDetails.duration));
   }
-  return items.slice(0, MAX_VIDEOS).map((v) => ({ ...v, duration: durations.get(v.id) ?? null }));
+  return { videos: items.slice(0, MAX_VIDEOS).map((v) => ({ ...v, duration: durations.get(v.id) ?? null })), hiddenPositions };
 }

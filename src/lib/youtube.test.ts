@@ -55,6 +55,30 @@ describe("ligar vídeos às aulas", () => {
     expect(r.lessonsWithout.map((l) => l.id)).toEqual(["c"]);
     expect(r.videosUnused.map((v) => v.id)).toEqual(["v9"]);
   });
+  it("liga título cortado pelo YouTube em 100 caracteres", () => {
+    const longo = "Aula 14 - Cargos Privativos De Nato - Distinção Entre Brasileiros - Português Equiparado - Perda E Reaquisição Da Nacionalidade";
+    const r = matchByTitle([{ id: "a", title: longo }], [{ id: "v", title: longo.slice(0, 100), duration: 1 }]);
+    expect(r.pairs.map((p) => p.video.id)).toEqual(["v"]);
+  });
+  it("liga pelo número da aula quando o título mudou", () => {
+    const r = matchByTitle(
+      [{ id: "a", title: "Aula 30 - Estados De Exceção I" }, { id: "b", title: "Aula 31 - Estados De Exceção II" }],
+      [{ id: "v31", title: "Aula 31 Estados de Exceção II" }, { id: "v30", title: "Aula 30 Estado de Exceção parte 1" }].map((v) => ({ ...v, duration: 1 })),
+    );
+    expect(r.pairs.map((p) => [p.lesson.id, p.video.id])).toEqual([["a", "v30"], ["b", "v31"]]);
+  });
+  it("não usa o número quando ele se repete entre módulos", () => {
+    const r = matchByTitle(
+      [{ id: "a", title: "Aula 01 - Contratos" }, { id: "b", title: "Aula 01 - Crimes" }],
+      [{ id: "v", title: "Aula 01 - Outro assunto", duration: 1 }],
+    );
+    expect(r.pairs).toEqual([]);
+    expect(r.videosUnused.map((v) => v.id)).toEqual(["v"]);
+  });
+  it("título curto não casa por começo (aula 1 x aula 10)", () => {
+    const r = matchByTitle([{ id: "a", title: "Módulo 10 - Revisão" }], [{ id: "v", title: "Módulo 1", duration: 1 }]);
+    expect(r.pairs).toEqual([]);
+  });
   it("pela ordem liga 1 com 1", () => {
     const r = matchByOrder(lessons, videos.slice(0, 2));
     expect(r.pairs.map((p) => [p.lesson.id, p.video.id])).toEqual([["a", "v2"], ["b", "v1"]]);
