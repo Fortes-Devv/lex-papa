@@ -3,6 +3,7 @@ import type { OrderStatus, PaymentMethod, Prisma } from "@prisma/client";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { accessExpiresAt } from "@/lib/access";
 import { sendPaymentConfirmedEmail } from "@/lib/payment-email";
+import { mpStatusDetailOf } from "@/lib/mp-reject";
 
 // Mapeia o status da Order do Mercado Pago para o OrderStatus do nosso schema.
 export function mapMpOrderStatus(mpStatus?: string): OrderStatus {
@@ -37,7 +38,7 @@ interface MpOrderLike {
   id?: string;
   status?: string;
   status_detail?: string;
-  transactions?: { payments?: Array<{ id?: string; status?: string; payment_method?: { id?: string; type?: string } }> };
+  transactions?: { payments?: Array<{ id?: string; status?: string; status_detail?: string; payment_method?: { id?: string; type?: string } }> };
 }
 
 // Atualiza nosso Order a partir da resposta da Order do Mercado Pago e,
@@ -57,7 +58,7 @@ export async function fulfillFromMpOrder(ourOrderId: string, mpOrder: MpOrderLik
     status,
     mpOrderId: mpOrder.id ?? order.mpOrderId,
     mpPaymentId: payment?.id ?? order.mpPaymentId,
-    mpStatusDetail: mpOrder.status_detail ?? undefined,
+    mpStatusDetail: mpStatusDetailOf(mpOrder) ?? undefined,
     paymentMethod: method ?? order.paymentMethod ?? undefined,
     paidAt: status === "paid" ? new Date() : order.paidAt,
   };

@@ -18,6 +18,7 @@ interface MpInstance {
 declare global {
   interface Window {
     MercadoPago?: new (publicKey: string, opts?: { locale?: string }) => MpInstance;
+    MP_DEVICE_SESSION_ID?: string; // definido pelo security.js do Mercado Pago
   }
 }
 
@@ -74,6 +75,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   const [method, setMethod] = useState<Method>("pix");
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [cardFailed, setCardFailed] = useState(false); // recusa no cartão: oferece trocar para Pix
   const [accepted, setAccepted] = useState(false);
 
   const [name, setName] = useState(payerName);
@@ -102,6 +104,18 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
       mpRef.current = new window.MercadoPago(mpPublicKey, { locale: "pt-BR" });
     }
   }, [sdkReady, mpPublicKey]);
+
+  // security.js do MP: gera o ID do aparelho (MP_DEVICE_SESSION_ID) que o antifraude
+  // usa. Sem ele, o MP recusa muito mais cartões como "alto risco".
+  useEffect(() => {
+    if (document.querySelector("script[data-mp-security]")) return;
+    const s = document.createElement("script");
+    s.src = "https://www.mercadopago.com/v2/security.js";
+    s.setAttribute("view", "checkout");
+    s.setAttribute("data-mp-security", "");
+    s.async = true;
+    document.body.appendChild(s);
+  }, []);
 
   async function handleApplyCoupon() {
     if (!coupon) return;
@@ -171,7 +185,18 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   async function handlePayCard() {
     if (!mpRef.current) { setSubmitError("Aguarde o carregamento do formulário de pagamento."); return; }
     setLoading(true);
+    setCardFailed(false);
     try {
+      // Bandeira: se a consulta pelo BIN não rodou (SDK lento, erro), tenta de novo.
+      // Antes caía em "visa" e um Master/Elo era recusado por bandeira errada.
+      let pmId = paymentMethodId;
+      if (!pmId) {
+        const res = await mpRef.current.getPaymentMethods({ bin: onlyDigits(card.number).slice(0, 6) }).catch(() => null);
+        pmId = res?.results?.[0]?.id ?? null;
+        if (pmId) setPaymentMethodId(pmId);
+      }
+      if (!pmId) throw new Error("Não reconhecemos a bandeira deste cartão. Confira o número ou pague com Pix.");
+      const [firstName, ...rest] = name.trim().split(/\s+/);
       const token = await mpRef.current.createCardToken({
         cardNumber: onlyDigits(card.number),
         cardholderName: card.name,
@@ -185,14 +210,21 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          productId: product.id, couponCode, method: "card", token: token.id, installments, paymentMethodId: paymentMethodId ?? "visa",
-          payer: { email: payerEmail, identificationType: "CPF", identificationNumber: onlyDigits(cpf) },
+          productId: product.id, couponCode, method: "card", token: token.id, installments, paymentMethodId: pmId,
+          deviceId: window.MP_DEVICE_SESSION_ID || undefined,
+          payer: {
+            email: payerEmail, identificationType: "CPF", identificationNumber: onlyDigits(cpf),
+            firstName, lastName: rest.join(" "), phone: onlyDigits(phone) || undefined,
+          },
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Erro ao processar pagamento.");
+      if (!res.ok) { setCardFailed(true); throw new Error(data.error ?? "Erro ao processar pagamento."); }
       if (data.status === "processed") window.location.href = `/checkout/success?order_id=${data.orderId}`;
-      else if (["failed", "cancelled"].includes(data.status)) setSubmitError("Pagamento não aprovado. Verifique os dados do cartão ou tente outro.");
+      else if (["failed", "cancelled"].includes(data.status)) {
+        setCardFailed(true);
+        setSubmitError(data.rejectMessage ?? "Pagamento não aprovado. Verifique os dados do cartão ou tente outro.");
+      }
       else pollStatus(data.orderId); // em processamento — acompanha
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Erro ao processar o cartão.");
@@ -300,6 +332,12 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Lock className="h-4 w-4" />} {cta}
           </button>
           {submitError && <p className="text-sm text-danger" role="alert">{submitError}</p>}
+          {cardFailed && method === "card" && (
+            <button type="button" onClick={() => { setMethod("pix"); setSubmitError(null); setCardFailed(false); }}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-brand px-4 text-sm font-semibold text-brand hover:bg-brand/5">
+              <QrCode className="h-4 w-4" /> Pagar com Pix ({formatCurrency(total)})
+            </button>
+          )}
         </>
       )}
       <p className="text-center text-xs text-foreground-muted">Pagamento processado pelo Mercado Pago com criptografia. Não guardamos dados do seu cartão.</p>

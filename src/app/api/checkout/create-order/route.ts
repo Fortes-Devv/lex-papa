@@ -7,6 +7,7 @@ import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFreeOrder, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { isEnrollmentActive } from "@/lib/access";
 import { cardPrice } from "@/lib/card-fee";
+import { cardRejectMessage, mpErrorDetail, mpStatusDetailOf } from "@/lib/mp-reject";
 
 const cpf = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 11, "CPF deve ter 11 dígitos.");
 const basePayer = {
@@ -19,7 +20,14 @@ const namedPayer = z.object({
   firstName: z.string().trim().min(1, "Informe o nome.").max(100),
   lastName: z.string().trim().max(100).optional(),
 });
-const common = { productId: z.string().min(1).max(64), couponCode: z.string().trim().max(64).nullish() };
+const common = {
+  productId: z.string().min(1).max(64),
+  couponCode: z.string().trim().max(64).nullish(),
+  // ID do aparelho (security.js do MP). O antifraude recusa muito mais sem ele.
+  deviceId: z.string().trim().max(200).nullish(),
+};
+// Telefone só com dígitos, DDD + número (10 ou 11 dígitos); inválido vira undefined.
+const phone = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 10 || v.length === 11).optional().catch(undefined);
 
 const payloadSchema = z.discriminatedUnion("method", [
   z.object({
@@ -28,7 +36,12 @@ const payloadSchema = z.discriminatedUnion("method", [
     token: z.string().min(1).max(200),
     installments: z.number().int().min(1, "Parcelas inválidas.").max(12, "Máximo de 12 parcelas."),
     paymentMethodId: z.string().regex(/^[a-z_]{2,30}$/, "Bandeira inválida."), // ex: "visa", "master"
-    payer: z.object(basePayer),
+    payer: z.object({
+      ...basePayer,
+      firstName: z.string().trim().max(100).optional(),
+      lastName: z.string().trim().max(100).optional(),
+      phone,
+    }),
   }),
   z.object({ ...common, method: z.literal("pix"), payer: namedPayer }),
   z.object({ ...common, method: z.literal("boleto"), payer: namedPayer }),
@@ -118,7 +131,11 @@ export async function POST(request: Request) {
   if (body.method === "card") {
     paymentMethod = { id: body.paymentMethodId, type: "credit_card", token: body.token, installments: body.installments };
     payerEmail = body.payer.email;
-    payerExtra = { identification: { type: body.payer.identificationType, number: body.payer.identificationNumber } };
+    payerExtra = {
+      ...(body.payer.firstName ? { first_name: body.payer.firstName, last_name: body.payer.lastName ?? "" } : {}),
+      ...(body.payer.phone ? { phone: { area_code: body.payer.phone.slice(0, 2), number: body.payer.phone.slice(2) } } : {}),
+      identification: { type: body.payer.identificationType, number: body.payer.identificationNumber },
+    };
   } else if (body.method === "pix") {
     paymentMethod = { id: "pix", type: "bank_transfer" };
     payerEmail = body.payer.email;
@@ -152,9 +169,11 @@ export async function POST(request: Request) {
         description: priced.product.title,
         processing_mode: "automatic",
         payer: { email: payerEmail, ...payerExtra },
+        // Item vendido: o antifraude do MP pontua melhor pedidos com itens descritos.
+        items: [{ title: priced.product.title, unit_price: amount, quantity: 1, external_code: body.productId }],
         transactions: { payments: [paymentEntry as never] },
       },
-      requestOptions: { idempotencyKey: order.id },
+      requestOptions: { idempotencyKey: order.id, ...(body.deviceId ? { meliSessionId: body.deviceId } : {}) },
     });
 
     await fulfillFromMpOrder(order.id, mpOrder);
@@ -162,17 +181,27 @@ export async function POST(request: Request) {
     const payment = mpOrder.transactions?.payments?.[0];
     const pm = payment?.payment_method as { qr_code?: string; qr_code_base64?: string; ticket_url?: string; digitable_line?: string } | undefined;
 
+    const detail = mpStatusDetailOf(mpOrder);
+    if (body.method === "card" && ["failed", "cancelled"].includes(mpOrder.status ?? "")) {
+      console.warn(`[checkout] cartão recusado (pedido ${order.id}): ${detail}`);
+    }
+
     return NextResponse.json({
       orderId: order.id,
       status: mpOrder.status,
-      statusDetail: mpOrder.status_detail,
+      statusDetail: detail,
+      rejectMessage: body.method === "card" ? cardRejectMessage(detail) : undefined,
       // Dados para exibir PIX/boleto na tela
       pix: pm?.qr_code ? { qrCode: pm.qr_code, qrCodeBase64: pm.qr_code_base64 } : null,
       boleto: pm?.ticket_url ? { url: pm.ticket_url, digitableLine: pm.digitable_line } : null,
     });
   } catch (err) {
-    await db.order.update({ where: { id: order.id }, data: { status: "failed" } });
-    console.error(`[checkout] falha no Mercado Pago (pedido ${order.id}):`, err);
-    return NextResponse.json({ error: friendlyMpError(err) }, { status: 502 });
+    const detail = mpErrorDetail(err);
+    // Guarda o motivo (aparece em Pedidos > detalhes) — antes ia só para o log.
+    await db.order.update({ where: { id: order.id }, data: { status: "failed", mpStatusDetail: detail } });
+    console.error(`[checkout] falha no Mercado Pago (pedido ${order.id}): ${detail}`, err);
+    // Recusa de cartão (o MP responde erro com o pagamento recusado): mensagem conforme o motivo.
+    const isCardReject = body.method === "card" && /rejected|high_risk|insufficient|call_for_auth|bad_filled|disabled|max_attempts|by_issuer|failed/i.test(detail);
+    return NextResponse.json({ error: isCardReject ? cardRejectMessage(detail) : friendlyMpError(err) }, { status: 502 });
   }
 }
