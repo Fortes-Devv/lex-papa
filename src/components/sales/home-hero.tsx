@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Caveat } from "next/font/google";
+// Fonte manuscrita instalada no projeto (@fontsource): o build não baixa nada do
+// Google Fonts (uma falha lá derrubava o deploy).
+import "@fontsource-variable/caveat";
 import { PlayCircle, FileText, BarChart3, Headset, Rocket, ArrowRight, ShieldCheck, MonitorSmartphone, Lock } from "lucide-react";
 
-const script = Caveat({ subsets: ["latin"], weight: ["600", "700"], display: "swap" });
+const script = { className: "font-['Caveat_Variable',cursive] font-semibold" };
 
 // Fotos do hero (WebP em public/hero; a versão "-m" é a do celular).
 const SLIDES = [
