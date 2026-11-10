@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
-import { createLessonsFromYoutube, linkYoutubeVideos, previewYoutubePlaylist, type YoutubeScope } from "@/lib/actions/youtube-import";
+import { createLessonsFromYoutube, linkYoutubeVideos, previewYoutubePlaylist, watchModulePlaylist, type YoutubeScope } from "@/lib/actions/youtube-import";
 import { matchByOrder, matchByTitle, type MatchLesson, type MatchVideo } from "@/lib/youtube-match";
 import { formatDuration, cn } from "@/lib/utils/cn";
 
@@ -16,16 +16,28 @@ type Mode = "title" | "order" | "create";
 // "Importar playlist do YouTube": lê uma playlist (vídeos públicos ou não listados) e
 // liga cada vídeo à sua aula (pelo título ou pela ordem) ou cria aulas novas.
 // No curso inteiro, liga pelo título: uma playlist só pode cobrir todos os módulos.
-export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open: boolean; onClose: () => void; scope: YoutubeScope; scopeTitle: string }) {
+// No módulo, dá para "acompanhar" a playlist: vídeos novos nela viram aulas sozinhos.
+export function YoutubeImportDialog({ open, onClose, scope, scopeTitle, autoPublish: initialAutoPublish = false }: {
+  open: boolean; onClose: () => void; scope: YoutubeScope; scopeTitle: string; autoPublish?: boolean;
+}) {
   const router = useRouter();
   const { success, error } = useToast();
   const isModule = scope.kind === "module";
   const [link, setLink] = useState("");
-  const [data, setData] = useState<{ videos: MatchVideo[]; lessons: MatchLesson[]; hiddenPositions: number[] } | null>(null);
+  const [data, setData] = useState<{ playlistId: string; videos: MatchVideo[]; lessons: MatchLesson[]; existingYoutubeIds: string[]; hiddenPositions: number[] } | null>(null);
   const [mode, setMode] = useState<Mode>("title");
   const [playNow, setPlayNow] = useState(true);
   const [publish, setPublish] = useState(true);
+  const [watch, setWatch] = useState(true);
+  const [autoPublish, setAutoPublish] = useState(initialAutoPublish);
   const [busy, setBusy] = useState(false);
+
+  // "Criar aulas novas" só cria os vídeos que ainda não estão no módulo.
+  const newVideos = useMemo(() => {
+    if (!data) return [];
+    const known = new Set(data.existingYoutubeIds);
+    return data.videos.filter((v) => !known.has(v.id));
+  }, [data]);
 
   const result = useMemo(() => {
     if (!data || mode === "create") return null;
@@ -34,7 +46,7 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
 
   function close() {
     if (busy) return;
-    setLink(""); setData(null); setMode("title"); setPlayNow(true); setPublish(true);
+    setLink(""); setData(null); setMode("title"); setPlayNow(true); setPublish(true); setWatch(true); setAutoPublish(initialAutoPublish);
     onClose();
   }
 
@@ -43,27 +55,38 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
     const res = await previewYoutubePlaylist(scope, link);
     setBusy(false);
     if (!res.success) { error(res.error); return; }
-    setData({ videos: res.videos, lessons: res.lessons, hiddenPositions: res.hiddenPositions });
-    // Módulo sem aulas: o natural é criar.
-    if (isModule && res.lessons.length === 0) setMode("create");
+    setData({ playlistId: res.playlistId, videos: res.videos, lessons: res.lessons, existingYoutubeIds: res.existingYoutubeIds, hiddenPositions: res.hiddenPositions });
+    // Módulo sem aulas, ou playlist já importada antes: o natural é criar (só os novos).
+    if (isModule && (res.lessons.length === 0 || res.existingYoutubeIds.length > 0)) setMode("create");
   }
 
   async function save() {
     if (!data) return;
     setBusy(true);
-    const res = mode === "create"
-      ? await createLessonsFromYoutube((scope as { moduleId: string }).moduleId, data.videos.map((v) => ({ youtubeId: v.id, title: v.title, duration: v.duration })), publish)
-      : await linkYoutubeVideos(scope, result!.pairs.map((p) => ({ lessonId: p.lesson.id, youtubeId: p.video.id, duration: p.video.duration })), playNow);
+    const moduleId = isModule ? (scope as { moduleId: string }).moduleId : null;
+    let message = "";
+    if (count > 0) {
+      const res = mode === "create"
+        ? await createLessonsFromYoutube(moduleId!, newVideos.map((v) => ({ youtubeId: v.id, title: v.title, duration: v.duration })), publish)
+        : await linkYoutubeVideos(scope, result!.pairs.map((p) => ({ lessonId: p.lesson.id, youtubeId: p.video.id, duration: p.video.duration })), playNow);
+      if (!res.success) { setBusy(false); error(res.error); return; }
+      message = mode === "create"
+        ? `${res.count} aula${res.count !== 1 ? "s" : ""} criada${res.count !== 1 ? "s" : ""} com vídeo do YouTube.`
+        : `${res.count} aula${res.count !== 1 ? "s" : ""} ligada${res.count !== 1 ? "s" : ""} ao YouTube${playNow ? " e já tocando de lá" : ""}.`;
+    }
+    if (moduleId && watch) {
+      const res = await watchModulePlaylist(moduleId, data.playlistId, autoPublish);
+      if (!res.success) { setBusy(false); error(res.error); return; }
+      message = `${message} Playlist acompanhada: vídeos novos nela viram aulas${autoPublish ? " publicadas" : " em rascunho"}.`.trim();
+    }
     setBusy(false);
-    if (!res.success) { error(res.error); return; }
     router.refresh();
-    success(mode === "create"
-      ? `${res.count} aula${res.count !== 1 ? "s" : ""} criada${res.count !== 1 ? "s" : ""} com vídeo do YouTube.`
-      : `${res.count} aula${res.count !== 1 ? "s" : ""} ligada${res.count !== 1 ? "s" : ""} ao YouTube${playNow ? " e já tocando de lá" : ""}.`);
+    success(message);
     close();
   }
 
-  const count = mode === "create" ? data?.videos.length ?? 0 : result?.pairs.length ?? 0;
+  const count = mode === "create" ? newVideos.length : result?.pairs.length ?? 0;
+  const canWatch = isModule;
 
   return (
     <Dialog open={open} onClose={close} size="lg" title="Importar playlist do YouTube" description={isModule ? `Módulo "${scopeTitle}".` : `Todas as aulas de "${scopeTitle}".`}>
@@ -102,17 +125,22 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
 
           {mode === "create" ? (
             <>
-              <p className="text-sm text-foreground"><b>{data.videos.length}</b> vídeo{data.videos.length !== 1 ? "s" : ""} vão virar aulas no fim do módulo.</p>
-              <ul className="max-h-[42vh] divide-y divide-border overflow-y-auto rounded-lg border border-border">
-                {data.videos.map((v, i) => (
+              <p className="text-sm text-foreground">
+                {newVideos.length > 0
+                  ? <><b>{newVideos.length}</b> vídeo{newVideos.length !== 1 ? "s" : ""} novo{newVideos.length !== 1 ? "s" : ""} vão virar aulas no fim do módulo.</>
+                  : <>Nenhum vídeo novo: todos os vídeos da playlist já estão em aulas do módulo.</>}
+                {data.videos.length > newVideos.length && newVideos.length > 0 && <span className="text-foreground-muted"> ({data.videos.length - newVideos.length} já estão no módulo)</span>}
+              </p>
+              {newVideos.length > 0 && <ul className="max-h-[36vh] divide-y divide-border overflow-y-auto rounded-lg border border-border">
+                {newVideos.map((v, i) => (
                   <li key={v.id} className="flex items-center gap-2 px-3 py-2 text-sm">
                     <span className="w-6 shrink-0 text-right text-xs text-foreground-muted">{i + 1}</span>
                     <span className="min-w-0 flex-1 truncate text-foreground">{v.title}</span>
                     {v.duration ? <span className="shrink-0 text-xs tabular-nums text-foreground-muted">{formatDuration(v.duration)}</span> : null}
                   </li>
                 ))}
-              </ul>
-              <Switch checked={publish} onChange={setPublish} label="Publicar as aulas para os alunos" description="Desligue para as aulas entrarem como rascunho." />
+              </ul>}
+              {newVideos.length > 0 && <Switch checked={publish} onChange={setPublish} label="Publicar as aulas para os alunos" description="Desligue para as aulas entrarem como rascunho." />}
             </>
           ) : result && (
             <>
@@ -148,6 +176,22 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
                 description="O vídeo da Bunny continua guardado como reserva. Dá para voltar pelo menu do módulo." />
             </>
           )}
+
+          {canWatch && (
+            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+              <Switch checked={watch} onChange={setWatch} label="Acompanhar esta playlist"
+                description="Todo dia a plataforma confere a playlist e cria as aulas dos vídeos novos no fim do módulo. Também dá para puxar na hora pelo menu do módulo (Sincronizar)." />
+              {watch && (
+                <>
+                  <Switch checked={autoPublish} onChange={setAutoPublish} label="Aulas novas já entram publicadas"
+                    description={autoPublish ? "O aluno vê a aula assim que ela entrar. Confira o título do vídeo no YouTube Studio antes de pôr na playlist." : "Entram como rascunho: você confere o título e publica."} />
+                  {mode !== "create" && result && result.videosUnused.length > 0 && (
+                    <p className="text-xs text-warning">Os {result.videosUnused.length} vídeo{result.videosUnused.length !== 1 ? "s" : ""} sem aula vão virar aulas novas na próxima sincronização.</p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -160,12 +204,21 @@ export function YoutubeImportDialog({ open, onClose, scope, scopeTitle }: { open
         ) : (
           <>
             <Button variant="outline" onClick={() => setData(null)} disabled={busy}>Voltar</Button>
-            <Button onClick={save} loading={busy} disabled={count === 0}>
-              {mode === "create" ? `Criar ${count} aula${count !== 1 ? "s" : ""}` : `Ligar ${count} aula${count !== 1 ? "s" : ""}`}
+            <Button onClick={save} loading={busy} disabled={count === 0 && !(canWatch && watch)}>
+              {count === 0 ? "Acompanhar playlist" : mode === "create" ? `Criar ${count} aula${count !== 1 ? "s" : ""}` : `Ligar ${count} aula${count !== 1 ? "s" : ""}`}
             </Button>
           </>
         )}
       </DialogFooter>
     </Dialog>
   );
+}
+
+// Mensagem do "Sincronizar playlist do YouTube" (menu do módulo e Mentoria).
+export function syncMessage(res: { created: number; hiddenPositions: number[] }, autoPublish: boolean) {
+  const base = res.created > 0
+    ? `${res.created} aula${res.created !== 1 ? "s" : ""} nova${res.created !== 1 ? "s" : ""} da playlist${autoPublish ? ", já publicada" + (res.created !== 1 ? "s" : "") : ", em rascunho"}.`
+    : "Nenhum vídeo novo na playlist.";
+  const hidden = res.hiddenPositions.length;
+  return hidden > 0 ? `${base} ${hidden} vídeo${hidden !== 1 ? "s" : ""} privado${hidden !== 1 ? "s" : ""} ou apagado${hidden !== 1 ? "s ficaram" : " ficou"} de fora.` : base;
 }

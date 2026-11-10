@@ -6,7 +6,7 @@ import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSe
 import { SortableContext, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import {
   ChevronLeft, MoreHorizontal, Plus, Layers, Play, ImagePlus, RotateCcw, ArrowUp, ArrowDown,
-  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive, Clock, PlaySquare, CloudOff,
+  Eye, EyeOff, Pencil, Unlink, Trash2, HardDrive, Clock, PlaySquare, CloudOff, RefreshCw,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,8 @@ import { MediaUploader } from "@/components/upload/media-uploader";
 import { useToast } from "@/components/ui/toast";
 import { LessonFormDialog, type LessonFormValue } from "@/components/course/lesson-form-dialog";
 import { DriveImportDialog } from "@/components/course/drive-import-dialog";
-import { YoutubeImportDialog } from "@/components/course/youtube-import-dialog";
-import { deleteBunnyBackups, setModuleVideoSource } from "@/lib/actions/youtube-import";
+import { YoutubeImportDialog, syncMessage } from "@/components/course/youtube-import-dialog";
+import { deleteBunnyBackups, setModuleVideoSource, syncYoutubePlaylist, watchModulePlaylist } from "@/lib/actions/youtube-import";
 import { uploadToCloudinary } from "@/lib/cloudinary-upload";
 import { formatCurrency, cn } from "@/lib/utils/cn";
 import {
@@ -237,6 +237,17 @@ export function ModuleBoard({ header, modules: initialModules, teachers = [], re
       items.push({ label: "Adicionar aula", icon: <Plus className="h-3.5 w-3.5" />, onClick: () => openNewLesson(m) });
       items.push({ label: "Importar do Google Drive", icon: <HardDrive className="h-3.5 w-3.5" />, onClick: () => setDriveFor(m) });
       items.push({ label: "Importar playlist do YouTube", icon: <PlaySquare className="h-3.5 w-3.5" />, onClick: () => setYoutubeFor(m) });
+      // Playlist acompanhada: vídeos novos viram aulas (todo dia, ou na hora por aqui).
+      if (m.youtubePlaylistId) {
+        items.push({ label: "Sincronizar playlist do YouTube", icon: <RefreshCw className="h-3.5 w-3.5" />, onClick: async () => {
+          const res = await syncYoutubePlaylist(m.id);
+          report(res, res.success ? syncMessage(res, m.youtubeAutoPublish) : undefined);
+        } });
+        items.push({ label: "Parar de acompanhar a playlist", icon: <Unlink className="h-3.5 w-3.5" />, onClick: async () => {
+          if (!confirm("Parar de acompanhar a playlist? As aulas que já existem continuam; só deixam de entrar aulas novas sozinhas.")) return;
+          report(await watchModulePlaylist(m.id, null, false), "A playlist não é mais acompanhada.");
+        } });
+      }
       // De onde o módulo toca (o vídeo da Bunny fica como reserva enquanto existir).
       const toYoutube = m.lessons.filter((l) => l.youtubeId && l.videoProvider !== "youtube").length;
       const withBackup = m.lessons.filter((l) => l.videoProvider === "youtube" && l.videoPublicId).length;
@@ -597,7 +608,7 @@ Isso reduz o custo de armazenamento, mas "Voltar para a Bunny" deixa de funciona
 
       {/* ── Diálogo: importar playlist do YouTube ── */}
       {youtubeFor && (
-        <YoutubeImportDialog open onClose={() => setYoutubeFor(null)} scope={{ kind: "module", moduleId: youtubeFor.id }} scopeTitle={youtubeFor.title} />
+        <YoutubeImportDialog open onClose={() => setYoutubeFor(null)} scope={{ kind: "module", moduleId: youtubeFor.id }} scopeTitle={youtubeFor.title} autoPublish={youtubeFor.youtubeAutoPublish} />
       )}
 
       {/* ── Diálogo: liberação das aulas (X dias após a compra) ── */}

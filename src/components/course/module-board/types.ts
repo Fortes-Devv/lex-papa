@@ -36,6 +36,8 @@ export interface EditorModule {
   coverImage: string | null; // null → capa automática
   canEdit: boolean; // pode editar o conteúdo (dono do módulo ou admin)
   usedIn: string[]; // outros cursos que usam este módulo
+  youtubePlaylistId: string | null; // playlist acompanhada (vídeos novos viram aulas)
+  youtubeAutoPublish: boolean; // aulas novas da playlist já entram publicadas
   lessons: EditorLesson[];
 }
 

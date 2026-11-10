@@ -309,6 +309,13 @@ model Module {
   instructor   Teacher? @relation(fields: [instructorId], references: [id], onDelete: SetNull)
   createdAt    DateTime @default(now())
 
+  // Playlist do YouTube acompanhada: vídeos novos nela viram aulas no fim do módulo
+  // (sincronização diária e botão "Sincronizar"). Entram como rascunho, a não ser que
+  // youtubeAutoPublish esteja ligado.
+  youtubePlaylistId  String?
+  youtubeAutoPublish Boolean   @default(false)
+  youtubeSyncedAt    DateTime?
+
   lessons Lesson[]
   courses CourseModule[]
 

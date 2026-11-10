@@ -9,6 +9,7 @@ import { logAudit } from "@/lib/audit";
 import { listPlaylistVideos } from "@/lib/youtube-api";
 import { parsePlaylistId, parseYoutubeId } from "@/lib/youtube";
 import type { MatchLesson, MatchVideo } from "@/lib/youtube-match";
+import { syncModulePlaylist } from "@/lib/youtube-sync";
 
 // Vídeos do YouTube nas aulas: ler playlist, ligar às aulas existentes, criar aulas,
 // trocar o módulo entre YouTube e Bunny e, no fim, apagar as cópias da Bunny.
@@ -37,7 +38,11 @@ export async function previewYoutubePlaylist(scope: YoutubeScope, link: string) 
           orderBy: [{ section: "asc" }, { order: "asc" }],
           select: { module: { select: { title: true, lessons: { orderBy: { order: "asc" }, select: { id: true, title: true } } } } },
         })).flatMap((cm) => cm.module.lessons.map((l) => ({ ...l, moduleTitle: cm.module.title })));
-    return { success: true as const, videos, lessons, hiddenPositions: playlist.hiddenPositions };
+    // Vídeos que já estão em aulas do módulo: "Criar aulas novas" pula esses.
+    const existingYoutubeIds = scope.kind === "module"
+      ? (await db.lesson.findMany({ where: { moduleId: scope.moduleId, youtubeId: { not: null } }, select: { youtubeId: true } })).map((l) => l.youtubeId!)
+      : [];
+    return { success: true as const, playlistId, videos, lessons, existingYoutubeIds, hiddenPositions: playlist.hiddenPositions };
   } catch (err) {
     return { success: false as const, error: err instanceof Error ? err.message : "Não foi possível ler a playlist." };
   }
@@ -78,7 +83,9 @@ export async function linkYoutubeVideos(scope: YoutubeScope, pairs: { lessonId: 
 export async function createLessonsFromYoutube(moduleId: string, items: { youtubeId: string; title: string; duration: number | null }[], publish: boolean) {
   const session = await allowed({ kind: "module", moduleId });
   if (!session) return NOT_ALLOWED;
-  const valid = items.filter((i) => parseYoutubeId(i.youtubeId) === i.youtubeId).slice(0, 200);
+  // Pula vídeos que já estão em alguma aula do módulo (reimportar não duplica).
+  const known = new Set((await db.lesson.findMany({ where: { moduleId, youtubeId: { not: null } }, select: { youtubeId: true } })).map((l) => l.youtubeId));
+  const valid = items.filter((i) => parseYoutubeId(i.youtubeId) === i.youtubeId && !known.has(i.youtubeId) && known.add(i.youtubeId)).slice(0, 200);
   const last = await db.lesson.findFirst({ where: { moduleId }, orderBy: { order: "desc" }, select: { order: true } });
   const start = (last?.order ?? 0) + 1;
   await db.$transaction(valid.map((it, i) => db.lesson.create({
@@ -97,6 +104,36 @@ export async function createLessonsFromYoutube(moduleId: string, items: { youtub
   await logAudit({ actorId: session.user.id, action: "lesson.imported_youtube", resourceType: "module", resourceId: moduleId, metadata: { count: valid.length } });
   revalidatePath("/admin/courses");
   return { success: true as const, count: valid.length };
+}
+
+// Acompanhar uma playlist: vídeos novos nela viram aulas no fim do módulo (checagem
+// diária + botão "Sincronizar"). link = null para de acompanhar.
+export async function watchModulePlaylist(moduleId: string, link: string | null, autoPublish: boolean) {
+  const session = await allowed({ kind: "module", moduleId });
+  if (!session) return NOT_ALLOWED;
+  const playlistId = link ? parsePlaylistId(link) : null;
+  if (link && !playlistId) return { success: false as const, error: "Link de playlist não reconhecido." };
+  await db.module.update({
+    where: { id: moduleId },
+    data: { youtubePlaylistId: playlistId, youtubeAutoPublish: playlistId ? autoPublish : false, ...(playlistId ? {} : { youtubeSyncedAt: null }) },
+  });
+  await logAudit({ actorId: session.user.id, action: playlistId ? "module.youtube_playlist_watched" : "module.youtube_playlist_unwatched", resourceType: "module", resourceId: moduleId, metadata: { playlistId, autoPublish } });
+  revalidatePath("/admin/courses");
+  return { success: true as const };
+}
+
+// "Sincronizar agora": puxa os vídeos novos da playlist acompanhada.
+export async function syncYoutubePlaylist(moduleId: string) {
+  const session = await allowed({ kind: "module", moduleId });
+  if (!session) return NOT_ALLOWED;
+  try {
+    const res = await syncModulePlaylist(moduleId);
+    if (res.created > 0) await logAudit({ actorId: session.user.id, action: "module.youtube_synced", resourceType: "module", resourceId: moduleId, metadata: { created: res.created } });
+    revalidatePath("/admin/courses");
+    return { success: true as const, ...res };
+  } catch (err) {
+    return { success: false as const, error: err instanceof Error ? err.message : "Não foi possível ler a playlist." };
+  }
 }
 
 // Troca de onde o módulo toca. Para o YouTube só vão as aulas que têm vídeo lá; para a

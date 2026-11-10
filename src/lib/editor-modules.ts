@@ -39,6 +39,8 @@ export async function loadEditorModules(courseId: string, user: SessionUser, opt
     coverImage: m.coverImage,
     canEdit: isManager || m.instructorId === user.id,
     usedIn: m.courses.map((c) => c.course.product.title),
+    youtubePlaylistId: m.youtubePlaylistId,
+    youtubeAutoPublish: m.youtubeAutoPublish,
     lessons: m.lessons.map((l) => ({
       id: l.id,
       title: l.title,
