@@ -312,8 +312,24 @@ export function PlayerClient({
     </ul>
   );
 
+  // Barra própria acima do PDF: o leitor embutido do navegador nem sempre mostra a
+  // dele (no iPad/Safari aparece só a página, sem botão de baixar).
   const pdfFrame = inlinePdf && (
-    <iframe key={inlinePdf} src={inlinePdf} title={`PDF: ${current.title}`} className="h-full min-h-[60vh] w-full bg-white" />
+    <div className="flex h-full min-h-[60vh] flex-col">
+      <div className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-navy px-3 py-2 text-white">
+        <FileText className="h-4 w-4 shrink-0 text-brand" />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{files[0].title}</span>
+        <a href={inlinePdf} target="_blank" rel="noopener"
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white/10 px-3 text-[13px] font-bold hover:bg-white/15">
+          <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">Tela cheia</span>
+        </a>
+        <a href={files[0].href} download
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 text-[13px] font-bold hover:bg-brand-dark">
+          <Download className="h-4 w-4" /> Baixar PDF
+        </a>
+      </div>
+      <iframe key={inlinePdf} src={inlinePdf} title={`PDF: ${current.title}`} className="min-h-0 w-full flex-1 bg-white" />
+    </div>
   );
 
   return (

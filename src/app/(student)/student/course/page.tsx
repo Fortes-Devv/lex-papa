@@ -57,7 +57,7 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
   const linkedKind = sp.modulo ? outline.modules.find((m) => m.id === sp.modulo)?.kind : undefined;
   const tipo: Tipo = sp.tipo === "videos" || sp.tipo === "materiais" ? sp.tipo : linkedKind === "pdf" || !hasVideos ? "materiais" : "videos";
   const disciplines = groupDisciplines(outline.modules.filter((m) => (m.kind === "pdf") === (tipo === "materiais")));
-  const tabCount = (t: Tipo) => groupDisciplines(outline.modules.filter((m) => (m.kind === "pdf") === (t === "materiais"))).length;
+  const tabDisciplines = (t: Tipo) => groupDisciplines(outline.modules.filter((m) => (m.kind === "pdf") === (t === "materiais")));
   const base = `${home}&secao=aulas&tipo=${tipo}`;
   const filter: Filter = sp.filtro === "andamento" || sp.filtro === "concluidas" ? sp.filtro : "todas";
 
@@ -166,13 +166,18 @@ export default async function StudentCoursePage(props: { searchParams: Promise<{
       {/* Abas: Videoaulas · Materiais (só quando o curso tem os dois) */}
       {hasVideos && hasMaterials && !results && (
         <div className={cn("inline-flex rounded-xl bg-muted p-1", explicit && "hidden lg:inline-flex")} role="tablist" aria-label="Tipo de conteúdo">
-          {([["videos", "Videoaulas", Play], ["materiais", "Materiais", FileText]] as const).map(([t, label, Icon]) => (
-            <Link key={t} href={`${home}&secao=aulas&tipo=${t}`} role="tab" aria-selected={tipo === t} scroll={false}
-              className={cn("inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-[13.5px] font-bold transition-colors",
-                tipo === t ? "bg-card text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}>
-              <Icon className="h-4 w-4" /> {label} <span className="font-semibold text-foreground-muted">· {tabCount(t)}</span>
-            </Link>
-          ))}
+          {([["videos", "Videoaulas", Play], ["materiais", "Materiais", FileText]] as const).map(([t, label, Icon]) => {
+            // Troca de aba mantém a disciplina aberta, se ela também existe na outra aba.
+            const list = tabDisciplines(t);
+            const keep = selected && list.some((d) => d.key === selected.key) ? `&disciplina=${encodeURIComponent(selected.key)}` : "";
+            return (
+              <Link key={t} href={`${home}&secao=aulas&tipo=${t}${keep}`} role="tab" aria-selected={tipo === t} scroll={false}
+                className={cn("inline-flex h-9 items-center gap-1.5 rounded-lg px-4 text-[13.5px] font-bold transition-colors",
+                  tipo === t ? "bg-card text-foreground shadow-sm" : "text-foreground-muted hover:text-foreground")}>
+                <Icon className="h-4 w-4" /> {label} <span className="font-semibold text-foreground-muted">· {list.length}</span>
+              </Link>
+            );
+          })}
         </div>
       )}
 
