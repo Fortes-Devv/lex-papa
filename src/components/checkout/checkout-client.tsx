@@ -147,6 +147,16 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
     }
   }
 
+  // Parcelas: busca assim que os 6 primeiros dígitos existem e o SDK carregou (antes era só ao sair do
+  // campo: com o autopreenchimento do Chrome, ou o SDK ainda carregando, as parcelas nunca apareciam).
+  // Refaz quando o valor muda (cupom).
+  const cardBin = onlyDigits(card.number).slice(0, 6);
+  useEffect(() => {
+    if (method !== "card" || cardBin.length < 6 || !sdkReady) return;
+    handleBinLookup(cardBin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleBinLookup lê o estado atual a cada render
+  }, [method, cardBin, sdkReady, cardTotal]);
+
   function pollStatus(orderId: string) {
     setPendingOrderId(orderId);
     const started = Date.now();
@@ -451,7 +461,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                       <div className="sm:col-span-2">
                         <Field label="Número do cartão">
                           <input className={inputCls} placeholder="0000 0000 0000 0000" inputMode="numeric" maxLength={19} autoComplete="cc-number" value={card.number}
-                            onChange={(e) => setCard((c) => ({ ...c, number: formatCardNumber(e.target.value) }))} onBlur={() => handleBinLookup(onlyDigits(card.number))} />
+                            onChange={(e) => setCard((c) => ({ ...c, number: formatCardNumber(e.target.value) }))} />
                         </Field>
                       </div>
                       <div className="sm:col-span-2">

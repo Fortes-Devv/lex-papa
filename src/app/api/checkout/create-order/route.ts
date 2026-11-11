@@ -24,7 +24,9 @@ const common = {
   productId: z.string().min(1).max(64),
   couponCode: z.string().trim().max(64).nullish(),
   // ID do aparelho (security.js do MP). O antifraude recusa muito mais sem ele.
-  deviceId: z.string().trim().max(200).nullish(),
+  // No Chrome ele passa de 200 caracteres: o limite antigo (200) recusava TODO pagamento no cartão.
+  // Se vier estranho, é descartado (nunca bloqueia a compra).
+  deviceId: z.string().trim().max(4000).nullish().catch(undefined),
 };
 // Telefone só com dígitos, DDD + número (10 ou 11 dígitos); inválido vira undefined.
 const phone = z.string().transform((v) => v.replace(/\D/g, "")).refine((v) => v.length === 10 || v.length === 11).optional().catch(undefined);
@@ -33,7 +35,7 @@ const payloadSchema = z.discriminatedUnion("method", [
   z.object({
     ...common,
     method: z.literal("card"),
-    token: z.string().min(1).max(200),
+    token: z.string().min(1).max(1000),
     installments: z.number().int().min(1, "Parcelas inválidas.").max(12, "Máximo de 12 parcelas."),
     paymentMethodId: z.string().regex(/^[a-z_]{2,30}$/, "Bandeira inválida."), // ex: "visa", "master"
     payer: z.object({
@@ -64,7 +66,11 @@ export async function POST(request: Request) {
 
   const parsed = payloadSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Requisição inválida." }, { status: 400 });
+    // Mensagens que escrevemos vão para o aluno; as automáticas do zod (em inglês) não.
+    const msg = parsed.error.issues[0]?.message;
+    const ours = msg && !/^(String|Number|Invalid|Expected|Required)/.test(msg);
+    console.warn("[checkout] pedido recusado na validação:", parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; "));
+    return NextResponse.json({ error: ours ? msg : "Não foi possível validar os dados do pagamento. Atualize a página e tente de novo." }, { status: 400 });
   }
   const body = parsed.data;
 
