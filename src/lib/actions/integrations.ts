@@ -11,7 +11,7 @@ import { formatCurrency } from "@/lib/utils/cn";
 import { reconcilePendingOrders, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { getMpOrderClient } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
-import { EfiError, getPixWebhook, isEfiCardConfigured, isEfiPixConfigured, listPlans } from "@/lib/efi";
+import { getPixWebhook, isWebhookNotFound, isEfiCardConfigured, isEfiPixConfigured, listPlans } from "@/lib/efi";
 
 type Test = { success: true; message: string } | { success: false; error: string };
 
@@ -28,7 +28,7 @@ export async function testIntegration(id: string): Promise<Test> {
           webhook = w?.webhookUrl ? " Aviso de Pix cadastrado." : "";
         } catch (err) {
           // 404 = credenciais e certificado OK, só falta cadastrar o aviso de Pix.
-          if (!(err instanceof EfiError && err.status === 404)) throw err;
+          if (!isWebhookNotFound(err)) throw err;
           webhook = " Falta cadastrar o aviso de Pix (scripts/efi-configurar.ts --aplicar).";
         }
         await listPlans(); // API Cobranças (cartão)

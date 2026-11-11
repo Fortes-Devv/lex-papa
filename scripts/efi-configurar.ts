@@ -8,7 +8,7 @@
 //
 // ATENÇÃO: o aviso de Pix é por CHAVE. Se a chave já avisa outro site (ex.: o plataforma-de-questoes na mesma conta
 // Efí), trocar quebra os Pix de lá. Por isso o script recusa sem --forcar. Use uma chave aleatória só da LEX.
-import { EfiError, efiWebhookUrls, getPixWebhook, isEfiCardConfigured, isEfiPixConfigured, listPlans, registerPixWebhook } from "../src/lib/efi";
+import { efiWebhookUrls, isWebhookNotFound, getPixWebhook, isEfiCardConfigured, isEfiPixConfigured, listPlans, registerPixWebhook } from "../src/lib/efi";
 
 const APPLY = process.argv.includes("--aplicar");
 const FORCE = process.argv.includes("--forcar");
@@ -38,7 +38,7 @@ async function main() {
     console.log(`Aviso cadastrado hoje na chave: ${current ? hide(current) : "(nenhum)"}`);
   } catch (err) {
     // 404 = nenhum aviso cadastrado; outro erro costuma ser credencial ou certificado.
-    if (err instanceof EfiError && err.status === 404) console.log("Aviso cadastrado hoje na chave: (nenhum)");
+    if (isWebhookNotFound(err)) console.log("Aviso cadastrado hoje na chave: (nenhum)");
     else throw err;
   }
 

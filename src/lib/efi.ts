@@ -159,6 +159,10 @@ export const refundPix = (endToEndId: string, id: string, amount: number) =>
 export const registerPixWebhook = (url: string) =>
   efi<unknown>("pix", "PUT", `/v2/webhook/${encodeURIComponent(process.env.EFI_CHAVE_PIX ?? "")}`, { webhookUrl: url }, { "x-skip-mtls-checking": "true" });
 
+/** A Efí responde "nenhum aviso cadastrado" com 404 ou com 400 + nome "webhook_nao_encontrado". */
+export const isWebhookNotFound = (err: unknown) =>
+  err instanceof EfiError && (err.status === 404 || (err.body as { nome?: string } | null)?.nome === "webhook_nao_encontrado");
+
 export const getPixWebhook = () => efi<{ webhookUrl?: string }>("pix", "GET", `/v2/webhook/${encodeURIComponent(process.env.EFI_CHAVE_PIX ?? "")}`);
 
 // ---------- API Cobranças (cartão avulso) ----------
