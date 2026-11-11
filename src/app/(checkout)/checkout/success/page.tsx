@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/utils/cn";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { syncEfiOrder } from "@/lib/efi-payments";
 import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { SuccessPoller } from "@/components/checkout/success-poller";
 import { CdnImg } from "@/components/ui/cdn-img";
@@ -26,8 +27,13 @@ export default async function CheckoutSuccessPage(props: { searchParams: Promise
 
   if (!order || order.userId !== session.user.id) redirect("/");
 
-  // Se ainda não confirmou, consulta o Mercado Pago ao vivo e concilia.
-  if (order.status !== "paid" && order.mpOrderId && isMercadoPagoConfigured()) {
+  // Se ainda não confirmou, consulta a Efí (ou o Mercado Pago, pedidos antigos) ao vivo e concilia.
+  if (order.status !== "paid" && (order.efiTxid || order.efiChargeId)) {
+    try {
+      await syncEfiOrder(order);
+      order = await db.order.findUnique({ where: { id: searchParams.order_id }, include: { items: { include: { product: true } } } });
+    } catch { /* mantém status atual */ }
+  } else if (order.status !== "paid" && order.mpOrderId && isMercadoPagoConfigured()) {
     try {
       const mpOrder = await getMpOrderClient().get({ id: order.mpOrderId });
       await fulfillFromMpOrder(order.id, mpOrder);

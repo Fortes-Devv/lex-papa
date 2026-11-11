@@ -264,7 +264,7 @@ export default async function PublicCoursePage(props: { params: Promise<{ slug: 
               Pix · Cartão · Boleto · <Lock className="h-3 w-3" /> pagamento seguro
             </p>
           </div>
-          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-foreground-muted"><ShieldCheck className="h-3.5 w-3.5" /> Compra protegida pelo Mercado Pago</p>
+          <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-foreground-muted"><ShieldCheck className="h-3.5 w-3.5" /> Pagamento seguro · Pix ou cartão</p>
         </aside>
       </div>
 

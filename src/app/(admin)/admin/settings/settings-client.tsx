@@ -145,14 +145,14 @@ export function SettingsClient({ settings: initial, staff, events }: { settings:
 
       {section === "pagamentos" && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title="Taxa do Mercado Pago">
+          <Panel title="Taxa do gateway">
             <Input label="Taxa média do gateway (%)" type="number" min="0" max="100" step="0.01" value={String(fin.gatewayFeePercent)} onChange={(e) => set("finance", { gatewayFeePercent: pct(e.target.value) })} />
             <p className="text-xs text-foreground-muted">
-              Usada para estimar a taxa em <Link href="/admin/financial" className="text-brand underline">Financeiro</Link>. Confira o valor real no painel do Mercado Pago.
+              Usada para estimar a taxa em <Link href="/admin/financial" className="text-brand underline">Financeiro</Link>. Confira o valor real no painel da Efí (Pix e cartão têm tarifas diferentes).
             </p>
           </Panel>
           <Panel title="Gateway">
-            <p className="text-sm text-foreground-muted">Pix, boleto e cartão pelo Mercado Pago. As credenciais ficam nas variáveis de ambiente da Vercel.</p>
+            <p className="text-sm text-foreground-muted">Pix e cartão de crédito pela Efí. As credenciais ficam nas variáveis de ambiente da Vercel.</p>
             <Link href="/admin/integrations?categoria=pagamentos" className="text-sm font-semibold text-brand">Ver status e testar conexão →</Link>
           </Panel>
         </div>

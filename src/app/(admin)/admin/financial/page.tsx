@@ -100,7 +100,7 @@ export default async function AdminFinancialPage(props: { searchParams: Promise<
         <MetricCard label="Vendas" value={formatCurrency(d.gross)}
           hint={`${d.salesCount} venda${d.salesCount !== 1 ? "s" : ""}${courtesies ? ` · ${courtesies} cortesia${courtesies !== 1 ? "s" : ""}` : ""}${d.grossChange !== null ? ` · ${d.grossChange >= 0 ? "▲" : "▼"} ${Math.abs(d.grossChange)}% vs ${d.prevLabel}` : ""}`}
           hintTone={d.grossChange !== null && d.grossChange < 0 ? "down" : "muted"} />
-        <MetricCard label="Taxa do Mercado Pago" value={d.fees > 0 ? `− ${formatCurrency(d.fees)}` : formatCurrency(0)}
+        <MetricCard label="Taxa do gateway" value={d.fees > 0 ? `− ${formatCurrency(d.fees)}` : formatCurrency(0)}
           hint={`estimada em ${d.feePercent.toString().replace(".", ",")}% das vendas`} />
         <MetricCard label="Reembolsos" value={d.refunded > 0 ? `− ${formatCurrency(d.refunded)}` : formatCurrency(0)} valueTone={d.refunded > 0 ? "danger" : undefined}
           hint={refundCount ? `${refundCount} pedido${refundCount !== 1 ? "s" : ""} devolvido${refundCount !== 1 ? "s" : ""} ao aluno` : "nenhum dinheiro devolvido"} />

@@ -74,6 +74,38 @@ export async function fulfillFromMpOrder(ourOrderId: string, mpOrder: MpOrderLik
   return status;
 }
 
+// Atualiza o pedido a partir de um status já traduzido (Efí) e, quando pago, matricula.
+// Mesmas garantias do fulfillFromMpOrder: idempotente e seguro contra corrida.
+export async function fulfillFromGateway(
+  ourOrderId: string,
+  update: { status: OrderStatus; paymentMethod?: PaymentMethod; statusDetail?: string | null; paidAt?: Date | null },
+) {
+  const order = await db.order.findUnique({ where: { id: ourOrderId }, include: { items: true } });
+  if (!order) return;
+  if (order.status === "paid") {
+    // Pago que virou estorno/contestação na Efí: só registra (o reembolso pelo admin já cuida da matrícula).
+    if (update.status === "refunded" || update.status === "chargeback") {
+      await db.order.update({ where: { id: ourOrderId }, data: { status: update.status, mpStatusDetail: update.statusDetail ?? undefined } });
+      return update.status;
+    }
+    return "paid" as const;
+  }
+  // Reembolsado ou contestado é final: uma consulta atrasada não pode reativar o acesso.
+  if (order.status === "refunded" || order.status === "chargeback") return order.status;
+  const data = {
+    status: update.status,
+    paymentMethod: update.paymentMethod ?? order.paymentMethod ?? undefined,
+    mpStatusDetail: update.statusDetail ?? undefined,
+    paidAt: update.status === "paid" ? (update.paidAt ?? new Date()) : order.paidAt,
+  };
+  if (update.status !== "paid") {
+    await db.order.updateMany({ where: { id: ourOrderId, status: { not: "paid" } }, data });
+    return update.status;
+  }
+  await markPaidAndEnroll(order, data);
+  return update.status;
+}
+
 // Pedido de valor zero (cupom de 100%): não passa pelo Mercado Pago.
 export async function fulfillFreeOrder(ourOrderId: string) {
   const order = await db.order.findUnique({ where: { id: ourOrderId }, include: { items: true } });
@@ -133,10 +165,22 @@ async function markPaidAndEnroll(order: OrderWithItems, data: Prisma.OrderUpdate
 // e atualiza o status local (pago/expirado/cancelado). Sequencial de propósito
 // (driver Neon) e limitado, para rodar ao abrir a tela de pedidos sem custo alto.
 export async function reconcilePendingOrders(limit = 15) {
-  if (!isMercadoPagoConfigured()) return;
-
   // Só reconcilia pedidos com mais de 1 minuto (evita corrida com o polling do checkout).
   const cutoff = new Date(Date.now() - 60 * 1000);
+
+  // Efí (Pix e cartão). Import dinâmico: efi-payments importa este arquivo.
+  const efiPending = await db.order.findMany({
+    where: { status: { in: ["pending", "processing"] }, OR: [{ efiTxid: { not: null } }, { efiChargeId: { not: null } }], createdAt: { lt: cutoff } },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { efiTxid: true, efiChargeId: true },
+  });
+  if (efiPending.length > 0) {
+    const { syncEfiOrder } = await import("@/lib/efi-payments");
+    for (const o of efiPending) await syncEfiOrder(o).catch(() => null);
+  }
+
+  if (!isMercadoPagoConfigured()) return;
   const pending = await db.order.findMany({
     where: {
       status: { in: ["pending", "processing"] },

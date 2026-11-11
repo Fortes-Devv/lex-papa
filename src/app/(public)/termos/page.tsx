@@ -33,7 +33,7 @@ export default async function TermosPage() {
 
       <h2>3. Pagamentos</h2>
       <ul>
-        <li>Os pagamentos são processados pelo Mercado Pago (cartão, PIX ou boleto). A LEX não armazena dados de cartão.</li>
+        <li>Os pagamentos são processados pela Efí (Pix ou cartão de crédito). A LEX não armazena dados de cartão.</li>
         <li>O acesso é liberado após a confirmação do pagamento.</li>
       </ul>
 

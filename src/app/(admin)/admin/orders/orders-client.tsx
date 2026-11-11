@@ -131,7 +131,7 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
         <div><p className={tableHeadClass}>E-mail</p><p className="mt-0.5 text-[13px] text-foreground">{o.email}</p></div>
         <div><p className={tableHeadClass}>Cupom</p><p className="mt-0.5 text-[13px] text-foreground">{o.couponCode ? `${o.couponCode} (−${formatCurrency(o.discount)})` : "—"}</p></div>
         <div><p className={tableHeadClass}>{o.paidAt ? "Pago em" : "Criado em"}</p><p className="mt-0.5 text-[13px] text-foreground">{formatDate(o.paidAt ?? o.createdAt)}</p></div>
-        {o.mpStatusDetail && <div><p className={tableHeadClass}>Mercado Pago</p><p className="mt-0.5 text-[13px] text-foreground">{o.mpStatusDetail}</p></div>}
+        {o.mpStatusDetail && <div><p className={tableHeadClass}>Detalhe do pagamento</p><p className="mt-0.5 text-[13px] text-foreground">{o.mpStatusDetail}</p></div>}
         <div className="ml-auto flex flex-wrap gap-2">
           <button type="button" onClick={() => { navigator.clipboard.writeText(o.id); success("ID do pedido copiado."); }}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3 text-[13px] font-semibold text-foreground hover:bg-background dark:border-white/10">
@@ -145,7 +145,7 @@ export function OrdersClient({ orders }: { orders: OrderDTO[] }) {
           )}
           {o.status !== "paid" && o.status !== "refunded" && o.status !== "chargeback" && (
             <button type="button" disabled={isPending}
-              onClick={() => { if (confirm(`Liberar o acesso de ${o.userName} sem pagamento confirmado pelo Mercado Pago? O pedido fica como pago e a ação vai para o log.`)) run(() => releaseOrderAccess(o.id), "Acesso liberado."); }}
+              onClick={() => { if (confirm(`Liberar o acesso de ${o.userName} sem pagamento confirmado pelo gateway? O pedido fica como pago e a ação vai para o log.`)) run(() => releaseOrderAccess(o.id), "Acesso liberado."); }}
               className="inline-flex h-9 items-center rounded-lg bg-navy px-3 text-[13px] font-semibold text-white hover:bg-navy-deep disabled:opacity-50">
               Liberar acesso
             </button>

@@ -9,6 +9,7 @@ import { formatCurrency, cn } from "@/lib/utils/cn";
 import { applyCoupon, saveCheckoutPhone } from "@/lib/actions/checkout";
 import { CdnImg } from "@/components/ui/cdn-img";
 import { cardPrice } from "@/lib/card-fee";
+import { isValidCep, isValidCpf, isValidPhone, UFS } from "@/lib/documents";
 
 interface MpInstance {
   createCardToken: (data: Record<string, string>) => Promise<{ id: string }>;
@@ -28,10 +29,20 @@ interface CheckoutClientProps {
   payerName: string;
   payerPhone: string;
   mpPublicKey: string;
+  /** "efi" = Pix e cartão pela Efí (sem boleto); "mp" = Mercado Pago (antigo). */
+  gateway: "efi" | "mp";
+  efiAccount: string; // identificador de conta da Efí (público)
+  efiEnvironment: "production" | "sandbox";
 }
 
 type Method = "pix" | "card" | "boleto";
-type PixResult = { qrCode: string; qrCodeBase64?: string };
+type PixResult = { qrCode: string; qrCodeBase64?: string; qrCodeImage?: string };
+type Address = { cep: string; street: string; number: string; complement: string; neighborhood: string; city: string; state: string };
+const EMPTY_ADDRESS: Address = { cep: "", street: "", number: "", complement: "", neighborhood: "", city: "", state: "" };
+const formatCep = (s: string) => onlyDigits(s).slice(0, 8).replace(/^(\d{5})(\d)/, "$1-$2");
+
+/** Navegador interno de app (Instagram, WhatsApp...): o antifraude da Efí costuma falhar nele. */
+const isInAppBrowser = () => /Instagram|FBAN|FBAV|FB_IAB|FBIOS|WhatsApp|TikTok|musical_ly|BytedanceWebview|Line\/|Snapchat|Twitter/i.test(navigator.userAgent);
 type BoletoResult = { url: string; digitableLine?: string };
 
 const onlyDigits = (s: string) => s.replace(/\D/g, "");
@@ -62,7 +73,9 @@ function Field({ label, children, hint }: { label: string; children: React.React
 const inputCls = "h-11 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none placeholder:text-foreground-muted focus:border-brand focus:ring-2 focus:ring-brand/20 disabled:bg-background disabled:text-foreground-muted";
 
 // Checkout (modelo 7h): uma página — dados e pagamento à esquerda, resumo fixo à direita; Pix como padrão.
-export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpPublicKey }: CheckoutClientProps) {
+export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpPublicKey, gateway, efiAccount, efiEnvironment }: CheckoutClientProps) {
+  const efi = gateway === "efi";
+  const paymentReady = efi ? Boolean(efiAccount) : Boolean(mpPublicKey);
   const { error: toastError, success } = useToast();
   const mpRef = useRef<MpInstance | null>(null);
   const [sdkReady, setSdkReady] = useState(false);
@@ -82,6 +95,12 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   const [cpf, setCpf] = useState("");
   const [phone, setPhone] = useState(payerPhone ? formatPhone(payerPhone) : "");
   const [card, setCard] = useState({ number: "", name: payerName, month: "", year: "", cvv: "" });
+  // Efí: o titular precisa de nascimento, celular e endereço de cobrança.
+  const [birth, setBirth] = useState("");
+  const [address, setAddress] = useState<Address>(EMPTY_ADDRESS);
+  const [efiBrand, setEfiBrand] = useState<string | null>(null);
+  const [inApp, setInApp] = useState(false);
+  useEffect(() => setInApp(isInAppBrowser()), []);
 
   const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
   const [installmentOptions, setInstallmentOptions] = useState<Array<{ installments: number; label: string; totalAmount: number; hasInterest: boolean }>>([]);
@@ -108,14 +127,14 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   // security.js do MP: gera o ID do aparelho (MP_DEVICE_SESSION_ID) que o antifraude
   // usa. Sem ele, o MP recusa muito mais cartões como "alto risco".
   useEffect(() => {
-    if (document.querySelector("script[data-mp-security]")) return;
+    if (efi || document.querySelector("script[data-mp-security]")) return;
     const s = document.createElement("script");
     s.src = "https://www.mercadopago.com/v2/security.js";
     s.setAttribute("view", "checkout");
     s.setAttribute("data-mp-security", "");
     s.async = true;
     document.body.appendChild(s);
-  }, []);
+  }, [efi]);
 
   async function handleApplyCoupon() {
     if (!coupon) return;
@@ -130,6 +149,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
 
   // Com o BIN (6 primeiros dígitos), busca bandeira e parcelas reais no Mercado Pago.
   async function handleBinLookup(numberDigits: string) {
+    if (efi) return handleEfiInstallments(numberDigits);
     const bin = numberDigits.slice(0, 6);
     if (bin.length < 6 || !mpRef.current) return;
     try {
@@ -147,15 +167,53 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
     }
   }
 
-  // Parcelas: busca assim que os 6 primeiros dígitos existem e o SDK carregou (antes era só ao sair do
-  // campo: com o autopreenchimento do Chrome, ou o SDK ainda carregando, as parcelas nunca apareciam).
-  // Refaz quando o valor muda (cupom).
-  const cardBin = onlyDigits(card.number).slice(0, 6);
+  // Efí: bandeira pelo número e parcelas (com os juros que a Efí cobra do comprador, se houver).
+  async function handleEfiInstallments(numberDigits: string) {
+    if (numberDigits.length < 13 || !efiAccount) return;
+    try {
+      const EfiPay = (await import("payment-token-efi")).default;
+      const brand = await EfiPay.CreditCard.setCardNumber(numberDigits).verifyCardBrand();
+      if (!brand || brand === "undefined" || brand === "unsupported") { setEfiBrand(null); return; }
+      setEfiBrand(brand);
+      const r = await EfiPay.CreditCard.setAccount(efiAccount).setEnvironment(efiEnvironment).setBrand(brand).setTotal(Math.round(cardTotal * 100)).getInstallments();
+      if (!("installments" in r)) return;
+      setInstallmentOptions(r.installments.filter((i) => i.installment <= 12).map((i) => ({
+        installments: i.installment,
+        label: `${i.installment}x de R$ ${i.currency}${i.installment > 1 ? (i.has_interest ? " (com juros)" : " sem juros") : ""}`,
+        totalAmount: (i.value * i.installment) / 100,
+        hasInterest: i.has_interest,
+      })));
+    } catch {
+      // silencioso: o aluno ainda pode pagar à vista
+    }
+  }
+
+  // Preenche o endereço pelo CEP (ViaCEP, público). Se falhar, o aluno digita.
+  async function lookupCep(cep: string) {
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const d = (await r.json()) as { erro?: boolean; logradouro?: string; bairro?: string; localidade?: string; uf?: string };
+      if (d.erro) return;
+      setAddress((a) => ({ ...a, street: a.street || d.logradouro || "", neighborhood: a.neighborhood || d.bairro || "", city: d.localidade || a.city, state: d.uf || a.state }));
+    } catch { /* sem internet ou ViaCEP fora: segue manual */ }
+  }
+
+  // Parcelas: busca assim que o número permite e o SDK carregou (antes era só ao sair do campo: com o
+  // autopreenchimento do Chrome, ou o SDK ainda carregando, as parcelas nunca apareciam). Refaz quando o
+  // valor muda (cupom). Mercado Pago: pelos 6 primeiros dígitos. Efí: a bandeira sai do número inteiro.
+  const cardDigits = onlyDigits(card.number);
+  const cardBin = cardDigits.slice(0, 6);
+  const efiCardKey = efi && cardDigits.length >= 13 ? cardDigits : "";
   useEffect(() => {
-    if (method !== "card" || cardBin.length < 6 || !sdkReady) return;
+    if (method !== "card") return;
+    if (efi) {
+      if (efiCardKey) handleEfiInstallments(efiCardKey);
+      return;
+    }
+    if (cardBin.length < 6 || !sdkReady) return;
     handleBinLookup(cardBin);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleBinLookup lê o estado atual a cada render
-  }, [method, cardBin, sdkReady, cardTotal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- as funções leem o estado atual a cada render
+  }, [method, efi, efiCardKey, cardBin, sdkReady, cardTotal]);
 
   function pollStatus(orderId: string) {
     setPendingOrderId(orderId);
@@ -177,8 +235,16 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
     if (!accepted) return "Aceite os Termos de uso e a Política de privacidade para continuar.";
     if (isFree) return null;
     if (name.trim().split(/\s+/).length < 2) return "Informe seu nome completo.";
-    if (onlyDigits(cpf).length !== 11) return "Informe um CPF válido (11 dígitos).";
+    if (onlyDigits(cpf).length !== 11 || (efi && !isValidCpf(cpf))) return "Informe um CPF válido.";
     if (method === "card" && (!card.number || !card.name || !card.month || !card.year || !card.cvv)) return "Preencha todos os dados do cartão.";
+    if (efi && method === "card") {
+      if (card.name.trim().split(/\s+/).length < 2) return "Escreva o nome como está impresso no cartão.";
+      if (!birth) return "Informe a data de nascimento do titular.";
+      if (!isValidPhone(phone)) return "Informe o celular com DDD (a Efí exige para o cartão).";
+      if (!isValidCep(address.cep)) return "Confira o CEP.";
+      if (!address.street.trim() || !address.number.trim() || !address.neighborhood.trim() || !address.city.trim()) return "Preencha o endereço de cobrança.";
+      if (!(UFS as readonly string[]).includes(address.state)) return "Confira a UF (ex.: CE).";
+    }
     return null;
   }
 
@@ -188,6 +254,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
     setSubmitError(null);
     if (phone && onlyDigits(phone).length >= 10 && onlyDigits(phone) !== onlyDigits(payerPhone)) saveCheckoutPhone(phone).catch(() => {});
     if (isFree) return handleFreeEnroll();
+    if (efi) return method === "card" ? handlePayCardEfi() : handlePayPixEfi();
     if (method === "card") return handlePayCard();
     return handlePayPixOrBoleto(method);
   }
@@ -243,6 +310,76 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
     }
   }
 
+  // Cartão pela Efí: o cartão vira um payment_token aqui no navegador (biblioteca oficial, que também coleta a
+  // impressão do aparelho para o antifraude). O número do cartão nunca vai para o nosso servidor.
+  async function handlePayCardEfi() {
+    setLoading(true);
+    setCardFailed(false);
+    let blocked = false;
+    try {
+      const EfiPay = (await import("payment-token-efi")).default;
+      // Antifraude bloqueado (Safari, bloqueadores): tenta gerar o token mesmo assim e registra no log.
+      blocked = await EfiPay.CreditCard.isScriptBlocked().catch(() => true);
+      const number = onlyDigits(card.number);
+      const brand = efiBrand ?? (await EfiPay.CreditCard.setCardNumber(number).verifyCardBrand());
+      if (!brand || brand === "undefined" || brand === "unsupported") throw new Error("Bandeira do cartão não aceita. Tente outro cartão ou pague com Pix.");
+      const r = await EfiPay.CreditCard.setAccount(efiAccount).setEnvironment(efiEnvironment).setCreditCardData({
+        brand,
+        number,
+        cvv: card.cvv,
+        expirationMonth: card.month.padStart(2, "0"),
+        expirationYear: card.year.length === 2 ? `20${card.year}` : card.year,
+        holderName: card.name.trim(),
+        holderDocument: onlyDigits(cpf),
+        reuse: false, // compra avulsa
+      }).getPaymentToken();
+      if (!("payment_token" in r)) {
+        console.error("[efi] token do cartão:", r);
+        throw new Error(blocked
+          ? "Seu navegador bloqueou a verificação de segurança do pagamento. No iPhone, abra o site no Chrome, ou pague com Pix."
+          : "Não foi possível validar o cartão. Confira o número, a validade, o CVV e o CPF do titular.");
+      }
+      const res = await fetch("/api/checkout/efi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: product.id, couponCode, method: "card", token: r.payment_token, installments,
+          name: name.trim(), cpf: onlyDigits(cpf), birth, phone: onlyDigits(phone),
+          cep: onlyDigits(address.cep), street: address.street, number: address.number, complement: address.complement || undefined,
+          neighborhood: address.neighborhood, city: address.city, state: address.state, antifraudBlocked: blocked,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setCardFailed(true); throw new Error(data.error ?? "Pagamento não aprovado."); }
+      if (data.status === "paid") window.location.href = `/checkout/success?order_id=${data.orderId}`;
+      else pollStatus(data.orderId); // em análise: acompanha
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Erro ao processar o cartão.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePayPixEfi() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/checkout/efi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, couponCode, method: "pix", name: name.trim(), cpf: onlyDigits(cpf) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao gerar o Pix.");
+      setPixResult(data.pix);
+      pollStatus(data.orderId);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Erro ao gerar o Pix.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Cupom de 100%: não há cobrança, o servidor libera o acesso direto.
   async function handleFreeEnroll() {
     setLoading(true);
@@ -289,7 +426,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
   const methods: { id: Method; label: string; hint: string; icon: React.ReactNode; value: string }[] = [
     { id: "pix", label: "Pix", hint: "Aprovação na hora", icon: <QrCode className="h-5 w-5" />, value: formatCurrency(total) },
     { id: "card", label: "Cartão de crédito", hint: "em até 12x", icon: <CreditCard className="h-5 w-5" />, value: selectedInst && selectedInst.installments > 1 ? selectedInst.label : formatCurrency(cardTotal) },
-    { id: "boleto", label: "Boleto", hint: "libera em até 3 dias úteis", icon: <FileText className="h-5 w-5" />, value: formatCurrency(total) },
+    ...(efi ? [] : [{ id: "boleto" as const, label: "Boleto", hint: "libera em até 3 dias úteis", icon: <FileText className="h-5 w-5" />, value: formatCurrency(total) }]),
   ];
   const cta = isFree ? "Liberar meu acesso" : method === "pix" ? "Gerar Pix e liberar acesso" : method === "boleto" ? "Gerar boleto" : `Pagar ${formatCurrency(chargeAmount)}`;
   const step = pixResult || boletoResult ? 3 : 2;
@@ -335,7 +472,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
         </div>
       </dl>
 
-      {!pixResult && !boletoResult && (mpPublicKey || isFree) && (
+      {!pixResult && !boletoResult && (paymentReady || isFree) && (
         <>
           <button type="button" onClick={submit} disabled={loading}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(242,106,27,.3)] hover:bg-brand-dark disabled:opacity-70">
@@ -350,13 +487,13 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
           )}
         </>
       )}
-      <p className="text-center text-xs text-foreground-muted">Pagamento processado pelo Mercado Pago com criptografia. Não guardamos dados do seu cartão.</p>
+      <p className="text-center text-xs text-foreground-muted">Pagamento processado {efi ? "pela Efí" : "pelo Mercado Pago"} com criptografia. Não guardamos dados do seu cartão.</p>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-background">
-      <Script src="https://sdk.mercadopago.com/js/v2" onReady={() => setSdkReady(true)} />
+      {!efi && <Script src="https://sdk.mercadopago.com/js/v2" onReady={() => setSdkReady(true)} />}
 
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex h-16 max-w-[1100px] items-center gap-4 px-4 lg:px-8">
@@ -406,7 +543,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                     <Field label="Nome completo"><input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></Field>
                     <Field label="CPF"><input className={inputCls} value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} inputMode="numeric" placeholder="000.000.000-00" /></Field>
                     <Field label="E-mail" hint="O acesso e o recibo vão para este e-mail."><input className={inputCls} value={payerEmail} disabled /></Field>
-                    <Field label="WhatsApp (opcional)"><input className={inputCls} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} inputMode="tel" placeholder="(85) 99999-9999" autoComplete="tel" /></Field>
+                    <Field label={efi && method === "card" ? "Celular com DDD" : "WhatsApp (opcional)"}><input className={inputCls} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} inputMode="tel" placeholder="(85) 99999-9999" autoComplete="tel" /></Field>
                   </div>
                 )}
               </section>
@@ -417,12 +554,12 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                   <p className="font-bold text-foreground">Seu cupom cobre 100% do valor 🎉</p>
                   <p className="mt-1 text-sm text-foreground-muted">Não é preciso pagar nada. Aceite os termos e clique em “Liberar meu acesso”.</p>
                 </section>
-              ) : !mpPublicKey ? (
+              ) : !paymentReady ? (
                 <div className="flex items-start gap-3 rounded-[14px] border border-brand-border bg-brand-soft p-4 text-sm dark:bg-brand/10">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
                   <div>
                     <p className="font-semibold text-foreground">Pagamento ainda não configurado.</p>
-                    <p className="mt-1 text-xs text-foreground-muted">Defina as variáveis do Mercado Pago no ambiente.</p>
+                    <p className="mt-1 text-xs text-foreground-muted">Defina as variáveis {efi ? "da Efí" : "do Mercado Pago"} no ambiente.</p>
                   </div>
                 </div>
               ) : (
@@ -456,6 +593,11 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                       O boleto vence em 3 dias. A compensação leva até 3 dias úteis e o acesso é liberado automaticamente depois disso.
                     </p>
                   )}
+                  {method === "card" && efi && inApp && (
+                    <p className="mt-4 rounded-lg border border-brand-border bg-brand-soft p-3 text-xs text-foreground dark:bg-brand/10">
+                      <b>Você abriu o site dentro de um app.</b> Para pagar no cartão, abra no Chrome ou no Safari (toque nos três pontinhos e em “Abrir no navegador”). Ou pague com Pix, que libera na hora.
+                    </p>
+                  )}
                   {method === "card" && (
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       <div className="sm:col-span-2">
@@ -479,6 +621,23 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                           }} />
                       </Field>
                       <Field label="CVV"><input className={inputCls} placeholder="123" inputMode="numeric" maxLength={4} autoComplete="cc-csc" value={card.cvv} onChange={(e) => setCard((c) => ({ ...c, cvv: onlyDigits(e.target.value).slice(0, 4) }))} /></Field>
+                      {efi && (
+                        <>
+                          <Field label="Nascimento do titular"><input type="date" className={inputCls} value={birth} onChange={(e) => setBirth(e.target.value)} autoComplete="bday" /></Field>
+                          <Field label="CEP do endereço de cobrança">
+                            <input className={inputCls} value={address.cep} inputMode="numeric" placeholder="00000-000" autoComplete="postal-code"
+                              onChange={(e) => { const v = formatCep(e.target.value); setAddress((a) => ({ ...a, cep: v })); if (onlyDigits(v).length === 8) lookupCep(onlyDigits(v)); }} />
+                          </Field>
+                          <div className="sm:col-span-2"><Field label="Rua"><input className={inputCls} value={address.street} onChange={(e) => setAddress((a) => ({ ...a, street: e.target.value }))} autoComplete="address-line1" /></Field></div>
+                          <Field label="Número"><input className={inputCls} value={address.number} onChange={(e) => setAddress((a) => ({ ...a, number: e.target.value }))} /></Field>
+                          <Field label="Complemento (opcional)"><input className={inputCls} value={address.complement} onChange={(e) => setAddress((a) => ({ ...a, complement: e.target.value }))} autoComplete="address-line2" /></Field>
+                          <Field label="Bairro"><input className={inputCls} value={address.neighborhood} onChange={(e) => setAddress((a) => ({ ...a, neighborhood: e.target.value }))} /></Field>
+                          <div className="grid grid-cols-[3fr_1fr] gap-3">
+                            <Field label="Cidade"><input className={inputCls} value={address.city} onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} autoComplete="address-level2" /></Field>
+                            <Field label="UF"><input className={inputCls} value={address.state} maxLength={2} onChange={(e) => setAddress((a) => ({ ...a, state: e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 2) }))} autoComplete="address-level1" /></Field>
+                          </div>
+                        </>
+                      )}
                       {installmentOptions.length > 0 && (
                         <div className="sm:col-span-2">
                           <Field label="Parcelas" hint={selectedInst && selectedInst.installments > 1 ? `Total no cartão: ${formatCurrency(selectedInst.totalAmount)}${selectedInst.hasInterest ? " (com juros do cartão)" : " (sem juros)"}` : undefined}>
@@ -488,7 +647,7 @@ export function CheckoutClient({ product, payerEmail, payerName, payerPhone, mpP
                           </Field>
                         </div>
                       )}
-                      <p className="text-xs text-foreground-muted sm:col-span-2">O CPF do titular é o informado em “Seus dados”.</p>
+                      <p className="text-xs text-foreground-muted sm:col-span-2">O CPF do titular é o informado em “Seus dados”{efi ? ", e o celular também. A Efí pede nascimento e endereço do titular para a análise de segurança" : ""}.</p>
                     </div>
                   )}
                 </section>
@@ -521,7 +680,7 @@ function PixDisplay({ pix, total, onCopy }: { pix: PixResult; total: number; onC
       <h2 className="mt-1 text-[22px] font-extrabold text-foreground">Pague {formatCurrency(total)} com Pix</h2>
       <p className="mt-1 text-sm text-foreground-muted">Abra o app do seu banco, escaneie o QR Code ou use o “copia e cola”. O código vale por 30 minutos.</p>
       {/* eslint-disable-next-line @next/next/no-img-element -- QR Code em base64 gerado na hora */}
-      {pix.qrCodeBase64 && <img src={`data:image/png;base64,${pix.qrCodeBase64}`} alt="QR Code Pix" className="mx-auto mt-5 h-56 w-56 rounded-xl border border-border bg-white p-2" />}
+      {(pix.qrCodeImage || pix.qrCodeBase64) && <img src={pix.qrCodeImage ?? `data:image/png;base64,${pix.qrCodeBase64}`} alt="QR Code Pix" className="mx-auto mt-5 h-56 w-56 rounded-xl border border-border bg-white p-2" />}
       <div className="mx-auto mt-5 flex max-w-md items-center gap-2 rounded-lg border border-border bg-background px-3 py-2">
         <code className="flex-1 truncate text-left font-mono text-xs text-foreground">{pix.qrCode}</code>
       </div>

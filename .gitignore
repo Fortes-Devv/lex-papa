@@ -135,3 +135,7 @@ dist
 .yarn/install-state.gz
 .pnp.*
 scripts/backup-*.json
+
+# Certificados da Efí (nunca no git)
+*.p12
+*.pem

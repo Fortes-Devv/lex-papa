@@ -4,6 +4,7 @@ import { CreditCard, PlayCircle, Image as ImageIcon, Mail, Database, BarChart3, 
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { isEfiCardConfigured, isEfiConfigured, isEfiPixConfigured } from "@/lib/efi";
 import { isBunnyConfigured } from "@/lib/bunny";
 import { isEmailConfigured } from "@/lib/email";
 import { PageHeader, Pill, ButtonLink } from "@/components/admin/page-kit";
@@ -12,7 +13,7 @@ import { testIntegration, reprocessPendingPayments } from "@/lib/actions/integra
 import { formatRelativeDate, cn } from "@/lib/utils/cn";
 
 type Status = "ok" | "error" | "off";
-const TESTABLE = new Set(["mp", "bunny", "cloudinary", "email", "db"]);
+const TESTABLE = new Set(["efi", "mp", "bunny", "cloudinary", "email", "db"]);
 const STATUS_LABEL: Record<Status, string> = { ok: "Conectado", error: "Erro", off: "Não configurado" };
 
 // Integrações (modelo 5h): status real de cada serviço. ?status=conectadas|erro|pendentes, ?categoria=.
@@ -29,7 +30,14 @@ export default async function AdminIntegrationsPage(props: { searchParams: Promi
 
   const services: { id: string; name: string; desc: string; category: string; icon: React.ReactNode; status: Status; detail: string; href?: string }[] = [
     {
-      id: "mp", name: "Gateway de pagamento", desc: "Mercado Pago · Pix, boleto e cartão", category: "pagamentos", icon: <CreditCard className="h-4 w-4" />,
+      id: "efi", name: "Gateway de pagamento", desc: "Efí · Pix e cartão de crédito", category: "pagamentos", icon: <CreditCard className="h-4 w-4" />,
+      status: isEfiConfigured() ? "ok" : "off",
+      detail: isEfiConfigured()
+        ? (lastPaid?.paidAt ? `Última venda: ${formatRelativeDate(lastPaid.paidAt.toISOString())}` : "Nenhuma venda ainda")
+        : `Falta configurar ${[!isEfiPixConfigured() && "Pix (EFI_CLIENT_ID, EFI_CLIENT_SECRET, EFI_CERTIFICADO, EFI_CHAVE_PIX)", !isEfiCardConfigured() && "cartão (NEXT_PUBLIC_EFI_CONTA)"].filter(Boolean).join(" e ")}. Enquanto isso, o checkout usa o Mercado Pago.`,
+    },
+    {
+      id: "mp", name: "Mercado Pago (antigo)", desc: isEfiConfigured() ? "Só confere pedidos feitos antes da Efí" : "Pix, boleto e cartão", category: "pagamentos", icon: <CreditCard className="h-4 w-4" />,
       status: !isMercadoPagoConfigured() ? "off" : recentFailure ? "error" : "ok",
       detail: recentFailure ? `Último erro: webhook · ${formatRelativeDate(lastFailure!.createdAt.toISOString())}` : lastPaid?.paidAt ? `Última venda: ${formatRelativeDate(lastPaid.paidAt.toISOString())}` : "Nenhuma venda ainda",
       href: recentFailure ? "/admin/logs?nivel=erro&origem=pagamentos" : undefined,

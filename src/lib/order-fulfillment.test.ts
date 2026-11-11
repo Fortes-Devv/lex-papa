@@ -21,6 +21,9 @@ const db = vi.hoisted(() => {
         Object.assign(state.order, data);
         return { count: 1 };
       }),
+      update: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
+        if (state.order) Object.assign(state.order, data);
+      }),
     },
     enrollment: {
       findUnique: vi.fn(async ({ where }: { where: { userId_productId: { userId: string; productId: string } } }) => {
@@ -45,7 +48,7 @@ const db = vi.hoisted(() => {
 vi.mock("@/lib/db", () => ({ db }));
 vi.mock("@/lib/mercadopago", () => ({ getMpOrderClient: vi.fn(), isMercadoPagoConfigured: () => false }));
 
-import { fulfillFreeOrder, fulfillFromMpOrder, mapMpOrderStatus } from "./order-fulfillment";
+import { fulfillFreeOrder, fulfillFromGateway, fulfillFromMpOrder, mapMpOrderStatus } from "./order-fulfillment";
 
 const paidMp = { id: "mp1", status: "processed", transactions: { payments: [{ id: "pay1", payment_method: { id: "pix", type: "bank_transfer" } }] } };
 
@@ -118,5 +121,40 @@ describe("mapMpOrderStatus", () => {
     [undefined, "processing"],
   ])("%s → %s", (mp, ours) => {
     expect(mapMpOrderStatus(mp)).toBe(ours);
+  });
+});
+
+describe("fulfillFromGateway (Efí)", () => {
+  it("pago em paralelo (aviso + polling) matricula e conta UMA vez", async () => {
+    await Promise.all([fulfillFromGateway("o1", { status: "paid", paymentMethod: "pix" }), fulfillFromGateway("o1", { status: "paid", paymentMethod: "pix" })]);
+    expect(state.order?.status).toBe("paid");
+    expect(state.enrolledCount).toBe(1);
+    expect(state.couponUsed).toBe(1);
+  });
+
+  it("recusa no cartão não matricula e guarda o motivo", async () => {
+    await fulfillFromGateway("o1", { status: "failed", paymentMethod: "credit_card", statusDetail: "Efí cartão: unpaid (AF - Transação não autorizada)" });
+    expect(state.order?.status).toBe("failed");
+    expect(state.order?.mpStatusDetail).toContain("AF");
+    expect(state.enrollments.size).toBe(0);
+  });
+
+  it("status atrasado (processing) não sobrescreve um pedido já pago", async () => {
+    await fulfillFromGateway("o1", { status: "paid" });
+    await fulfillFromGateway("o1", { status: "processing" });
+    expect(state.order?.status).toBe("paid");
+  });
+
+  it("pedido reembolsado não volta a ser pago por uma consulta atrasada", async () => {
+    state.order!.status = "refunded";
+    await fulfillFromGateway("o1", { status: "paid" });
+    expect(state.order?.status).toBe("refunded");
+    expect(state.enrollments.size).toBe(0);
+  });
+
+  it("estorno feito direto na Efí marca o pedido pago como reembolsado", async () => {
+    await fulfillFromGateway("o1", { status: "paid" });
+    await fulfillFromGateway("o1", { status: "refunded" });
+    expect(state.order?.status).toBe("refunded");
   });
 });

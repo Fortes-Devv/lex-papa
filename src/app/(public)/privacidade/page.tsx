@@ -20,7 +20,7 @@ export default async function PrivacidadePage() {
       <h2>1. Dados que coletamos</h2>
       <ul>
         <li><b>Cadastro:</b> nome, e-mail e senha (guardada de forma criptografada).</li>
-        <li><b>Compra:</b> CPF, nome e e-mail do pagador, enviados ao Mercado Pago para processar o pagamento. Dados de cartão são tratados apenas pelo Mercado Pago.</li>
+        <li><b>Compra:</b> CPF, nome e e-mail do pagador, enviados à Efí para processar o pagamento; no cartão, também data de nascimento, celular e endereço de cobrança do titular, que a Efí exige para a análise de segurança. Dados de cartão são tratados apenas pela Efí.</li>
         <li><b>Uso da plataforma:</b> aulas assistidas, progresso, respostas a questões, anotações e data do último acesso.</li>
         <li><b>Técnicos:</b> endereço IP e dados do navegador, usados para segurança (por exemplo, limite de tentativas de login).</li>
       </ul>
@@ -37,7 +37,7 @@ export default async function PrivacidadePage() {
 
       <h2>3. Com quem compartilhamos</h2>
       <ul>
-        <li><b>Mercado Pago:</b> pagamentos.</li>
+        <li><b>Efí:</b> pagamentos (pedidos antigos: Mercado Pago).</li>
         <li><b>Vercel e Neon:</b> hospedagem do site e do banco de dados.</li>
         <li><b>Bunny.net e Cloudinary:</b> entrega de vídeos, imagens e materiais.</li>
         <li><b>Resend:</b> envio de e-mails.</li>

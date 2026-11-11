@@ -1,5 +1,5 @@
-// Tarifa do Mercado Pago por venda no cartão de crédito (Checkout, recebimento na hora).
-// Se a tarifa mudar no painel do MP (Taxas e parcelas › Checkout), atualize aqui.
+// Tarifa do gateway por venda no cartão de crédito (hoje a Efí; o nome ficou do Mercado Pago).
+// Só importa se CLIENT_FEE_SHARE > 0. Se a tarifa mudar no painel, atualize aqui.
 export const MP_CARD_FEE_RATE = 0.0498;
 
 // Parte da tarifa que o cliente cobre no preço do cartão. Hoje 0: o cartão custa o

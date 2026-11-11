@@ -11,6 +11,7 @@ import { formatCurrency } from "@/lib/utils/cn";
 import { reconcilePendingOrders, fulfillFromMpOrder } from "@/lib/order-fulfillment";
 import { getMpOrderClient } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
+import { EfiError, getPixWebhook, isEfiCardConfigured, isEfiPixConfigured, listPlans } from "@/lib/efi";
 
 type Test = { success: true; message: string } | { success: false; error: string };
 
@@ -19,6 +20,20 @@ export async function testIntegration(id: string): Promise<Test> {
   const session = await requireModerator();
   try {
     switch (id) {
+      case "efi": {
+        if (!isEfiPixConfigured()) return { success: false, error: "Faltam variáveis do Pix: EFI_CLIENT_ID, EFI_CLIENT_SECRET, EFI_CERTIFICADO e EFI_CHAVE_PIX." };
+        let webhook = "";
+        try {
+          const w = await getPixWebhook();
+          webhook = w?.webhookUrl ? " Aviso de Pix cadastrado." : "";
+        } catch (err) {
+          // 404 = credenciais e certificado OK, só falta cadastrar o aviso de Pix.
+          if (!(err instanceof EfiError && err.status === 404)) throw err;
+          webhook = " Falta cadastrar o aviso de Pix (scripts/efi-configurar.ts --aplicar).";
+        }
+        await listPlans(); // API Cobranças (cartão)
+        return { success: true, message: `Efí respondeu: Pix e cartão com credenciais válidas.${webhook}${isEfiCardConfigured() ? "" : " Falta NEXT_PUBLIC_EFI_CONTA para o cartão."}` };
+      }
       case "mp": {
         const token = process.env.MERCADOPAGO_ACCESS_TOKEN;
         if (!token) return { success: false, error: "MERCADOPAGO_ACCESS_TOKEN não configurado." };

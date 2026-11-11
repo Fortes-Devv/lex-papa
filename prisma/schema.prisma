@@ -533,6 +533,10 @@ model Order {
   mpPaymentId    String?        @unique // id do pagamento no Mercado Pago
   mpOrderId      String?        @unique // id da Order no Mercado Pago (API de Orders)
   mpPreferenceId String?
+  // Efí: txid do Pix (cobrança imediata) ou id da cobrança no cartão (API Cobranças).
+  efiTxid        String?        @unique
+  efiChargeId    String?        @unique
+  // Detalhe do status/recusa (Mercado Pago ou Efí), mostrado em Pedidos.
   mpStatusDetail String?
   couponCode     String?
   coupon         Coupon?        @relation(fields: [couponCode], references: [code], onDelete: SetNull)

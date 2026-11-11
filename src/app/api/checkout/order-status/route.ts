@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { fulfillFromMpOrder } from "@/lib/order-fulfillment";
+import { syncEfiOrder } from "@/lib/efi-payments";
 
 // Consulta o status do pedido. Se ainda não estiver pago e houver mpOrderId,
 // re-consulta o Mercado Pago ao vivo e atualiza o banco (funciona mesmo sem
@@ -19,7 +20,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Pedido não encontrado." }, { status: 404 });
   }
 
-  if (order.status !== "paid" && order.mpOrderId && isMercadoPagoConfigured()) {
+  if (order.status !== "paid" && (order.efiTxid || order.efiChargeId)) {
+    try {
+      await syncEfiOrder(order);
+      order = await db.order.findUnique({ where: { id: orderId } });
+    } catch {
+      // mantém o status atual em caso de falha de consulta
+    }
+  } else if (order.status !== "paid" && order.mpOrderId && isMercadoPagoConfigured()) {
     try {
       const mpOrder = await getMpOrderClient().get({ id: order.mpOrderId });
       await fulfillFromMpOrder(order.id, mpOrder);

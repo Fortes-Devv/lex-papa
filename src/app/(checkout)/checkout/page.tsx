@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CheckoutClient } from "@/components/checkout/checkout-client";
 import { isEnrollmentActive } from "@/lib/access";
+import { efiEnvironment, isEfiConfigured } from "@/lib/efi";
 
 export default async function CheckoutPage(props: { searchParams: Promise<{ productId?: string }> }) {
   const searchParams = await props.searchParams;
@@ -56,6 +57,10 @@ export default async function CheckoutPage(props: { searchParams: Promise<{ prod
       payerName={session.user.name ?? ""}
       payerPhone={payer?.phone ?? ""}
       mpPublicKey={process.env.NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY ?? ""}
+      // Efí configurada: Pix e cartão saem por ela (o Mercado Pago fica só para pedidos antigos).
+      gateway={isEfiConfigured() ? "efi" : "mp"}
+      efiAccount={process.env.NEXT_PUBLIC_EFI_CONTA ?? ""}
+      efiEnvironment={efiEnvironment()}
     />
   );
 }

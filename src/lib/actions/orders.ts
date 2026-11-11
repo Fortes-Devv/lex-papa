@@ -6,6 +6,7 @@ import { fulfillManualOrder } from "@/lib/order-fulfillment";
 import { db } from "@/lib/db";
 import { getMpOrderClient, isMercadoPagoConfigured } from "@/lib/mercadopago";
 import { logAudit } from "@/lib/audit";
+import { efiErrorText, efiPixCode, refundEfiOrder } from "@/lib/efi-payments";
 
 export async function refundOrder(orderId: string) {
   const session = await requireModerator();
@@ -14,7 +15,15 @@ export async function refundOrder(orderId: string) {
   if (!order) return { success: false as const, error: "Pedido não encontrado." };
   if (order.status !== "paid") return { success: false as const, error: "Só é possível reembolsar pedidos pagos." };
 
-  if (order.mpOrderId && isMercadoPagoConfigured()) {
+  if (order.efiTxid || order.efiChargeId) {
+    try {
+      // Estorno total na Efí (Pix: devolução para quem pagou; cartão: estorno na fatura).
+      await refundEfiOrder({ id: order.id, total: Number(order.total), efiTxid: order.efiTxid, efiChargeId: order.efiChargeId });
+    } catch (err) {
+      console.error(`[refund] falha na Efí (pedido ${order.id}):`, err);
+      return { success: false as const, error: `A Efí não aceitou o estorno: ${efiErrorText(err).slice(0, 200)}. Se precisar, estorne pelo painel da Efí e marque aqui de novo.` };
+    }
+  } else if (order.mpOrderId && isMercadoPagoConfigured()) {
     try {
       // Reembolso total da Order no Mercado Pago (sem body = total).
       await getMpOrderClient().refund({ id: order.mpOrderId });
@@ -65,9 +74,17 @@ export async function cancelOrder(orderId: string) {
 // "Copiar Pix": busca no Mercado Pago o código copia-e-cola do Pix pendente para reenviar ao aluno.
 export async function getOrderPixCode(orderId: string) {
   await requireModerator();
-  const order = await db.order.findUnique({ where: { id: orderId }, select: { mpOrderId: true, status: true } });
-  if (!order?.mpOrderId || !isMercadoPagoConfigured()) return { success: false as const, error: "Pedido sem cobrança no Mercado Pago." };
-  if (order.status !== "pending" && order.status !== "processing") return { success: false as const, error: "Este pedido não está aguardando pagamento." };
+  const order = await db.order.findUnique({ where: { id: orderId }, select: { mpOrderId: true, efiTxid: true, status: true } });
+  if (order && order.status !== "pending" && order.status !== "processing") return { success: false as const, error: "Este pedido não está aguardando pagamento." };
+  if (order?.efiTxid) {
+    try {
+      const code = await efiPixCode(order.efiTxid);
+      return code ? { success: true as const, code, kind: "pix" as const } : { success: false as const, error: "Este Pix já expirou ou foi pago." };
+    } catch {
+      return { success: false as const, error: "Não foi possível consultar a Efí." };
+    }
+  }
+  if (!order?.mpOrderId || !isMercadoPagoConfigured()) return { success: false as const, error: "Pedido sem Pix pendente." };
   try {
     const mp = await getMpOrderClient().get({ id: order.mpOrderId });
     const pm = mp.transactions?.payments?.[0]?.payment_method as { qr_code?: string; ticket_url?: string } | undefined;
